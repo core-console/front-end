@@ -25,6 +25,30 @@ For shadcn/ui work, reuse existing primitives before adding custom markup. Add r
 
 Tests use Vitest, jsdom, React Testing Library, and `user-event`. Write behavior-focused tests that query accessible roles and names. Name files `*.test.tsx` and colocate them with the component. There is no enforced coverage threshold; add tests for new behavior and regressions.
 
+## Application Foundations
+
+Read this section before implementing an application story. React Router owns URLs, page layouts, navigation, and route errors. TanStack Query is the only cache for server state; never copy Query-managed server data into a store or Context. Zod validates untrusted external data, including environment values and, when introduced, API responses, URL parameters, browser storage, and WebSocket messages. `VITE_API_BASE_URL` defaults to `/api` for a future same-origin APISIX route. The backend will provide Swagger/OpenAPI; generating an API client from it is a separate future stage. Keycloak and APISIX authentication will also be designed separately.
+
+The production QueryClient intentionally retains TanStack Query's official defaults for `staleTime`, `retry`, `refetchOnWindowFocus`, `gcTime`, and `networkMode`; this is not an omission. Before changing Query behavior:
+
+1. State the observed problem.
+2. Prefer a local override on the affected Query.
+3. Consider a global override only after multiple real features require the same behavior.
+4. Update this section whenever a global default changes.
+5. Add a short nearby comment only for a non-obvious decision likely to be misunderstood later.
+
+The following decisions are intentionally deferred, not permanently prohibited:
+
+- Evaluate Orval or another OpenAPI generator after the OpenAPI URL, tag grouping, generated directory, and authentication injection are known.
+- Design Keycloak after Router, Query, and the generated API client are stable.
+- Configure APISIX's same-origin `/api` route during deployment and authentication work.
+- Add Zustand only when real cross-route client state cannot be managed by component state, the URL, forms, or Query.
+- Add Query persistence only for an explicit offline or cross-refresh cache requirement.
+- Combine route loaders with `queryClient.ensureQueryData` when a real screen must prefetch before entry; do not create a second data cache.
+- Configure deployment so unknown frontend paths fall back to `index.html` when the SPA is deployed.
+
+Do not use temporary workarounds to cross these responsibility boundaries. New abstractions must solve current repetition or complexity, not hypothetical requirements. Keep foundations small, type-safe, testable, and easy to remove.
+
 ## Commit & Pull Request Guidelines
 
 The repository has no commit history yet, so no local convention is established. Use short, imperative subjects; Conventional Commit prefixes such as `feat:`, `fix:`, and `test:` are encouraged. Pull requests should explain the change and verification performed, link relevant issues, and include before/after screenshots for visible UI changes. Keep each PR focused and ensure `pnpm check` passes.
