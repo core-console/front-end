@@ -1,0 +1,6 @@
+apis:
+  core-console@v0:
+    root: ./openapi/openapi.yaml
+
+extends:
+  - recommended

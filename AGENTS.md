@@ -2,11 +2,13 @@
 
 ## Project Structure & Module Organization
 
-This repository is a Vite-powered React 19 and TypeScript application. Application code lives in `src/`: `main.tsx` bootstraps the app, `App.tsx` is the current root component, `components/ui/` contains checked-in shadcn/ui primitives, and `lib/` holds shared utilities such as `cn()`. Keep tests beside the code they cover using `*.test.tsx`; shared Vitest setup belongs in `src/test/`. Put unprocessed static files in `public/`. Treat `dist/` as generated output and do not commit it.
+This repository is a Vite-powered React 19 and TypeScript application. Application code lives in `src/`: `main.tsx` bootstraps the application, `app/` owns application composition such as providers, the Query client, and the router, `routes/` contains route modules and route-level UI, `components/ui/` contains checked-in shadcn/ui primitives, and `lib/` holds shared utilities such as `cn()`. Keep tests beside the code they cover using `*.test.tsx`; shared Vitest setup belongs in `src/test/`. Put unprocessed static files in `public/`. Treat `dist/` as generated output and do not commit it.
 
 ## Build, Test, and Development Commands
 
 Use the exact Node.js version declared in `.node-version` for local development and CI. Treat the `engines.node` range in `package.json` as the supported Node.js range. Use the pnpm version declared by the `packageManager` field in `package.json`.
+
+Dependency lifecycle scripts are denied by default. Approve only reviewed packages that require installation scripts, one package at a time, under `allowBuilds` in `pnpm-workspace.yaml`. Never enable all dependency build scripts as a workaround.
 
 - `pnpm install --frozen-lockfile` installs the exact locked dependency graph.
 - `pnpm dev` starts the Vite development server.
@@ -27,7 +29,9 @@ Tests use Vitest, jsdom, React Testing Library, and `user-event`. Write behavior
 
 ## Application Foundations
 
-Read this section before implementing an application story. React Router owns URLs, page layouts, navigation, and route errors. TanStack Query is the only cache for server state; never copy Query-managed server data into a store or Context. Zod validates untrusted external data, including environment values and, when introduced, API responses, URL parameters, browser storage, and WebSocket messages. `VITE_API_BASE_URL` defaults to `/api` for a future same-origin APISIX route. The backend will provide Swagger/OpenAPI; generating an API client from it is a separate future stage. Keycloak and APISIX authentication will also be designed separately.
+Read this section before implementing an application story. React Router owns URLs, page layouts, navigation, and route errors. TanStack Query is the only cache for server state; never copy Query-managed server data into a store or Context. Zod validates untrusted external data, including environment values, API responses, URL parameters, browser storage, and WebSocket messages. `VITE_API_BASE_URL` defaults to `/api` for a future same-origin APISIX route. Keycloak and APISIX authentication will be designed separately.
+
+The versioned `openapi/openapi.yaml` snapshot is the authoritative API contract, and the backend must implement it. Change the contract first, run `pnpm api:lint`, then run `pnpm api:generate` and commit the generated result. Everything under `src/api/generated/` is owned by Orval and must never be edited by hand or mixed with handwritten code. Generated Fetch clients use the validated `VITE_API_BASE_URL` at runtime; OpenAPI paths must not repeat the `/api` server prefix. Generated Zod schemas are the runtime-validation boundary; until Orval's automatic Fetch response validation is enabled and passes the repository's strict TypeScript checks, callers must parse untrusted response bodies with the generated schema before application use. Normal development, tests, and builds must remain offline and must not regenerate API code implicitly. Use `pnpm api:check` to verify the contract and generated output are synchronized.
 
 The production QueryClient intentionally retains TanStack Query's official defaults for `staleTime`, `retry`, `refetchOnWindowFocus`, `gcTime`, and `networkMode`; this is not an omission. Before changing Query behavior:
 
@@ -39,7 +43,6 @@ The production QueryClient intentionally retains TanStack Query's official defau
 
 The following decisions are intentionally deferred, not permanently prohibited:
 
-- Evaluate Orval or another OpenAPI generator after the OpenAPI URL, tag grouping, generated directory, and authentication injection are known.
 - Design Keycloak after Router, Query, and the generated API client are stable.
 - Configure APISIX's same-origin `/api` route during deployment and authentication work.
 - Add Zustand only when real cross-route client state cannot be managed by component state, the URL, forms, or Query.
@@ -51,7 +54,7 @@ Do not use temporary workarounds to cross these responsibility boundaries. New a
 
 ## Commit & Pull Request Guidelines
 
-The repository has no commit history yet, so no local convention is established. Use short, imperative subjects; Conventional Commit prefixes such as `feat:`, `fix:`, and `test:` are encouraged. Pull requests should explain the change and verification performed, link relevant issues, and include before/after screenshots for visible UI changes. Keep each PR focused and ensure `pnpm check` passes.
+Commit messages must follow the Conventional Commits rules defined by the user-level `AGENTS.md`; do not maintain a separate repository-specific message format here. Pull requests should explain the change and verification performed, link relevant issues, and include before/after screenshots for visible UI changes. Keep each PR focused and ensure `pnpm check` passes.
 
 ## Configuration & Security
 
