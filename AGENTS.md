@@ -6,7 +6,7 @@ This repository is a Vite-powered React 19 and TypeScript application. Applicati
 
 ## Build, Test, and Development Commands
 
-Use Node 24.16.x and pnpm 11.14.x, as declared by `.node-version` and `package.json`.
+Use the exact Node.js version declared in `.node-version` for local development and CI. Treat the `engines.node` range in `package.json` as the supported Node.js range. Use the pnpm version declared by the `packageManager` field in `package.json`.
 
 - `pnpm install --frozen-lockfile` installs the exact locked dependency graph.
 - `pnpm dev` starts the Vite development server.
