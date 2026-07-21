@@ -19,6 +19,22 @@ export default defineConfig({
       clean: true,
       formatter: "prettier",
       tsconfig: "./tsconfig.app.json",
+      mock: {
+        path: generatedDirectory,
+        generators: [
+          {
+            type: "msw",
+            baseUrl: "*/api",
+            useExamples: true,
+            generateEachHttpStatus: true,
+          },
+          {
+            type: "faker",
+            useExamples: true,
+            generateEachHttpStatus: true,
+          },
+        ],
+      },
       baseUrl: {
         runtime: "env.VITE_API_BASE_URL",
         imports: [{ name: "env", importPath: "../../config/env" }],
