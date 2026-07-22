@@ -23,6 +23,8 @@ coverage
 .cache
 .tmp
 tmp
+playwright-report
+test-results
 *.tmp
 *.temp
 *.tsbuildinfo

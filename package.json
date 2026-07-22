@@ -21,6 +21,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:run && pnpm build",
+    "e2e": "playwright test",
+    "e2e:install": "playwright install chromium",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -41,6 +43,7 @@
   },
   "devDependencies": {
     "@faker-js/faker": "10.5.0",
+    "@playwright/test": "1.61.1",
     "@redocly/cli": "2.39.0",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/dom": "10.4.1",

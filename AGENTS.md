@@ -16,6 +16,7 @@ Dependency lifecycle scripts are denied by default. Approve only reviewed packag
 - `pnpm lint`, `pnpm typecheck`, and `pnpm format:check` run Oxlint, TypeScript, and Prettier checks independently.
 - `pnpm build` type-checks and creates the production bundle in `dist/`.
 - `pnpm check` runs the complete validation pipeline; use it before submitting changes.
+- `pnpm e2e:install` explicitly installs Chromium; `pnpm e2e` runs the Playwright smoke suite against a production build served by Vite preview.
 
 ## Coding Style & Naming Conventions
 
@@ -26,6 +27,8 @@ For shadcn/ui work, reuse existing primitives before adding custom markup. Add r
 ## Testing Guidelines
 
 Tests use Vitest, jsdom, React Testing Library, and `user-event`. Write behavior-focused tests that query accessible roles and names. Name files `*.test.tsx` and colocate them with the component. There is no enforced coverage threshold; add tests for new behavior and regressions.
+
+Playwright tests live in `e2e/` and run independently with `pnpm e2e` against the production preview. Use accessible locators and web-first assertions; unexpected `pageerror` or `console.error` must fail the test, and never use fixed sleeps for stability.
 
 ## Application Foundations
 
