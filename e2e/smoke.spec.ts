@@ -1,4 +1,15 @@
-import { expect, test, type Page } from "@playwright/test";
+import { AxeBuilder } from "@axe-core/playwright";
+import { expect, test, type Page, type TestInfo } from "@playwright/test";
+
+const accessibilityTags = [
+  "wcag2a",
+  "wcag2aa",
+  "wcag21a",
+  "wcag21aa",
+  "wcag22aa",
+] as const;
+
+type AxeResults = Awaited<ReturnType<AxeBuilder["analyze"]>>;
 
 const collectBrowserErrors = (page: Page) => {
   const pageErrors: string[] = [];
@@ -23,7 +34,40 @@ const expectNoBrowserErrors = (
   expect(errors.consoleErrors, "unexpected console errors").toEqual([]);
 };
 
-test("opens the home page", async ({ page }) => {
+const formatAxeViolations = (violations: AxeResults["violations"]) =>
+  violations
+    .map(({ help, id, impact, nodes }) => {
+      const targets = nodes
+        .map(({ target }) => `  target: ${target.join(" > ")}`)
+        .join("\n");
+
+      return `- ${id} [${impact ?? "unknown"}]: ${help}\n${targets}`;
+    })
+    .join("\n");
+
+const expectNoAccessibilityViolations = async (
+  page: Page,
+  testInfo: TestInfo,
+) => {
+  const results = await new AxeBuilder({ page })
+    .withTags([...accessibilityTags])
+    .analyze();
+
+  if (results.violations.length === 0) {
+    return;
+  }
+
+  await testInfo.attach("axe-results", {
+    body: JSON.stringify(results, null, 2),
+    contentType: "application/json",
+  });
+  expect(
+    results.violations.length,
+    `axe accessibility violations:\n${formatAxeViolations(results.violations)}`,
+  ).toBe(0);
+};
+
+test("opens the home page", async ({ page }, testInfo) => {
   const errors = collectBrowserErrors(page);
 
   await page.goto("/");
@@ -34,10 +78,13 @@ test("opens the home page", async ({ page }) => {
   await expect(
     page.getByRole("navigation", { name: "Main navigation" }),
   ).toBeVisible();
+  await expectNoAccessibilityViolations(page, testInfo);
   expectNoBrowserErrors(errors);
 });
 
-test("renders the frontend 404 page for an unknown route", async ({ page }) => {
+test("renders the frontend 404 page for an unknown route", async ({
+  page,
+}, testInfo) => {
   const errors = collectBrowserErrors(page);
 
   await page.goto("/missing-page");
@@ -47,5 +94,6 @@ test("renders the frontend 404 page for an unknown route", async ({ page }) => {
     page.getByRole("heading", { level: 1, name: "Page not found" }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "Return home" })).toBeVisible();
+  await expectNoAccessibilityViolations(page, testInfo);
   expectNoBrowserErrors(errors);
 });

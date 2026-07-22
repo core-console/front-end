@@ -30,6 +30,8 @@ Tests use Vitest, jsdom, React Testing Library, and `user-event`. Write behavior
 
 Playwright tests live in `e2e/` and run independently with `pnpm e2e` against the production preview. Use accessible locators and web-first assertions; unexpected `pageerror` or `console.error` must fail the test, and never use fixed sleeps for stability.
 
+Playwright page smoke tests should include applicable automated axe WCAG A/AA checks. Do not hide real violations by disabling rules or excluding elements. Passing axe does not establish full WCAG conformance; keyboard interaction, focus order, and screen reader experience still require manual or interactive testing.
+
 ## Application Foundations
 
 Read this section before implementing an application story. React Router owns URLs, page layouts, navigation, and route errors. TanStack Query is the only cache for server state; never copy Query-managed server data into a store or Context. Zod validates untrusted external data, including environment values, API responses, URL parameters, browser storage, and WebSocket messages. `VITE_API_BASE_URL` defaults to `/api` for a future same-origin APISIX route. Keycloak and APISIX authentication will be designed separately.
