@@ -35,4 +35,5 @@ pnpm check
 
 OpenAPI client generation and authentication are not connected yet; both will be designed in later stages once their integration requirements are known.
 
-The project currently stays on TypeScript 6.0.3. TypeScript 7 and Oxlint type-aware linting will be evaluated together as a separate upgrade.
+The project currently stays on TypeScript 6.0.3 while tools that import the
+TypeScript programming API complete their TypeScript 7 migration.
