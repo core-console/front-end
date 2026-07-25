@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "api:lint": "redocly lint core-console@v0",
     "api:generate": "orval --config orval.config.ts --fail-on-warnings",
     "api:check-generated": "node scripts/check-api-generated.mjs",
@@ -20,7 +20,7 @@
     "typecheck": "tsc -b",
     "test": "vitest",
     "test:run": "vitest run",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:run && pnpm build",
+    "check": "pnpm api:check && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:run && pnpm build",
     "e2e": "playwright test",
     "e2e:install": "playwright install chromium",
     "preview": "vite preview"

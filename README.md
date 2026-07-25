@@ -4,7 +4,7 @@ Minimal React application baseline built with Vite, TypeScript, Tailwind CSS, an
 
 ## Requirements
 
-- Node.js 24.16.0
+- Node.js 24.18.0
 - pnpm 11.14.0
 
 ## Getting Started
@@ -19,21 +19,26 @@ pnpm dev
 
 ## Validation
 
-```sh
-pnpm format:check
-pnpm lint
-pnpm typecheck
-pnpm test:run
-pnpm build
-```
-
-Run the complete validation pipeline with:
+Run the complete pre-commit validation pipeline with:
 
 ```sh
 pnpm check
 ```
 
-OpenAPI client generation and authentication are not connected yet; both will be designed in later stages once their integration requirements are known.
+It checks the OpenAPI contract and generated client for drift, formatting,
+linting, TypeScript project references, Vitest, and the production bundle.
+Each check remains available as an independent script for focused local work.
+`pnpm build` only creates the Vite production bundle; run `pnpm typecheck`
+separately when a standalone type check is needed.
+
+The versioned OpenAPI contract drives the generated Fetch, TanStack Query, Zod,
+MSW, and Faker files under `src/api/generated/`. Change the contract first, run
+`pnpm api:lint`, then run `pnpm api:generate`; `pnpm api:check` verifies the
+checked-in output without modifying it.
+
+`pnpm e2e` builds the application and runs Chromium smoke and axe checks against
+a real Vite production preview. Authentication remains intentionally deferred
+until its integration requirements are designed.
 
 The project currently stays on TypeScript 6.0.3 while tools that import the
 TypeScript programming API complete their TypeScript 7 migration.

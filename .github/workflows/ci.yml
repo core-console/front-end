@@ -40,10 +40,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check API contract and generated client
-        run: pnpm api:check
-
-      - name: Run checks and production build
+      - name: Run complete validation
         run: pnpm check
 
   e2e:

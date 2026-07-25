@@ -14,8 +14,8 @@ Dependency lifecycle scripts are denied by default. Approve only reviewed packag
 - `pnpm dev` starts the Vite development server.
 - `pnpm test` runs Vitest in watch mode; `pnpm test:run` runs once for CI.
 - `pnpm lint`, `pnpm typecheck`, and `pnpm format:check` run Oxlint, TypeScript, and Prettier checks independently.
-- `pnpm build` type-checks and creates the production bundle in `dist/`.
-- `pnpm check` runs the complete validation pipeline; use it before submitting changes.
+- `pnpm build` creates the Vite production bundle in `dist/`; it does not run TypeScript separately.
+- `pnpm check` runs API lint and drift checks, formatting, linting, type-checking, Vitest, and the production build; use it before submitting changes.
 - `pnpm e2e:install` explicitly installs Chromium; `pnpm e2e` runs the Playwright smoke suite against a production build served by Vite preview.
 
 ## Coding Style & Naming Conventions
