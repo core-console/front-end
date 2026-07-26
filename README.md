@@ -15,7 +15,13 @@ Copy-Item .env.example .env.local
 pnpm dev
 ```
 
-`VITE_API_BASE_URL` configures the browser-facing API base URL and defaults to `/api` for a future same-origin gateway route. All `VITE_*` values are included in the browser build and must never contain secrets.
+`VITE_API_BASE_URL` configures the browser-facing API base URL and defaults to
+the same-origin `/api` path. During `pnpm dev`, Vite forwards `/api` requests
+unchanged to the local FastAPI server at `http://127.0.0.1:8000`. This
+development-only proxy target is not included in the production bundle.
+`pnpm preview` and production deployments do not use the Vite development
+proxy; production must route `/api` through APISIX. All `VITE_*` values are
+included in the browser build and must never contain secrets.
 
 ## Validation
 
