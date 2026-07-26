@@ -10,6 +10,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "api:sync": "node scripts/sync-openapi.mjs",
+    "api:update": "pnpm api:sync && pnpm api:lint && pnpm api:generate",
     "api:lint": "redocly lint core-console@v0",
     "api:generate": "orval --config orval.config.ts --fail-on-warnings",
     "api:check-generated": "node scripts/check-api-generated.mjs",

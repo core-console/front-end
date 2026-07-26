@@ -6,7 +6,7 @@ const generatedDirectory =
 export default defineConfig({
   coreConsole: {
     input: {
-      target: "./openapi/openapi.yaml",
+      target: "./openapi/openapi.json",
     },
     output: {
       target: `${generatedDirectory}/core-console.ts`,

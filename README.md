@@ -31,10 +31,14 @@ Each check remains available as an independent script for focused local work.
 `pnpm build` only creates the Vite production bundle; run `pnpm typecheck`
 separately when a standalone type check is needed.
 
-The versioned OpenAPI contract drives the generated Fetch, TanStack Query, Zod,
-MSW, and Faker files under `src/api/generated/`. Change the contract first, run
-`pnpm api:lint`, then run `pnpm api:generate`; `pnpm api:check` verifies the
-checked-in output without modifying it.
+The backend-owned OpenAPI document is checked in at `openapi/openapi.json` and
+drives the generated Fetch, TanStack Query, Zod, MSW, and Faker files under
+`src/api/generated/`. When the backend contract changes, run `pnpm api:update`
+to sync the sibling `../back-end/openapi/openapi.json` snapshot, lint it, and
+regenerate the client. Pass a different source when needed with
+`pnpm api:sync -- <path-to-openapi.json>`, then run `pnpm api:lint` and
+`pnpm api:generate`. `pnpm api:check` verifies the checked-in snapshot and
+generated output without requiring the backend repository or modifying files.
 
 `pnpm e2e` builds the application and runs Chromium smoke and axe checks against
 a real Vite production preview. Authentication remains intentionally deferred
