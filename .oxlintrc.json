@@ -4,6 +4,8 @@
   "rules": {
     "react/exhaustive-deps": "error",
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "typescript/ban-ts-comment": "error",
+    "typescript/no-explicit-any": "error"
   }
 }

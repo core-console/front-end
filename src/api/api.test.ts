@@ -29,10 +29,15 @@ describe("generated API boundary", () => {
     } catch (error: unknown) {
       expect(error).toBeInstanceOf(Error);
 
-      const apiError = error as Error & { info?: unknown; status?: number };
-      const problem = ProblemDetails.parse(apiError.info);
+      if (!(error instanceof Error)) {
+        expect.unreachable("Expected the generated client to throw an Error");
+      }
 
-      expect(apiError.status).toBe(500);
+      const problem = ProblemDetails.parse(
+        "info" in error ? error.info : undefined,
+      );
+
+      expect("status" in error ? error.status : undefined).toBe(500);
       expect(problem).toEqual(getGetHelloWorldResponseMock500());
     }
   });
