@@ -43,9 +43,10 @@ separately when a standalone type check is needed.
 
 The backend-owned OpenAPI document is checked in at `openapi/openapi.json` and
 drives the generated Fetch, TanStack Query, Zod, MSW, and Faker files under
-`src/api/generated/`. When the backend contract changes, run `pnpm api:update`
-to sync the sibling `../back-end/openapi/openapi.json` snapshot, lint it, and
-regenerate the client. Pass a different source when needed with
+`src/api/generated/`. Commit and validate backend contract changes first, then
+run `pnpm api:update` to sync the authoritative sibling
+`../back-end/openapi/openapi.json` snapshot, lint it, and regenerate the client.
+Pass a different source when needed with
 `pnpm api:sync -- <path-to-openapi.json>`, then run `pnpm api:lint` and
 `pnpm api:generate`. `pnpm api:check` verifies the checked-in snapshot and
 generated output without requiring the backend repository or modifying files.
