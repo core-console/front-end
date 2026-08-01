@@ -64,3 +64,20 @@ Commit messages must follow the Conventional Commits rules defined by the user-l
 ## Configuration & Security
 
 Do not commit secrets. Environment files are ignored; document required variables in a tracked `.env.example` or `.env.*.example` using placeholder values.
+
+## Change approval boundary
+
+- Do not commit or push unless the user explicitly approves it in the current conversation.
+- Implementation tasks stop after validation and report `READY_FOR_REVIEW`.
+- Repository instructions take precedence over conflicting workflow defaults.
+- Do not expand the approved scope while addressing review findings.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+This repository uses a single-context domain documentation layout. See `docs/agents/domain.md`.
