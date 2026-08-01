@@ -27,4 +27,12 @@ const renderApplication = () => {
   );
 };
 
-void enableApiMocking().then(renderApplication);
+const reportBootstrapError = (error: unknown) => {
+  console.error("Failed to initialize application", error);
+
+  const root = document.getElementById("root")!;
+  root.setAttribute("role", "alert");
+  root.textContent = "The application could not be started.";
+};
+
+void enableApiMocking().then(renderApplication).catch(reportBootstrapError);
