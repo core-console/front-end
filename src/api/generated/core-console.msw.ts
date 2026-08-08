@@ -5,10 +5,12 @@
  * Initial backend-owned API definition for Core Console. Operational endpoints are intentionally excluded.
  * OpenAPI spec version: 0.1.0
  */
+import { faker } from "@faker-js/faker";
+
 import { HttpResponse, http } from "msw";
 import type { RequestHandlerOptions } from "msw";
 
-import type { HelloWorldResponse, ProblemDetails } from "./schemas";
+import type { HelloWorldResponse, MeResponse, ProblemDetails } from "./schemas";
 
 export const getGetHelloWorldResponseMock = (): HelloWorldResponse => ({
   message: "Hello, world!",
@@ -24,6 +26,134 @@ export const getGetHelloWorldResponseMock500 = (): ProblemDetails => ({
   status: 500,
   title: "Internal Server Error",
   type: "about:blank",
+});
+
+export const getGetCurrentUserResponseMock = (
+  overrideResponse: Partial<Extract<MeResponse, object>> = {},
+): MeResponse => ({
+  displayName: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  email: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  id: faker.string.uuid(),
+  username: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  ...overrideResponse,
+});
+
+export const getGetCurrentUserResponseMock200 = (
+  overrideResponse: Partial<Extract<MeResponse, object>> = {},
+): MeResponse => ({
+  displayName: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  email: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  id: faker.string.uuid(),
+  username: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  ...overrideResponse,
+});
+
+export const getGetCurrentUserResponseMock403 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetCurrentUserResponseMock500 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetCurrentUserResponseMock503 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
 });
 
 export const getGetHelloWorldMockHandler = (
@@ -97,4 +227,127 @@ export const getGetHelloWorldMockHandler500 = (
     options,
   );
 };
-export const getCoreConsoleAPIMock = () => [getGetHelloWorldMockHandler()];
+
+export const getGetCurrentUserMockHandler = (
+  overrideResponse?:
+    | MeResponse
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<MeResponse> | MeResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/me",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetCurrentUserResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetCurrentUserMockHandler200 = (
+  overrideResponse?:
+    | MeResponse
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<MeResponse> | MeResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/me",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetCurrentUserResponseMock200(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetCurrentUserMockHandler403 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/me",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetCurrentUserResponseMock403(),
+        { status: 403 },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetCurrentUserMockHandler500 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/me",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetCurrentUserResponseMock500(),
+        { status: 500 },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetCurrentUserMockHandler503 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/me",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetCurrentUserResponseMock503(),
+        { status: 503 },
+      );
+    },
+    options,
+  );
+};
+export const getCoreConsoleAPIMock = () => [
+  getGetHelloWorldMockHandler(),
+  getGetCurrentUserMockHandler(),
+];

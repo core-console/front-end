@@ -20,7 +20,7 @@ import type {
 
 import { env } from "../../config/env";
 
-import type { HelloWorldResponse, ProblemDetails } from "./schemas";
+import type { HelloWorldResponse, MeResponse, ProblemDetails } from "./schemas";
 
 const withQueryKey = <T extends object, K>(
   query: T,
@@ -209,6 +209,198 @@ export function useGetHelloWorld<
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
   const queryOptions = getGetHelloWorldQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export type getCurrentUserResponse200 = {
+  data: MeResponse;
+  status: 200;
+};
+
+export type getCurrentUserResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type getCurrentUserResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type getCurrentUserResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type getCurrentUserResponseSuccess = getCurrentUserResponse200 & {
+  headers: Headers;
+};
+export type getCurrentUserResponseError = (
+  | getCurrentUserResponse403
+  | getCurrentUserResponse500
+  | getCurrentUserResponse503
+) & {
+  headers: Headers;
+};
+
+export const getGetCurrentUserUrl = () => {
+  return `${env.VITE_API_BASE_URL}/me`;
+};
+
+/**
+ * Returns the public profile of the active provisioned user.
+ * @summary Get the current user
+ */
+export const getCurrentUser = async (
+  options?: RequestInit,
+): Promise<getCurrentUserResponseSuccess> => {
+  const res = await fetch(getGetCurrentUserUrl(), {
+    ...options,
+    method: "GET",
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: getCurrentUserResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: getCurrentUserResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: getCurrentUserResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getCurrentUserResponseSuccess;
+};
+
+export const getGetCurrentUserQueryKey = () => {
+  return [`${env.VITE_API_BASE_URL}/me`] as const;
+};
+
+export const getGetCurrentUserQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCurrentUser>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>
+  >;
+  fetch?: RequestInit;
+}) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCurrentUserQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrentUser>>> = ({
+    signal,
+  }) => getCurrentUser({ ...(signal ? { signal } : {}), ...fetchOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCurrentUser>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetCurrentUserQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCurrentUser>>
+>;
+export type GetCurrentUserQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useGetCurrentUser<
+  TData = Awaited<ReturnType<typeof getCurrentUser>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCurrentUser>>,
+          TError,
+          Awaited<ReturnType<typeof getCurrentUser>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetCurrentUser<
+  TData = Awaited<ReturnType<typeof getCurrentUser>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCurrentUser>>,
+          TError,
+          Awaited<ReturnType<typeof getCurrentUser>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetCurrentUser<
+  TData = Awaited<ReturnType<typeof getCurrentUser>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Get the current user
+ */
+
+export function useGetCurrentUser<
+  TData = Awaited<ReturnType<typeof getCurrentUser>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetCurrentUserQueryOptions(options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,

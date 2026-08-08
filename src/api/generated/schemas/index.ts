@@ -7,4 +7,5 @@
  */
 
 export * from "./helloWorldResponse.zod.ts";
+export * from "./meResponse.zod.ts";
 export * from "./problemDetails.zod.ts";

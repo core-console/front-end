@@ -1,6 +1,8 @@
 import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
+import { MeResponse } from "../src/api/generated/schemas/index.ts";
+
 const accessibilityTags = [
   "wcag2a",
   "wcag2aa",
@@ -10,6 +12,19 @@ const accessibilityTags = [
 ] as const;
 
 type AxeResults = Awaited<ReturnType<AxeBuilder["analyze"]>>;
+
+const currentUser = MeResponse.parse({
+  displayName: "Core Console Operator",
+  email: "operator@example.com",
+  id: "edb4ee80-17c6-46b5-863e-2afa18e84043",
+  username: "operator",
+});
+
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/me", async (route) => {
+    await route.fulfill({ json: currentUser });
+  });
+});
 
 const collectBrowserErrors = (page: Page) => {
   const pageErrors: string[] = [];
@@ -49,6 +64,18 @@ const expectNoAccessibilityViolations = async (
   page: Page,
   testInfo: TestInfo,
 ) => {
+  await page
+    .getByRole("complementary", { name: "Core Console sidebar" })
+    .evaluate(async (sidebar) => {
+      await Promise.all(
+        sidebar
+          .getAnimations({ subtree: true })
+          .map((animation: { finished: Promise<unknown> }) =>
+            animation.finished.catch(() => undefined),
+          ),
+      );
+    });
+
   const results = await new AxeBuilder({ page })
     .withTags([...accessibilityTags])
     .analyze();

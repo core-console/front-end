@@ -2,9 +2,6 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router/dom";
 
-import { AppProviders } from "@/app/providers";
-import { reportRouterError, router } from "@/app/router";
-
 import "@/index.css";
 
 const renderStartupFailure = (root: HTMLElement, error: unknown) => {
@@ -24,6 +21,10 @@ export async function bootstrapApplication() {
       const { startBrowserMocking } = await import("@/mocks/browser");
       await startBrowserMocking();
     }
+
+    const [{ AppProviders }, { reportRouterError, router }] = await Promise.all(
+      [import("@/app/providers"), import("@/app/router")],
+    );
 
     createRoot(root).render(
       <StrictMode>

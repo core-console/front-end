@@ -5,7 +5,9 @@
  * Initial backend-owned API definition for Core Console. Operational endpoints are intentionally excluded.
  * OpenAPI spec version: 0.1.0
  */
-import type { HelloWorldResponse, ProblemDetails } from "./schemas";
+import { faker } from "@faker-js/faker";
+
+import type { HelloWorldResponse, MeResponse, ProblemDetails } from "./schemas";
 
 export const getGetHelloWorldResponseMock = (): HelloWorldResponse => ({
   message: "Hello, world!",
@@ -21,4 +23,132 @@ export const getGetHelloWorldResponseMock500 = (): ProblemDetails => ({
   status: 500,
   title: "Internal Server Error",
   type: "about:blank",
+});
+
+export const getGetCurrentUserResponseMock = (
+  overrideResponse: Partial<Extract<MeResponse, object>> = {},
+): MeResponse => ({
+  displayName: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  email: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  id: faker.string.uuid(),
+  username: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  ...overrideResponse,
+});
+
+export const getGetCurrentUserResponseMock200 = (
+  overrideResponse: Partial<Extract<MeResponse, object>> = {},
+): MeResponse => ({
+  displayName: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  email: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  id: faker.string.uuid(),
+  username: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  ...overrideResponse,
+});
+
+export const getGetCurrentUserResponseMock403 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetCurrentUserResponseMock500 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetCurrentUserResponseMock503 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    undefined,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
 });
