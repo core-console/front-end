@@ -73,10 +73,17 @@ test("opens the home page", async ({ page }, testInfo) => {
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { level: 1, name: "Application foundation" }),
+    page.getByRole("heading", { level: 1, name: "Home" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("navigation", { name: "Main navigation" }),
+    page.getByRole("complementary", { name: "Core Console sidebar" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Collapse sidebar" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Collapse sidebar" }).click();
+  await expect(
+    page.getByRole("button", { name: "Expand sidebar" }),
   ).toBeVisible();
   await expectNoAccessibilityViolations(page, testInfo);
   expectNoBrowserErrors(errors);
