@@ -1,5 +1,11 @@
 import { AxeBuilder } from "@axe-core/playwright";
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import {
+  expect,
+  test,
+  type Locator,
+  type Page,
+  type TestInfo,
+} from "@playwright/test";
 
 import {
   MeResponse,
@@ -95,19 +101,18 @@ const formatAxeViolations = (violations: AxeResults["violations"]) =>
 
 const expectNoAccessibilityViolations = async (
   page: Page,
+  surface: Locator,
   testInfo: TestInfo,
 ) => {
-  await page
-    .getByRole("complementary", { name: "Core Console sidebar" })
-    .evaluate(async (sidebar) => {
-      await Promise.all(
-        sidebar
-          .getAnimations({ subtree: true })
-          .map((animation: { finished: Promise<unknown> }) =>
-            animation.finished.catch(() => undefined),
-          ),
-      );
-    });
+  await surface.evaluate(async (element) => {
+    await Promise.all(
+      element
+        .getAnimations({ subtree: true })
+        .map((animation: { finished: Promise<unknown> }) =>
+          animation.finished.catch(() => undefined),
+        ),
+    );
+  });
 
   const results = await new AxeBuilder({ page })
     .withTags([...accessibilityTags])
@@ -129,15 +134,16 @@ const expectNoAccessibilityViolations = async (
 
 test("opens the home page", async ({ page }, testInfo) => {
   const errors = collectBrowserErrors(page);
+  const sidebar = page.getByRole("complementary", {
+    name: "Core Console sidebar",
+  });
 
   await page.goto("/");
 
   await expect(
     page.getByRole("heading", { level: 1, name: "Home" }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("complementary", { name: "Core Console sidebar" }),
-  ).toBeVisible();
+  await expect(sidebar).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Collapse sidebar" }),
   ).toBeVisible();
@@ -145,7 +151,7 @@ test("opens the home page", async ({ page }, testInfo) => {
   await expect(
     page.getByRole("button", { name: "Expand sidebar" }),
   ).toBeVisible();
-  await expectNoAccessibilityViolations(page, testInfo);
+  await expectNoAccessibilityViolations(page, sidebar, testInfo);
   expectNoBrowserErrors(errors);
 });
 
@@ -155,6 +161,9 @@ test("opens Users management in the production shell", async ({
   const errors = collectBrowserErrors(page);
   await page.route("**/api/users", async (route) => {
     await route.fulfill({ json: managedUsers });
+  });
+  const sidebar = page.getByRole("complementary", {
+    name: "Core Console sidebar",
   });
 
   await page.goto("/users");
@@ -170,13 +179,13 @@ test("opens Users management in the production shell", async ({
     "aria-current",
     "page",
   );
-  await expectNoAccessibilityViolations(page, testInfo);
+  await expectNoAccessibilityViolations(page, sidebar, testInfo);
 
   await page.getByRole("button", { name: "Add user" }).click();
   const dialog = page.getByRole("dialog", { name: "Add user" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByLabel("Identity issuer *")).toBeEditable();
-  await expectNoAccessibilityViolations(page, testInfo);
+  await expectNoAccessibilityViolations(page, dialog, testInfo);
   await dialog.press("Escape");
   await expect(dialog).not.toBeVisible();
 
@@ -187,6 +196,9 @@ test("renders the frontend 404 page for an unknown route", async ({
   page,
 }, testInfo) => {
   const errors = collectBrowserErrors(page);
+  const sidebar = page.getByRole("complementary", {
+    name: "Core Console sidebar",
+  });
 
   await page.goto("/missing-page");
 
@@ -195,6 +207,6 @@ test("renders the frontend 404 page for an unknown route", async ({
     page.getByRole("heading", { level: 1, name: "Page not found" }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "Return home" })).toBeVisible();
-  await expectNoAccessibilityViolations(page, testInfo);
+  await expectNoAccessibilityViolations(page, sidebar, testInfo);
   expectNoBrowserErrors(errors);
 });
