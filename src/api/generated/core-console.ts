@@ -5,22 +5,32 @@
  * Initial backend-owned API definition for Core Console. Operational endpoints are intentionally excluded.
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseQueryResult,
+  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
 import { env } from "../../config/env";
 
-import type { HelloWorldResponse, MeResponse, ProblemDetails } from "./schemas";
+import type {
+  CreateUserRequest,
+  HelloWorldResponse,
+  MeResponse,
+  ProblemDetails,
+  UpdateUserRequest,
+  UserResponse,
+} from "./schemas";
 
 const withQueryKey = <T extends object, K>(
   query: T,
@@ -409,3 +419,816 @@ export function useGetCurrentUser<
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+export type listUsersResponse200 = {
+  data: UserResponse[];
+  status: 200;
+};
+
+export type listUsersResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type listUsersResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type listUsersResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type listUsersResponseSuccess = listUsersResponse200 & {
+  headers: Headers;
+};
+export type listUsersResponseError = (
+  listUsersResponse403 | listUsersResponse500 | listUsersResponse503
+) & {
+  headers: Headers;
+};
+
+export const getListUsersUrl = () => {
+  return `${env.VITE_API_BASE_URL}/users`;
+};
+
+/**
+ * Returns every local user in stable creation order.
+ * @summary List users
+ */
+export const listUsers = async (
+  options?: RequestInit,
+): Promise<listUsersResponseSuccess> => {
+  const res = await fetch(getListUsersUrl(), {
+    ...options,
+    method: "GET",
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: listUsersResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: listUsersResponseError["data"] = body ? JSON.parse(body) : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: listUsersResponseSuccess["data"] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as listUsersResponseSuccess;
+};
+
+export const getListUsersQueryKey = () => {
+  return [`${env.VITE_API_BASE_URL}/users`] as const;
+};
+
+export const getListUsersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listUsers>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>
+  >;
+  fetch?: RequestInit;
+}) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListUsersQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listUsers>>> = ({
+    signal,
+  }) => listUsers({ ...(signal ? { signal } : {}), ...fetchOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listUsers>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListUsersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listUsers>>
+>;
+export type ListUsersQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useListUsers<
+  TData = Awaited<ReturnType<typeof listUsers>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listUsers>>,
+          TError,
+          Awaited<ReturnType<typeof listUsers>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListUsers<
+  TData = Awaited<ReturnType<typeof listUsers>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listUsers>>,
+          TError,
+          Awaited<ReturnType<typeof listUsers>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListUsers<
+  TData = Awaited<ReturnType<typeof listUsers>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary List users
+ */
+
+export function useListUsers<
+  TData = Awaited<ReturnType<typeof listUsers>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListUsersQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export type createUserResponse201 = {
+  data: UserResponse;
+  status: 201;
+};
+
+export type createUserResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type createUserResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type createUserResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type createUserResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type createUserResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type createUserResponseSuccess = createUserResponse201 & {
+  headers: Headers;
+};
+export type createUserResponseError = (
+  | createUserResponse403
+  | createUserResponse409
+  | createUserResponse422
+  | createUserResponse500
+  | createUserResponse503
+) & {
+  headers: Headers;
+};
+
+export const getCreateUserUrl = () => {
+  return `${env.VITE_API_BASE_URL}/users`;
+};
+
+/**
+ * Creates an active local user with an immutable external identity mapping.
+ * @summary Create a user
+ */
+export const createUser = async (
+  createUserRequest: CreateUserRequest,
+  options?: RequestInit,
+): Promise<createUserResponseSuccess> => {
+  const res = await fetch(getCreateUserUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createUserRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: createUserResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: createUserResponseError["data"] = body ? JSON.parse(body) : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: createUserResponseSuccess["data"] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as createUserResponseSuccess;
+};
+
+export const getCreateUserMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createUser>>,
+    TError,
+    { data: CreateUserRequest },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createUser>>,
+  TError,
+  { data: CreateUserRequest },
+  TContext
+> => {
+  const mutationKey = ["createUser"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createUser>>,
+    { data: CreateUserRequest }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createUser(data, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createUser>>
+>;
+export type CreateUserMutationBody = CreateUserRequest;
+export type CreateUserMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Create a user
+ */
+export const useCreateUser = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createUser>>,
+      TError,
+      { data: CreateUserRequest },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createUser>>,
+  TError,
+  { data: CreateUserRequest },
+  TContext
+> => {
+  return useMutation(getCreateUserMutationOptions(options), queryClient);
+};
+
+export type updateUserResponse200 = {
+  data: UserResponse;
+  status: 200;
+};
+
+export type updateUserResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type updateUserResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type updateUserResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type updateUserResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type updateUserResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type updateUserResponseSuccess = updateUserResponse200 & {
+  headers: Headers;
+};
+export type updateUserResponseError = (
+  | updateUserResponse403
+  | updateUserResponse404
+  | updateUserResponse422
+  | updateUserResponse500
+  | updateUserResponse503
+) & {
+  headers: Headers;
+};
+
+export const getUpdateUserUrl = (userId: string) => {
+  return `${env.VITE_API_BASE_URL}/users/${userId}`;
+};
+
+/**
+ * Partially updates mutable profile fields for one local user.
+ * @summary Update a user profile
+ */
+export const updateUser = async (
+  userId: string,
+  updateUserRequest: UpdateUserRequest,
+  options?: RequestInit,
+): Promise<updateUserResponseSuccess> => {
+  const res = await fetch(getUpdateUserUrl(userId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateUserRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: updateUserResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: updateUserResponseError["data"] = body ? JSON.parse(body) : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: updateUserResponseSuccess["data"] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as updateUserResponseSuccess;
+};
+
+export const getUpdateUserMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateUser>>,
+    TError,
+    { userId: string; data: UpdateUserRequest },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateUser>>,
+  TError,
+  { userId: string; data: UpdateUserRequest },
+  TContext
+> => {
+  const mutationKey = ["updateUser"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateUser>>,
+    { userId: string; data: UpdateUserRequest }
+  > = (props) => {
+    const { userId, data } = props ?? {};
+
+    return updateUser(userId, data, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateUser>>
+>;
+export type UpdateUserMutationBody = UpdateUserRequest;
+export type UpdateUserMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Update a user profile
+ */
+export const useUpdateUser = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateUser>>,
+      TError,
+      { userId: string; data: UpdateUserRequest },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateUser>>,
+  TError,
+  { userId: string; data: UpdateUserRequest },
+  TContext
+> => {
+  return useMutation(getUpdateUserMutationOptions(options), queryClient);
+};
+
+export type deactivateUserResponse200 = {
+  data: UserResponse;
+  status: 200;
+};
+
+export type deactivateUserResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type deactivateUserResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type deactivateUserResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type deactivateUserResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type deactivateUserResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type deactivateUserResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type deactivateUserResponseSuccess = deactivateUserResponse200 & {
+  headers: Headers;
+};
+export type deactivateUserResponseError = (
+  | deactivateUserResponse403
+  | deactivateUserResponse404
+  | deactivateUserResponse409
+  | deactivateUserResponse422
+  | deactivateUserResponse500
+  | deactivateUserResponse503
+) & {
+  headers: Headers;
+};
+
+export const getDeactivateUserUrl = (userId: string) => {
+  return `${env.VITE_API_BASE_URL}/users/${userId}/deactivate`;
+};
+
+/**
+ * Disables one local user without deleting it or changing its identity mapping.
+ * @summary Deactivate a user
+ */
+export const deactivateUser = async (
+  userId: string,
+  options?: RequestInit,
+): Promise<deactivateUserResponseSuccess> => {
+  const res = await fetch(getDeactivateUserUrl(userId), {
+    ...options,
+    method: "POST",
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: deactivateUserResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: deactivateUserResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: deactivateUserResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as deactivateUserResponseSuccess;
+};
+
+export const getDeactivateUserMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deactivateUser>>,
+    TError,
+    { userId: string },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deactivateUser>>,
+  TError,
+  { userId: string },
+  TContext
+> => {
+  const mutationKey = ["deactivateUser"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deactivateUser>>,
+    { userId: string }
+  > = (props) => {
+    const { userId } = props ?? {};
+
+    return deactivateUser(userId, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeactivateUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deactivateUser>>
+>;
+
+export type DeactivateUserMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Deactivate a user
+ */
+export const useDeactivateUser = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deactivateUser>>,
+      TError,
+      { userId: string },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deactivateUser>>,
+  TError,
+  { userId: string },
+  TContext
+> => {
+  return useMutation(getDeactivateUserMutationOptions(options), queryClient);
+};
+
+export type reactivateUserResponse200 = {
+  data: UserResponse;
+  status: 200;
+};
+
+export type reactivateUserResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type reactivateUserResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type reactivateUserResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type reactivateUserResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type reactivateUserResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type reactivateUserResponseSuccess = reactivateUserResponse200 & {
+  headers: Headers;
+};
+export type reactivateUserResponseError = (
+  | reactivateUserResponse403
+  | reactivateUserResponse404
+  | reactivateUserResponse422
+  | reactivateUserResponse500
+  | reactivateUserResponse503
+) & {
+  headers: Headers;
+};
+
+export const getReactivateUserUrl = (userId: string) => {
+  return `${env.VITE_API_BASE_URL}/users/${userId}/reactivate`;
+};
+
+/**
+ * Returns one disabled local user to active service.
+ * @summary Reactivate a user
+ */
+export const reactivateUser = async (
+  userId: string,
+  options?: RequestInit,
+): Promise<reactivateUserResponseSuccess> => {
+  const res = await fetch(getReactivateUserUrl(userId), {
+    ...options,
+    method: "POST",
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: reactivateUserResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: reactivateUserResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: reactivateUserResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as reactivateUserResponseSuccess;
+};
+
+export const getReactivateUserMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reactivateUser>>,
+    TError,
+    { userId: string },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reactivateUser>>,
+  TError,
+  { userId: string },
+  TContext
+> => {
+  const mutationKey = ["reactivateUser"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reactivateUser>>,
+    { userId: string }
+  > = (props) => {
+    const { userId } = props ?? {};
+
+    return reactivateUser(userId, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReactivateUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reactivateUser>>
+>;
+
+export type ReactivateUserMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Reactivate a user
+ */
+export const useReactivateUser = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof reactivateUser>>,
+      TError,
+      { userId: string },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof reactivateUser>>,
+  TError,
+  { userId: string },
+  TContext
+> => {
+  return useMutation(getReactivateUserMutationOptions(options), queryClient);
+};

@@ -6,6 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./createUserBody.zod.ts";
+export * from "./createUserRequest.zod.ts";
 export * from "./helloWorldResponse.zod.ts";
 export * from "./meResponse.zod.ts";
 export * from "./problemDetails.zod.ts";
+export * from "./updateUserBody.zod.ts";
+export * from "./updateUserRequest.zod.ts";
+export * from "./userResponse.zod.ts";

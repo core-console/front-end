@@ -1,5 +1,5 @@
 import { House, Settings, Users, type LucideIcon } from "lucide-react";
-import { Link, useLocation } from "react-router";
+import { Link, matchPath, useLocation } from "react-router";
 
 import {
   Tooltip,
@@ -21,7 +21,7 @@ interface NavigationItem {
 
 const navigationItems: NavigationItem[] = [
   { icon: House, label: "Home", to: "/" },
-  { icon: Users, label: "Users" },
+  { icon: Users, label: "Users", to: "/users" },
   { icon: Settings, label: "Settings" },
 ];
 
@@ -105,7 +105,10 @@ export function SidebarNavigation({ collapsed }: SidebarNavigationProps) {
     >
       {navigationItems.map((item) => (
         <NavigationItemView
-          active={item.to === "/" && location.pathname === "/"}
+          active={Boolean(
+            item.to &&
+            matchPath({ end: true, path: item.to }, location.pathname),
+          )}
           collapsed={collapsed}
           item={item}
           key={item.label}

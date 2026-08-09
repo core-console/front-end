@@ -21,6 +21,8 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-status-active: var(--status-active);
+  --color-status-inactive: var(--status-inactive);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -68,7 +70,7 @@
   --muted-foreground: #434655;
   --accent: #e7e7f3;
   --accent-foreground: #191b23;
-  --destructive: #ba1a1a;
+  --destructive: #9f2d00;
   --border: #e2e8f0;
   --input: #e2e8f0;
   --ring: #004ac6;
@@ -89,6 +91,8 @@
   --sidebar-active-collapsed: #e7e7f3;
   --account: #f3f3fe;
   --avatar: #e1e2ed;
+  --status-active: #00a86b;
+  --status-inactive: #b5bccd;
 }
 
 .dark {

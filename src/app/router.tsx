@@ -15,6 +15,10 @@ export const routes = [
         lazy: () => import("@/routes/home"),
       },
       {
+        path: "users",
+        lazy: () => import("@/routes/users"),
+      },
+      {
         path: "*",
         lazy: () => import("@/routes/not-found"),
       },

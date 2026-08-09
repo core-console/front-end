@@ -26,9 +26,10 @@ describe("application foundations", () => {
     expect(screen.getByText("Welcome to Core Console.")).toBeInTheDocument();
     expect(screen.getByText("Users")).toBeInTheDocument();
     expect(screen.getByText("Settings")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: "Users" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Users" })).toHaveAttribute(
+      "href",
+      "/users",
+    );
     expect(
       screen.queryByRole("link", { name: "Settings" }),
     ).not.toBeInTheDocument();

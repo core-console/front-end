@@ -1,7 +1,10 @@
 import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
-import { MeResponse } from "../src/api/generated/schemas/index.ts";
+import {
+  MeResponse,
+  UserResponse,
+} from "../src/api/generated/schemas/index.ts";
 
 const accessibilityTags = [
   "wcag2a",
@@ -19,6 +22,36 @@ const currentUser = MeResponse.parse({
   id: "edb4ee80-17c6-46b5-863e-2afa18e84043",
   username: "operator",
 });
+
+const managedUsers = UserResponse.array().parse([
+  {
+    displayName: "Core Console Operator",
+    email: "operator@example.com",
+    id: currentUser.id,
+    identityIssuer: "local-development",
+    identitySubject: "operator",
+    status: "active",
+    username: "operator",
+  },
+  {
+    displayName: "Alice Smith",
+    email: "alice@example.com",
+    id: "a40a626a-99f1-4e81-940b-66f9e0d45c90",
+    identityIssuer: "local-development",
+    identitySubject: "alice",
+    status: "active",
+    username: "asmith",
+  },
+  {
+    displayName: "Bob Jones",
+    email: "bob@example.com",
+    id: "b9aa59ad-aa6b-49f5-9f4c-8ed071ea3f74",
+    identityIssuer: "local-development",
+    identitySubject: "bob",
+    status: "inactive",
+    username: "bjones",
+  },
+]);
 
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/me", async (route) => {
@@ -113,6 +146,40 @@ test("opens the home page", async ({ page }, testInfo) => {
     page.getByRole("button", { name: "Expand sidebar" }),
   ).toBeVisible();
   await expectNoAccessibilityViolations(page, testInfo);
+  expectNoBrowserErrors(errors);
+});
+
+test("opens Users management in the production shell", async ({
+  page,
+}, testInfo) => {
+  const errors = collectBrowserErrors(page);
+  await page.route("**/api/users", async (route) => {
+    await route.fulfill({ json: managedUsers });
+  });
+
+  await page.goto("/users");
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Users" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("cell", { exact: true, name: "Alice Smith" }),
+  ).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Inactive" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Users" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await expectNoAccessibilityViolations(page, testInfo);
+
+  await page.getByRole("button", { name: "Add user" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add user" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel("Identity issuer *")).toBeEditable();
+  await expectNoAccessibilityViolations(page, testInfo);
+  await dialog.press("Escape");
+  await expect(dialog).not.toBeVisible();
+
   expectNoBrowserErrors(errors);
 });
 
