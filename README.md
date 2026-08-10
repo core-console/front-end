@@ -55,6 +55,9 @@ generated output without requiring the backend repository or modifying files.
 a real Vite production preview. Authentication remains intentionally deferred
 until its integration requirements are designed.
 
-The project currently stays on TypeScript 6 while tools that import the
-TypeScript programming API complete their TypeScript 7 migration. The
-machine-executable TypeScript version is declared only in `package.json`.
+The TypeScript CLI/compiler path used by type-checking and build validation is
+TypeScript 7. The package named `typescript` currently resolves to a
+TS6-compatible programming API so tools that cannot yet consume the TS7 API,
+including the current documentation and API-generation toolchain, can continue
+to run. This side-by-side arrangement remains necessary until those tools can
+use the TS7 programming API directly.

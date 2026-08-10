@@ -13,7 +13,7 @@ The Core Console desktop shell is implemented from the two approved Figma frames
 - Header height is `56px` in both states.
 - Home content uses `32px` top and horizontal padding.
 - Sidebar state is local to the current render and is not persisted.
-- Users and Settings are visual navigation items only until their routes are approved. They must not become fake links.
+- Users is an implemented route and navigation destination. Settings remains visual-only until its route is approved and must not become a fake link.
 - Mobile drawers and responsive mobile navigation are outside this shell's scope.
 
 ## Semantic visual tokens
