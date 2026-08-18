@@ -29,3 +29,13 @@ The Figma palette is mapped in `src/index.css` to semantic shadcn tokens:
 - `account` / `avatar`: the display-only account identity surface
 
 The approved typeface is Inter, loaded from `@fontsource-variable/inter` with a system sans fallback.
+
+## Visual authority
+
+Approved Core Console shell Figma frames and the existing semantic token and component system remain authoritative for global application styling.
+
+Feature-specific Figma mockups and generated prototypes are implementation references for layout, hierarchy, density, workflow composition, and interaction states. They do not independently redefine global shell styling or semantic design tokens.
+
+Feature implementation should reuse existing Core Console components and semantic tokens rather than introduce page-specific replacements for typography, global navigation, colors, borders, radii, or other shared visual primitives solely to reproduce incidental differences in generated prototype output.
+
+Inter remains the application typeface. Feature work must not replace the global font family merely to match generated prototype output.
