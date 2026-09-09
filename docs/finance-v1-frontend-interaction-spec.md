@@ -4,18 +4,22 @@ Status: approved interaction specification
 
 ## 1. Purpose and authority
 
-This document defines the Finance v1 frontend information architecture,
-interaction behavior, responsive behavior, state presentation, and workflow
-requirements. It constrains the later visual-design phase without specifying a
-pixel layout or frontend implementation architecture.
+This document owns Finance v1 frontend workflows, interaction behavior,
+user-facing state transitions, and navigation semantics. It also defines
+required responsive behavior and state presentation.
+The [Finance reference images](design/finance-v1/README.md) own visual
+direction, major desktop layout relationships, page composition, and
+information architecture as represented visually. They do not impose a
+pixel-perfect layout or frontend implementation architecture.
 
 The backend Finance foundation at commit
 `144267b51ec59300d1708f6b2046183ba9d35dc0` and the backend Finance v1 Product
 and API Specification at commit
 `42c10d7fdb03032f7ba7fd60fc8d14a5b9758791` remain authoritative for Finance
-vocabulary, product semantics, validation, and API behavior. This document
-translates those settled capabilities into frontend behavior; it does not copy
-or redefine the backend contract.
+vocabulary, product and domain semantics, business and domain rules, validation
+semantics, and API behavior. This document translates those settled
+capabilities into frontend behavior; it does not copy or redefine the backend
+contract.
 
 [DESIGN.md](../DESIGN.md) remains authoritative for the Core Console shell
 and visual language. Finance belongs to that existing product. This document
@@ -27,7 +31,7 @@ minimum-width requirement applies to the real Core Console shell with its
 default expanded sidebar, not to an isolated 1024px Finance canvas. There is no
 mobile-specific Finance product in v1.
 
-## 2. Finance information architecture
+## 2. Finance navigation and workflow structure
 
 ### 2.1 Global and local navigation
 
@@ -45,10 +49,11 @@ The global shell/header identifies the product area as `Finance`. The Finance
 content heading identifies the current local destination. The destination name
 is not duplicated into both hierarchy levels merely for visual symmetry.
 
-The exact visual form of Finance-local navigation remains open to visual
-design. It must not become four global navigation entries or a second
-application sidebar. Internal Transfer and Balance Adjustment are operations,
-not destinations.
+The exact composition of Finance-local navigation may be refined from the
+Finance reference images within the visual authority defined in `DESIGN.md`.
+It must not become four global navigation entries or a second application
+sidebar. Internal Transfer and Balance Adjustment are operations, not
+destinations.
 
 Transaction detail is a browser-addressable subview under Transactions. It is
 not an additional persistent Finance-local navigation destination.
@@ -985,10 +990,10 @@ and Calendar activity never rely only on color, sign, or icon. Accessible Money
 names retain currency even when a repeated visible code is omitted inside a
 clearly labelled currency group.
 
-## 17. Visual-design freedoms and limits
+## 17. Visual implementation freedoms and limits
 
-Within the authoritative Core Console `DESIGN.md`, the later Stitch phase may
-explore:
+Within the authority of the Finance reference images and Core Console
+`DESIGN.md`, implementation may refine:
 
 - exact Finance-local navigation composition;
 - grouping surfaces, including card-like versus flatter sections;
@@ -1004,16 +1009,17 @@ explore:
 - restrained motion; and
 - visual emphasis of Money and primary actions.
 
-Visual exploration remains subordinate to the existing global shell, product
-identity, typography, navigation language, and restrained neutral
-technical/admin-console character. It must not introduce decorative or
-marketing-oriented product treatments that conflict with the baseline.
+These refinements remain subordinate to the existing global shell, product
+identity, typography, navigation language, and neutral, restrained, data-dense
+enterprise character. PrimeVue is a character reference only; implementation
+must continue to use the existing React, shadcn, and design-token system and
+must not add PrimeVue or another UI framework.
 
-Stitch must not redefine Finance destinations, workflow boundaries, field
-order, Calendar or selected-day behavior, browser-addressable state, Ledger
-safety, currency semantics, responsive hierarchy, required states, or
-accessibility interactions. The next phase explores presentation inside the
-settled product; it is not another product-design round.
+Implementation must not redefine Finance destinations, workflow boundaries,
+field order, Calendar or selected-day behavior, browser-addressable state,
+Ledger safety, currency semantics, responsive hierarchy, required states, or
+accessibility interactions. The reference set is not authorization for another
+product-design round.
 
 ## 18. Explicit Finance v1 frontend non-goals
 
@@ -1046,8 +1052,11 @@ disabled future tabs for:
 - mobile-specific behavior below 1024px; or
 - a replacement global shell or Finance-specific application shell.
 
-The Finance backend implementation and OpenAPI artifacts do not yet exist. A
-later implementation must follow the established backend-owned OpenAPI to
-synchronized frontend snapshot to generated artifacts workflow. This planning
-specification does not authorize a handwritten Finance API client, invented
-request/response types, generated placeholders, or production mocks.
+The Finance backend implementation and backend-owned OpenAPI contract exist.
+The frontend's synchronized `openapi/openapi.json` snapshot does not yet include
+the Finance paths, so its checked-in generated artifacts do not yet expose the
+Finance client surface. Finance integration must follow the established
+backend-owned OpenAPI to synchronized frontend snapshot to generated artifacts
+workflow. This specification does not authorize a handwritten Finance API
+client, invented request/response types, generated placeholders, or production
+mocks.

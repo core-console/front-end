@@ -80,6 +80,13 @@ Do not commit secrets. Environment files are ignored; document required variable
 
 ## Agent skills
 
+### Finance v1
+
+Before any Finance planning, implementation, or review, read the
+[`docs/design/finance-v1/README.md`](docs/design/finance-v1/README.md) authority
+index. It routes frontend workflows, visual direction, and the current
+backend/OpenAPI integration status.
+
 ### Issue tracker
 
 Issues and PRDs are tracked in GitHub Issues. See `docs/agents/issue-tracker.md`.

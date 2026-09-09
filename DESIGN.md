@@ -39,3 +39,13 @@ Feature-specific Figma mockups and generated prototypes are implementation refer
 Feature implementation should reuse existing Core Console components and semantic tokens rather than introduce page-specific replacements for typography, global navigation, colors, borders, radii, or other shared visual primitives solely to reproduce incidental differences in generated prototype output.
 
 Inter remains the application typeface. Feature work must not replace the global font family merely to match generated prototype output.
+
+## Finance v1 authority
+
+Finance v1 uses a layered authority model:
+
+1. The [approved Finance interaction specification](docs/finance-v1-frontend-interaction-spec.md) owns frontend workflows, interaction behavior, user-facing state transitions, and navigation semantics.
+2. The complete [Finance reference-image set](docs/design/finance-v1/README.md) owns information architecture, page composition, major desktop layout relationships, and visual direction.
+3. This document, the existing Core Console shell, checked-in shadcn components, and semantic design tokens own the global visual and implementation constraints within which Finance is built.
+
+The Finance reference images are not pixel-perfect implementation requirements. Implementation may refine spacing, density, borders, radii, typography, responsive behavior, and component composition while preserving the interaction specification, information architecture, major desktop relationships, and visual direction. Refinements should retain a neutral, restrained, data-dense enterprise character similar to PrimeVue without introducing PrimeVue or another UI framework.

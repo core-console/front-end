@@ -61,3 +61,23 @@ TS6-compatible programming API so tools that cannot yet consume the TS7 API,
 including the current documentation and API-generation toolchain, can continue
 to run. This side-by-side arrangement remains necessary until those tools can
 use the TS7 programming API directly.
+
+## Finance v1 integration status
+
+The Finance backend implementation and its backend-owned OpenAPI contract
+exist. The authoritative backend contract currently includes the Finance v1
+operations, but this frontend repository's synchronized
+`openapi/openapi.json` snapshot has not yet been updated to include
+`/finance/...` paths. Consequently, the checked-in generated artifacts under
+`src/api/generated/` do not yet provide Finance clients, Query hooks, schemas,
+handlers, or fixtures.
+
+Future Finance integration must first synchronize the committed backend
+contract through the existing `pnpm api:update` workflow described above. It
+must not hand-edit the snapshot or generated files, or create a parallel
+handwritten Finance client or invented contract.
+
+For Finance product and design authority, start with the
+[approved interaction specification](docs/finance-v1-frontend-interaction-spec.md),
+the [visual-reference index](docs/design/finance-v1/README.md), and the
+[Finance visual authority](DESIGN.md#finance-v1-authority).
