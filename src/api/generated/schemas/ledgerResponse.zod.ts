@@ -7,11 +7,12 @@
  */
 import { z as zod } from "zod";
 
-export const HelloWorldResponse = zod
+export const LedgerResponse = zod
   .strictObject({
-    message: zod.string().min(1),
+    id: zod.uuid(),
+    name: zod.string(),
   })
-  .describe("Frontend-compatible hello world response.");
+  .describe("Closed public projection of one Finance Ledger.");
 
-export type HelloWorldResponse = zod.input<typeof HelloWorldResponse>;
-export type HelloWorldResponseOutput = zod.output<typeof HelloWorldResponse>;
+export type LedgerResponse = zod.input<typeof LedgerResponse>;
+export type LedgerResponseOutput = zod.output<typeof LedgerResponse>;

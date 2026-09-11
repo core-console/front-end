@@ -11,7 +11,7 @@ export const problemDetailsStatusMin = 100;
 export const problemDetailsStatusMax = 599;
 
 export const ProblemDetails = zod
-  .object({
+  .strictObject({
     code: zod
       .union([zod.string(), zod.null()])
       .optional()

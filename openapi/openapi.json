@@ -1,6 +1,498 @@
 {
   "components": {
     "schemas": {
+      "AccountReferenceResponse": {
+        "additionalProperties": false,
+        "description": "Current lightweight Account reference embedded in a Transaction.",
+        "properties": {
+          "id": { "format": "uuid", "title": "Id", "type": "string" },
+          "name": { "title": "Name", "type": "string" },
+          "status": {
+            "enum": ["active", "archived"],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": ["id", "name", "status"],
+        "title": "AccountReferenceResponse",
+        "type": "object"
+      },
+      "AccountResponse": {
+        "additionalProperties": false,
+        "description": "Closed public projection of one Finance Account.",
+        "properties": {
+          "currency": { "$ref": "#/components/schemas/CurrencyCode" },
+          "currentBalance": { "$ref": "#/components/schemas/MoneyResponse" },
+          "id": { "format": "uuid", "title": "Id", "type": "string" },
+          "name": { "title": "Name", "type": "string" },
+          "nature": {
+            "enum": ["asset", "liability"],
+            "title": "Nature",
+            "type": "string"
+          },
+          "openingBalance": { "$ref": "#/components/schemas/MoneyResponse" },
+          "status": {
+            "enum": ["active", "archived"],
+            "title": "Status",
+            "type": "string"
+          },
+          "trackingStartDate": {
+            "format": "date",
+            "title": "Trackingstartdate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "nature",
+          "currency",
+          "openingBalance",
+          "trackingStartDate",
+          "currentBalance",
+          "status"
+        ],
+        "title": "AccountResponse",
+        "type": "object"
+      },
+      "ActiveUncategorized": { "const": true, "type": "boolean" },
+      "BalanceAdjustmentContextResponse": {
+        "additionalProperties": false,
+        "description": "Authoritative inputs for one stale-safe target-balance command.",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/AccountReferenceResponse"
+          },
+          "accountNature": {
+            "enum": ["asset", "liability"],
+            "title": "Accountnature",
+            "type": "string"
+          },
+          "derivedComparisonBalance": {
+            "$ref": "#/components/schemas/MoneyResponse"
+          },
+          "transactionDate": {
+            "format": "date",
+            "title": "Transactiondate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account",
+          "transactionDate",
+          "derivedComparisonBalance",
+          "accountNature"
+        ],
+        "title": "BalanceAdjustmentContextResponse",
+        "type": "object"
+      },
+      "BalanceAdjustmentCreatedResultResponse": {
+        "additionalProperties": false,
+        "description": "A command result containing the newly created Adjustment.",
+        "properties": {
+          "outcome": {
+            "const": "created",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/BalanceAdjustmentTransactionResponse"
+          }
+        },
+        "required": ["outcome", "transaction"],
+        "title": "BalanceAdjustmentCreatedResultResponse",
+        "type": "object"
+      },
+      "BalanceAdjustmentNoChangeResultResponse": {
+        "additionalProperties": false,
+        "description": "A write-free command result with no durable Transaction.",
+        "properties": {
+          "outcome": {
+            "const": "noChange",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "transaction": { "title": "Transaction", "type": "null" }
+        },
+        "required": ["outcome", "transaction"],
+        "title": "BalanceAdjustmentNoChangeResultResponse",
+        "type": "object"
+      },
+      "BalanceAdjustmentRemovedResultResponse": {
+        "additionalProperties": false,
+        "description": "A zero-delta replacement result after removing the old Adjustment.",
+        "properties": {
+          "outcome": {
+            "const": "removed",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "transaction": { "title": "Transaction", "type": "null" }
+        },
+        "required": ["outcome", "transaction"],
+        "title": "BalanceAdjustmentRemovedResultResponse",
+        "type": "object"
+      },
+      "BalanceAdjustmentResultResponse": {
+        "description": "Exact outcome-discriminated Balance Adjustment command result.",
+        "discriminator": {
+          "mapping": {
+            "created": "#/components/schemas/BalanceAdjustmentCreatedResultResponse",
+            "noChange": "#/components/schemas/BalanceAdjustmentNoChangeResultResponse"
+          },
+          "propertyName": "outcome"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/BalanceAdjustmentCreatedResultResponse"
+          },
+          {
+            "$ref": "#/components/schemas/BalanceAdjustmentNoChangeResultResponse"
+          }
+        ],
+        "title": "BalanceAdjustmentResultResponse"
+      },
+      "BalanceAdjustmentTransactionResponse": {
+        "additionalProperties": false,
+        "description": "Closed public Balance Adjustment correction projection.",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/AccountReferenceResponse"
+          },
+          "correctionDelta": { "$ref": "#/components/schemas/MoneyResponse" },
+          "id": { "format": "uuid", "title": "Id", "type": "string" },
+          "kind": {
+            "const": "balanceAdjustment",
+            "title": "Kind",
+            "type": "string"
+          },
+          "ledgerId": {
+            "format": "uuid",
+            "title": "Ledgerid",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              { "maxLength": 500, "type": "string" },
+              { "type": "null" }
+            ],
+            "title": "Note"
+          },
+          "transactionDate": {
+            "format": "date",
+            "title": "Transactiondate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ledgerId",
+          "kind",
+          "transactionDate",
+          "note",
+          "account",
+          "correctionDelta"
+        ],
+        "title": "BalanceAdjustmentTransactionResponse",
+        "type": "object"
+      },
+      "BalanceAdjustmentUpdatedResultResponse": {
+        "additionalProperties": false,
+        "description": "A replacement result containing the updated Adjustment.",
+        "properties": {
+          "outcome": {
+            "const": "updated",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/BalanceAdjustmentTransactionResponse"
+          }
+        },
+        "required": ["outcome", "transaction"],
+        "title": "BalanceAdjustmentUpdatedResultResponse",
+        "type": "object"
+      },
+      "CategoryAllocationRequest": {
+        "additionalProperties": false,
+        "description": "One complete v1 allocation, optionally Uncategorized.",
+        "properties": {
+          "amount": { "$ref": "#/components/schemas/MoneyRequest" },
+          "categoryId": {
+            "anyOf": [
+              { "format": "uuid", "type": "string" },
+              { "type": "null" }
+            ],
+            "title": "Categoryid"
+          }
+        },
+        "required": ["amount"],
+        "title": "CategoryAllocationRequest",
+        "type": "object"
+      },
+      "CategoryAllocationResponse": {
+        "additionalProperties": false,
+        "description": "One exact classified or Uncategorized Economic Amount portion.",
+        "properties": {
+          "amount": { "$ref": "#/components/schemas/MoneyResponse" },
+          "category": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/CategoryReferenceResponse" },
+              { "type": "null" }
+            ]
+          }
+        },
+        "required": ["amount", "category"],
+        "title": "CategoryAllocationResponse",
+        "type": "object"
+      },
+      "CategoryReferenceResponse": {
+        "additionalProperties": false,
+        "description": "Current lightweight Category reference embedded in an Allocation.",
+        "properties": {
+          "id": { "format": "uuid", "title": "Id", "type": "string" },
+          "name": { "title": "Name", "type": "string" },
+          "status": {
+            "enum": ["active", "archived"],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": ["id", "name", "status"],
+        "title": "CategoryReferenceResponse",
+        "type": "object"
+      },
+      "CategoryResponse": {
+        "additionalProperties": false,
+        "description": "Closed public projection of one neutral Finance Category.",
+        "properties": {
+          "id": { "format": "uuid", "title": "Id", "type": "string" },
+          "name": { "title": "Name", "type": "string" },
+          "status": {
+            "enum": ["active", "archived"],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": ["id", "name", "status"],
+        "title": "CategoryResponse",
+        "type": "object"
+      },
+      "CorrectAccountSemanticsRequest": {
+        "additionalProperties": false,
+        "anyOf": [{ "required": ["nature"] }, { "required": ["currency"] }],
+        "description": "Restricted Nature and Currency correction fields.",
+        "properties": {
+          "currency": { "$ref": "#/components/schemas/CurrencyCode" },
+          "nature": {
+            "enum": ["asset", "liability"],
+            "title": "Nature",
+            "type": "string"
+          }
+        },
+        "title": "CorrectAccountSemanticsRequest",
+        "type": "object"
+      },
+      "CreateAccountRequest": {
+        "additionalProperties": false,
+        "description": "Explicit creation state for one Finance Account.",
+        "properties": {
+          "currency": { "$ref": "#/components/schemas/CurrencyCode" },
+          "name": { "maxLength": 100, "title": "Name", "type": "string" },
+          "nature": {
+            "enum": ["asset", "liability"],
+            "title": "Nature",
+            "type": "string"
+          },
+          "openingBalance": { "$ref": "#/components/schemas/MoneyRequest" },
+          "trackingStartDate": {
+            "$ref": "#/components/schemas/FinanceRequestDate"
+          }
+        },
+        "required": [
+          "name",
+          "nature",
+          "currency",
+          "openingBalance",
+          "trackingStartDate"
+        ],
+        "title": "CreateAccountRequest",
+        "type": "object"
+      },
+      "CreateBalanceAdjustmentRequest": {
+        "additionalProperties": false,
+        "description": "Stale-safe target-balance command for one active Account.",
+        "properties": {
+          "accountId": {
+            "format": "uuid",
+            "title": "Accountid",
+            "type": "string"
+          },
+          "expectedAccountNature": {
+            "enum": ["asset", "liability"],
+            "title": "Expectedaccountnature",
+            "type": "string"
+          },
+          "expectedDerivedBalance": {
+            "$ref": "#/components/schemas/MoneyRequest"
+          },
+          "note": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "maxLength": 500,
+            "title": "Note"
+          },
+          "targetBalance": { "$ref": "#/components/schemas/MoneyRequest" },
+          "transactionDate": {
+            "$ref": "#/components/schemas/FinanceRequestDate"
+          }
+        },
+        "required": [
+          "accountId",
+          "transactionDate",
+          "expectedDerivedBalance",
+          "expectedAccountNature",
+          "targetBalance"
+        ],
+        "title": "CreateBalanceAdjustmentRequest",
+        "type": "object"
+      },
+      "CreateCategoryRequest": {
+        "additionalProperties": false,
+        "description": "Explicit creation state for one Finance Category.",
+        "properties": {
+          "name": { "maxLength": 100, "title": "Name", "type": "string" }
+        },
+        "required": ["name"],
+        "title": "CreateCategoryRequest",
+        "type": "object"
+      },
+      "CreateExpenseTransactionRequest": {
+        "additionalProperties": false,
+        "description": "Record value spent outside the Finance Ledger.",
+        "properties": {
+          "accountId": {
+            "format": "uuid",
+            "title": "Accountid",
+            "type": "string"
+          },
+          "categoryAllocations": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryAllocationRequest"
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "title": "Categoryallocations",
+            "type": "array"
+          },
+          "economicAmount": { "$ref": "#/components/schemas/MoneyRequest" },
+          "kind": { "const": "expense", "title": "Kind", "type": "string" },
+          "note": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "maxLength": 500,
+            "title": "Note"
+          },
+          "transactionDate": {
+            "$ref": "#/components/schemas/FinanceRequestDate"
+          }
+        },
+        "required": [
+          "accountId",
+          "transactionDate",
+          "economicAmount",
+          "categoryAllocations",
+          "kind"
+        ],
+        "title": "CreateExpenseTransactionRequest",
+        "type": "object"
+      },
+      "CreateIncomeTransactionRequest": {
+        "additionalProperties": false,
+        "description": "Record value received from outside the Finance Ledger.",
+        "properties": {
+          "accountId": {
+            "format": "uuid",
+            "title": "Accountid",
+            "type": "string"
+          },
+          "categoryAllocations": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryAllocationRequest"
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "title": "Categoryallocations",
+            "type": "array"
+          },
+          "economicAmount": { "$ref": "#/components/schemas/MoneyRequest" },
+          "kind": { "const": "income", "title": "Kind", "type": "string" },
+          "note": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "maxLength": 500,
+            "title": "Note"
+          },
+          "transactionDate": {
+            "$ref": "#/components/schemas/FinanceRequestDate"
+          }
+        },
+        "required": [
+          "accountId",
+          "transactionDate",
+          "economicAmount",
+          "categoryAllocations",
+          "kind"
+        ],
+        "title": "CreateIncomeTransactionRequest",
+        "type": "object"
+      },
+      "CreateInternalTransferTransactionRequest": {
+        "additionalProperties": false,
+        "description": "Record one atomic same-currency Transfer between two Accounts.",
+        "properties": {
+          "amount": { "$ref": "#/components/schemas/MoneyRequest" },
+          "destinationAccountId": {
+            "format": "uuid",
+            "title": "Destinationaccountid",
+            "type": "string"
+          },
+          "kind": {
+            "const": "internalTransfer",
+            "title": "Kind",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "maxLength": 500,
+            "title": "Note"
+          },
+          "sourceAccountId": {
+            "format": "uuid",
+            "title": "Sourceaccountid",
+            "type": "string"
+          },
+          "transactionDate": {
+            "$ref": "#/components/schemas/FinanceRequestDate"
+          }
+        },
+        "required": [
+          "kind",
+          "sourceAccountId",
+          "destinationAccountId",
+          "amount",
+          "transactionDate"
+        ],
+        "title": "CreateInternalTransferTransactionRequest",
+        "type": "object"
+      },
+      "CreateLedgerRequest": {
+        "additionalProperties": false,
+        "description": "Explicit first or additional Ledger creation.",
+        "properties": {
+          "name": { "maxLength": 100, "title": "Name", "type": "string" }
+        },
+        "required": ["name"],
+        "title": "CreateLedgerRequest",
+        "type": "object"
+      },
       "CreateUserRequest": {
         "additionalProperties": false,
         "description": "Administrator-supplied profile and immutable external identity.",
@@ -30,6 +522,205 @@
         "title": "CreateUserRequest",
         "type": "object"
       },
+      "CurrencyCode": { "enum": ["CNY", "JPY", "USD"], "type": "string" },
+      "CurrencyResponse": {
+        "additionalProperties": false,
+        "description": "One backend-supported currency and its decimal scale.",
+        "properties": {
+          "code": { "$ref": "#/components/schemas/CurrencyCode" },
+          "minorUnit": { "minimum": 0, "title": "Minorunit", "type": "integer" }
+        },
+        "required": ["code", "minorUnit"],
+        "title": "CurrencyResponse",
+        "type": "object"
+      },
+      "DayActivityByCurrencyResponse": {
+        "additionalProperties": false,
+        "description": "One Currency's aggregate activity on a calendar date.",
+        "properties": {
+          "currency": { "$ref": "#/components/schemas/CurrencyCode" },
+          "expense": { "$ref": "#/components/schemas/MoneyResponse" },
+          "income": { "$ref": "#/components/schemas/MoneyResponse" },
+          "net": { "$ref": "#/components/schemas/MoneyResponse" },
+          "transactionCount": {
+            "minimum": 0,
+            "title": "Transactioncount",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "currency",
+          "income",
+          "expense",
+          "net",
+          "transactionCount"
+        ],
+        "title": "DayActivityByCurrencyResponse",
+        "type": "object"
+      },
+      "ExpenseTransactionResponse": {
+        "additionalProperties": false,
+        "description": "Closed public Expense projection.",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/AccountReferenceResponse"
+          },
+          "categoryAllocations": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryAllocationResponse"
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "title": "Categoryallocations",
+            "type": "array"
+          },
+          "economicAmount": { "$ref": "#/components/schemas/MoneyResponse" },
+          "id": { "format": "uuid", "title": "Id", "type": "string" },
+          "kind": { "const": "expense", "title": "Kind", "type": "string" },
+          "ledgerId": {
+            "format": "uuid",
+            "title": "Ledgerid",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              { "maxLength": 500, "type": "string" },
+              { "type": "null" }
+            ],
+            "title": "Note"
+          },
+          "transactionDate": {
+            "format": "date",
+            "title": "Transactiondate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ledgerId",
+          "transactionDate",
+          "note",
+          "account",
+          "economicAmount",
+          "categoryAllocations",
+          "kind"
+        ],
+        "title": "ExpenseTransactionResponse",
+        "type": "object"
+      },
+      "FinanceOverviewDayResponse": {
+        "additionalProperties": false,
+        "description": "One sparse calendar date containing Finance activity.",
+        "properties": {
+          "activityByCurrency": {
+            "items": {
+              "$ref": "#/components/schemas/DayActivityByCurrencyResponse"
+            },
+            "title": "Activitybycurrency",
+            "type": "array"
+          },
+          "date": { "format": "date", "title": "Date", "type": "string" },
+          "transactionCount": {
+            "minimum": 0,
+            "title": "Transactioncount",
+            "type": "integer"
+          },
+          "transactionCountByKind": {
+            "$ref": "#/components/schemas/TransactionCountByKindResponse"
+          }
+        },
+        "required": [
+          "date",
+          "transactionCount",
+          "transactionCountByKind",
+          "activityByCurrency"
+        ],
+        "title": "FinanceOverviewDayResponse",
+        "type": "object"
+      },
+      "FinanceOverviewMonth": {
+        "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$",
+        "type": "string"
+      },
+      "FinanceOverviewResponse": {
+        "additionalProperties": false,
+        "description": "Calendar-first present-position and selected-month Finance projection.",
+        "properties": {
+          "accounts": {
+            "items": { "$ref": "#/components/schemas/AccountResponse" },
+            "title": "Accounts",
+            "type": "array"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/FinanceOverviewDayResponse"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "financialPositionByCurrency": {
+            "items": {
+              "$ref": "#/components/schemas/FinancialPositionByCurrencyResponse"
+            },
+            "title": "Financialpositionbycurrency",
+            "type": "array"
+          },
+          "ledger": { "$ref": "#/components/schemas/LedgerResponse" },
+          "month": { "$ref": "#/components/schemas/FinanceOverviewMonth" },
+          "monthSummaryByCurrency": {
+            "items": {
+              "$ref": "#/components/schemas/IncomeExpenseByCurrencyResponse"
+            },
+            "title": "Monthsummarybycurrency",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ledger",
+          "month",
+          "accounts",
+          "financialPositionByCurrency",
+          "monthSummaryByCurrency",
+          "days"
+        ],
+        "title": "FinanceOverviewResponse",
+        "type": "object"
+      },
+      "FinanceRequestDate": { "format": "date", "type": "string" },
+      "FinanceTransactionResponse": {
+        "discriminator": {
+          "mapping": {
+            "balanceAdjustment": "#/components/schemas/BalanceAdjustmentTransactionResponse",
+            "expense": "#/components/schemas/ExpenseTransactionResponse",
+            "income": "#/components/schemas/IncomeTransactionResponse",
+            "internalTransfer": "#/components/schemas/InternalTransferTransactionResponse"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          { "$ref": "#/components/schemas/IncomeTransactionResponse" },
+          { "$ref": "#/components/schemas/ExpenseTransactionResponse" },
+          {
+            "$ref": "#/components/schemas/InternalTransferTransactionResponse"
+          },
+          {
+            "$ref": "#/components/schemas/BalanceAdjustmentTransactionResponse"
+          }
+        ]
+      },
+      "FinancialPositionByCurrencyResponse": {
+        "additionalProperties": false,
+        "description": "Present account-relative position for one Account Currency.",
+        "properties": {
+          "assetTotal": { "$ref": "#/components/schemas/MoneyResponse" },
+          "currency": { "$ref": "#/components/schemas/CurrencyCode" },
+          "liabilityTotal": { "$ref": "#/components/schemas/MoneyResponse" },
+          "netPosition": { "$ref": "#/components/schemas/MoneyResponse" }
+        },
+        "required": ["currency", "assetTotal", "liabilityTotal", "netPosition"],
+        "title": "FinancialPositionByCurrencyResponse",
+        "type": "object"
+      },
       "HelloWorldResponse": {
         "additionalProperties": false,
         "description": "Frontend-compatible hello world response.",
@@ -43,6 +734,130 @@
         },
         "required": ["message"],
         "title": "HelloWorldResponse",
+        "type": "object"
+      },
+      "IncomeExpenseByCurrencyResponse": {
+        "additionalProperties": false,
+        "description": "Income, Expense, and net activity for one Currency.",
+        "properties": {
+          "currency": { "$ref": "#/components/schemas/CurrencyCode" },
+          "expense": { "$ref": "#/components/schemas/MoneyResponse" },
+          "income": { "$ref": "#/components/schemas/MoneyResponse" },
+          "net": { "$ref": "#/components/schemas/MoneyResponse" }
+        },
+        "required": ["currency", "income", "expense", "net"],
+        "title": "IncomeExpenseByCurrencyResponse",
+        "type": "object"
+      },
+      "IncomeTransactionResponse": {
+        "additionalProperties": false,
+        "description": "Closed public Income projection.",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/AccountReferenceResponse"
+          },
+          "categoryAllocations": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryAllocationResponse"
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "title": "Categoryallocations",
+            "type": "array"
+          },
+          "economicAmount": { "$ref": "#/components/schemas/MoneyResponse" },
+          "id": { "format": "uuid", "title": "Id", "type": "string" },
+          "kind": { "const": "income", "title": "Kind", "type": "string" },
+          "ledgerId": {
+            "format": "uuid",
+            "title": "Ledgerid",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              { "maxLength": 500, "type": "string" },
+              { "type": "null" }
+            ],
+            "title": "Note"
+          },
+          "transactionDate": {
+            "format": "date",
+            "title": "Transactiondate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ledgerId",
+          "transactionDate",
+          "note",
+          "account",
+          "economicAmount",
+          "categoryAllocations",
+          "kind"
+        ],
+        "title": "IncomeTransactionResponse",
+        "type": "object"
+      },
+      "InternalTransferTransactionResponse": {
+        "additionalProperties": false,
+        "description": "Closed public same-currency Internal Transfer projection.",
+        "properties": {
+          "destinationAccount": {
+            "$ref": "#/components/schemas/AccountReferenceResponse"
+          },
+          "destinationAmount": { "$ref": "#/components/schemas/MoneyResponse" },
+          "id": { "format": "uuid", "title": "Id", "type": "string" },
+          "kind": {
+            "const": "internalTransfer",
+            "title": "Kind",
+            "type": "string"
+          },
+          "ledgerId": {
+            "format": "uuid",
+            "title": "Ledgerid",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              { "maxLength": 500, "type": "string" },
+              { "type": "null" }
+            ],
+            "title": "Note"
+          },
+          "sourceAccount": {
+            "$ref": "#/components/schemas/AccountReferenceResponse"
+          },
+          "sourceAmount": { "$ref": "#/components/schemas/MoneyResponse" },
+          "transactionDate": {
+            "format": "date",
+            "title": "Transactiondate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ledgerId",
+          "kind",
+          "transactionDate",
+          "note",
+          "sourceAccount",
+          "sourceAmount",
+          "destinationAccount",
+          "destinationAmount"
+        ],
+        "title": "InternalTransferTransactionResponse",
+        "type": "object"
+      },
+      "LedgerResponse": {
+        "additionalProperties": false,
+        "description": "Closed public projection of one Finance Ledger.",
+        "properties": {
+          "id": { "format": "uuid", "title": "Id", "type": "string" },
+          "name": { "title": "Name", "type": "string" }
+        },
+        "required": ["id", "name"],
+        "title": "LedgerResponse",
         "type": "object"
       },
       "MeResponse": {
@@ -65,6 +880,32 @@
         },
         "required": ["id", "username", "displayName", "email"],
         "title": "MeResponse",
+        "type": "object"
+      },
+      "MoneyRequest": {
+        "additionalProperties": false,
+        "description": "Exact decimal-string Money supplied by a Finance caller.",
+        "properties": {
+          "amount": {
+            "description": "Plain base-10 decimal string. After sign and insignificant leading zeros are normalized, a non-zero value may have at most 131,072 integer digits; currency minor-unit precision applies separately. Values outside this durable PostgreSQL numeric range return 422 validation_error.",
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": { "$ref": "#/components/schemas/CurrencyCode" }
+        },
+        "required": ["amount", "currency"],
+        "title": "MoneyRequest",
+        "type": "object"
+      },
+      "MoneyResponse": {
+        "additionalProperties": false,
+        "description": "Closed public projection of exact Finance Money.",
+        "properties": {
+          "amount": { "title": "Amount", "type": "string" },
+          "currency": { "$ref": "#/components/schemas/CurrencyCode" }
+        },
+        "required": ["amount", "currency"],
+        "title": "MoneyResponse",
         "type": "object"
       },
       "ProblemDetails": {
@@ -100,6 +941,256 @@
         },
         "required": ["type", "title", "status"],
         "title": "ProblemDetails",
+        "type": "object"
+      },
+      "ReplaceBalanceAdjustmentRequest": {
+        "additionalProperties": false,
+        "description": "Stale-safe target command replacing one existing Adjustment.",
+        "properties": {
+          "accountId": {
+            "format": "uuid",
+            "title": "Accountid",
+            "type": "string"
+          },
+          "expectedAccountNature": {
+            "enum": ["asset", "liability"],
+            "title": "Expectedaccountnature",
+            "type": "string"
+          },
+          "expectedDerivedBalance": {
+            "$ref": "#/components/schemas/MoneyRequest"
+          },
+          "note": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "maxLength": 500,
+            "title": "Note"
+          },
+          "targetBalance": { "$ref": "#/components/schemas/MoneyRequest" },
+          "transactionDate": {
+            "$ref": "#/components/schemas/FinanceRequestDate"
+          }
+        },
+        "required": [
+          "accountId",
+          "transactionDate",
+          "expectedDerivedBalance",
+          "expectedAccountNature",
+          "targetBalance"
+        ],
+        "title": "ReplaceBalanceAdjustmentRequest",
+        "type": "object"
+      },
+      "ReplaceBalanceAdjustmentResultResponse": {
+        "description": "Exact outcome-discriminated Adjustment replacement result.",
+        "discriminator": {
+          "mapping": {
+            "removed": "#/components/schemas/BalanceAdjustmentRemovedResultResponse",
+            "updated": "#/components/schemas/BalanceAdjustmentUpdatedResultResponse"
+          },
+          "propertyName": "outcome"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/BalanceAdjustmentUpdatedResultResponse"
+          },
+          {
+            "$ref": "#/components/schemas/BalanceAdjustmentRemovedResultResponse"
+          }
+        ],
+        "title": "ReplaceBalanceAdjustmentResultResponse"
+      },
+      "ReplaceExpenseTransactionRequest": {
+        "additionalProperties": false,
+        "description": "Completely replace one existing Expense.",
+        "properties": {
+          "accountId": {
+            "format": "uuid",
+            "title": "Accountid",
+            "type": "string"
+          },
+          "categoryAllocations": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryAllocationRequest"
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "title": "Categoryallocations",
+            "type": "array"
+          },
+          "economicAmount": { "$ref": "#/components/schemas/MoneyRequest" },
+          "kind": { "const": "expense", "title": "Kind", "type": "string" },
+          "note": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "maxLength": 500,
+            "title": "Note"
+          },
+          "transactionDate": {
+            "$ref": "#/components/schemas/FinanceRequestDate"
+          }
+        },
+        "required": [
+          "accountId",
+          "transactionDate",
+          "economicAmount",
+          "categoryAllocations",
+          "kind"
+        ],
+        "title": "ReplaceExpenseTransactionRequest",
+        "type": "object"
+      },
+      "ReplaceIncomeTransactionRequest": {
+        "additionalProperties": false,
+        "description": "Completely replace one existing Income.",
+        "properties": {
+          "accountId": {
+            "format": "uuid",
+            "title": "Accountid",
+            "type": "string"
+          },
+          "categoryAllocations": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryAllocationRequest"
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "title": "Categoryallocations",
+            "type": "array"
+          },
+          "economicAmount": { "$ref": "#/components/schemas/MoneyRequest" },
+          "kind": { "const": "income", "title": "Kind", "type": "string" },
+          "note": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "maxLength": 500,
+            "title": "Note"
+          },
+          "transactionDate": {
+            "$ref": "#/components/schemas/FinanceRequestDate"
+          }
+        },
+        "required": [
+          "accountId",
+          "transactionDate",
+          "economicAmount",
+          "categoryAllocations",
+          "kind"
+        ],
+        "title": "ReplaceIncomeTransactionRequest",
+        "type": "object"
+      },
+      "ReplaceInternalTransferTransactionRequest": {
+        "additionalProperties": false,
+        "description": "Completely replace one existing Internal Transfer.",
+        "properties": {
+          "amount": { "$ref": "#/components/schemas/MoneyRequest" },
+          "destinationAccountId": {
+            "format": "uuid",
+            "title": "Destinationaccountid",
+            "type": "string"
+          },
+          "kind": {
+            "const": "internalTransfer",
+            "title": "Kind",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "maxLength": 500,
+            "title": "Note"
+          },
+          "sourceAccountId": {
+            "format": "uuid",
+            "title": "Sourceaccountid",
+            "type": "string"
+          },
+          "transactionDate": {
+            "$ref": "#/components/schemas/FinanceRequestDate"
+          }
+        },
+        "required": [
+          "kind",
+          "sourceAccountId",
+          "destinationAccountId",
+          "amount",
+          "transactionDate"
+        ],
+        "title": "ReplaceInternalTransferTransactionRequest",
+        "type": "object"
+      },
+      "TransactionCountByKindResponse": {
+        "additionalProperties": false,
+        "description": "Finance Transaction counts for all four durable kinds.",
+        "properties": {
+          "balanceAdjustment": {
+            "minimum": 0,
+            "title": "Balanceadjustment",
+            "type": "integer"
+          },
+          "expense": { "minimum": 0, "title": "Expense", "type": "integer" },
+          "income": { "minimum": 0, "title": "Income", "type": "integer" },
+          "internalTransfer": {
+            "minimum": 0,
+            "title": "Internaltransfer",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "income",
+          "expense",
+          "internalTransfer",
+          "balanceAdjustment"
+        ],
+        "title": "TransactionCountByKindResponse",
+        "type": "object"
+      },
+      "TransactionHistoryPageResponse": {
+        "additionalProperties": false,
+        "description": "One closed cursor page of complete Finance Transactions.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FinanceTransactionResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "nextCursor": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Nextcursor"
+          }
+        },
+        "required": ["items", "nextCursor"],
+        "title": "TransactionHistoryPageResponse",
+        "type": "object"
+      },
+      "UpdateAccountRequest": {
+        "additionalProperties": false,
+        "description": "Ordinary mutable Account fields using omitted-field semantics.",
+        "properties": {
+          "name": { "maxLength": 100, "title": "Name", "type": "string" },
+          "openingBalance": { "$ref": "#/components/schemas/MoneyRequest" },
+          "trackingStartDate": {
+            "$ref": "#/components/schemas/FinanceRequestDate"
+          }
+        },
+        "title": "UpdateAccountRequest",
+        "type": "object"
+      },
+      "UpdateCategoryRequest": {
+        "additionalProperties": false,
+        "description": "Name-only partial Category update.",
+        "properties": {
+          "name": { "maxLength": 100, "title": "Name", "type": "string" }
+        },
+        "title": "UpdateCategoryRequest",
+        "type": "object"
+      },
+      "UpdateLedgerRequest": {
+        "additionalProperties": false,
+        "description": "Name-only partial Ledger update.",
+        "properties": {
+          "name": { "maxLength": 100, "title": "Name", "type": "string" }
+        },
+        "title": "UpdateLedgerRequest",
         "type": "object"
       },
       "UpdateUserRequest": {
@@ -169,6 +1260,2033 @@
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.1",
   "paths": {
+    "/finance/currencies": {
+      "get": {
+        "description": "Returns the deterministic backend-owned Finance currency catalog.",
+        "operationId": "listFinanceCurrencies",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": { "$ref": "#/components/schemas/CurrencyResponse" },
+                  "title": "Response Listfinancecurrencies",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected server error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable or not configured."
+          }
+        },
+        "security": [],
+        "summary": "List supported Finance currencies",
+        "tags": ["Finance"]
+      }
+    },
+    "/finance/ledgers": {
+      "get": {
+        "description": "Returns the Current User's Finance Ledgers in deterministic name order.",
+        "operationId": "listFinanceLedgers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": { "$ref": "#/components/schemas/LedgerResponse" },
+                  "title": "Response Listfinanceledgers",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "List Finance Ledgers",
+        "tags": ["Finance"]
+      },
+      "post": {
+        "description": "Explicitly creates one personally owned Finance Ledger.",
+        "operationId": "createFinanceLedger",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateLedgerRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LedgerResponse" }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The Ledger name conflicts."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The request is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Create a Finance Ledger",
+        "tags": ["Finance"]
+      }
+    },
+    "/finance/ledgers/{ledgerId}": {
+      "patch": {
+        "description": "Updates only the name of one personally owned Finance Ledger.",
+        "operationId": "updateFinanceLedger",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateLedgerRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LedgerResponse" }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The Ledger does not exist."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The Ledger name conflicts."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The request is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Rename a Finance Ledger",
+        "tags": ["Finance"]
+      }
+    },
+    "/finance/ledgers/{ledgerId}/accounts": {
+      "get": {
+        "description": "Returns active and archived Accounts with derived Current Balances.",
+        "operationId": "listFinanceAccounts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": { "$ref": "#/components/schemas/AccountResponse" },
+                  "title": "Response Listfinanceaccounts",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The Ledger does not exist."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The path is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "List Finance Accounts",
+        "tags": ["Finance"]
+      },
+      "post": {
+        "description": "Creates one account-relative position inside an owned Finance Ledger.",
+        "operationId": "createFinanceAccount",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateAccountRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountResponse" }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The Ledger does not exist."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The request is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Create a Finance Account",
+        "tags": ["Finance"]
+      }
+    },
+    "/finance/ledgers/{ledgerId}/accounts/{accountId}": {
+      "patch": {
+        "description": "Updates ordinary mutable properties or corrects unlocked Nature and Currency of one owned Account.",
+        "operationId": "updateFinanceAccount",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "accountId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Accountid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  { "$ref": "#/components/schemas/UpdateAccountRequest" },
+                  {
+                    "$ref": "#/components/schemas/CorrectAccountSemanticsRequest"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountResponse" }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The resource does not exist."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Account semantics are locked."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The request is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Update a Finance Account",
+        "tags": ["Finance"]
+      }
+    },
+    "/finance/ledgers/{ledgerId}/accounts/{accountId}/archive": {
+      "post": {
+        "description": "Idempotently archives one owned Account without erasing its balance.",
+        "operationId": "archiveFinanceAccount",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "accountId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Accountid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountResponse" }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The resource does not exist."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The path is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Archive a Finance Account",
+        "tags": ["Finance"]
+      }
+    },
+    "/finance/ledgers/{ledgerId}/accounts/{accountId}/balance-adjustment-context": {
+      "get": {
+        "description": "Return authoritative date-bounded Balance Adjustment command inputs.",
+        "operationId": "getBalanceAdjustmentContext",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "accountId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Accountid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "transactionDate",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/FinanceRequestDate" }
+          },
+          {
+            "in": "query",
+            "name": "replacingTransactionId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "format": "uuid", "type": "string" },
+                { "type": "null" }
+              ],
+              "title": "Replacingtransactionid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BalanceAdjustmentContextResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The resource does not exist."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The Account is archived."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The request is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Get Balance Adjustment context",
+        "tags": ["Finance"]
+      }
+    },
+    "/finance/ledgers/{ledgerId}/accounts/{accountId}/unarchive": {
+      "post": {
+        "description": "Idempotently restores one owned Account to active status.",
+        "operationId": "unarchiveFinanceAccount",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "accountId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Accountid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountResponse" }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The resource does not exist."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The path is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Unarchive a Finance Account",
+        "tags": ["Finance"]
+      }
+    },
+    "/finance/ledgers/{ledgerId}/balance-adjustments": {
+      "post": {
+        "description": "Create only the required non-zero account-relative correction delta.",
+        "operationId": "createBalanceAdjustment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBalanceAdjustmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BalanceAdjustmentResultResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The resource does not exist."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The context is stale or archived."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The request is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Create a Balance Adjustment",
+        "tags": ["Finance"]
+      }
+    },
+    "/finance/ledgers/{ledgerId}/balance-adjustments/{transactionId}": {
+      "put": {
+        "description": "Replace an Adjustment from a fresh target, or remove it at zero delta.",
+        "operationId": "replaceBalanceAdjustment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "transactionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transactionid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceBalanceAdjustmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplaceBalanceAdjustmentResultResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The resource does not exist."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The context is stale or immutable."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The request is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Replace or remove a Balance Adjustment",
+        "tags": ["Finance"]
+      }
+    },
+    "/finance/ledgers/{ledgerId}/categories": {
+      "get": {
+        "description": "Returns active and archived neutral Categories in deterministic order.",
+        "operationId": "listFinanceCategories",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": { "$ref": "#/components/schemas/CategoryResponse" },
+                  "title": "Response Listfinancecategories",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The Ledger does not exist."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The path is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "List Finance Categories",
+        "tags": ["Finance"]
+      },
+      "post": {
+        "description": "Creates one neutral Category inside an owned Finance Ledger.",
+        "operationId": "createFinanceCategory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateCategoryRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CategoryResponse" }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The Ledger does not exist."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The Category name conflicts."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The request is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Create a Finance Category",
+        "tags": ["Finance"]
+      }
+    },
+    "/finance/ledgers/{ledgerId}/categories/{categoryId}": {
+      "patch": {
+        "description": "Renames one neutral Category without changing its status.",
+        "operationId": "updateFinanceCategory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "categoryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Categoryid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateCategoryRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CategoryResponse" }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The resource does not exist."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The Category name conflicts."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The request is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Update a Finance Category",
+        "tags": ["Finance"]
+      }
+    },
+    "/finance/ledgers/{ledgerId}/categories/{categoryId}/archive": {
+      "post": {
+        "description": "Idempotently archives one neutral Category without deleting it.",
+        "operationId": "archiveFinanceCategory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "categoryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Categoryid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CategoryResponse" }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The resource does not exist."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The path is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Archive a Finance Category",
+        "tags": ["Finance"]
+      }
+    },
+    "/finance/ledgers/{ledgerId}/categories/{categoryId}/unarchive": {
+      "post": {
+        "description": "Idempotently restores one Category after rechecking name uniqueness.",
+        "operationId": "unarchiveFinanceCategory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "categoryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Categoryid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CategoryResponse" }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The resource does not exist."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The Category name conflicts."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The path is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Unarchive a Finance Category",
+        "tags": ["Finance"]
+      }
+    },
+    "/finance/ledgers/{ledgerId}/overview": {
+      "get": {
+        "description": "Returns present Account balances and currency-separated selected-month activity.",
+        "operationId": "getFinanceOverview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/FinanceOverviewMonth" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinanceOverviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The Ledger does not exist."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The request is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Get the Finance Overview",
+        "tags": ["Finance"]
+      }
+    },
+    "/finance/ledgers/{ledgerId}/transactions": {
+      "get": {
+        "description": "Browse one owned Ledger's deterministic Transaction history.",
+        "operationId": "listFinanceTransactions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fromDate",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "$ref": "#/components/schemas/FinanceRequestDate" },
+                { "type": "null" }
+              ],
+              "title": "Fromdate"
+            }
+          },
+          {
+            "in": "query",
+            "name": "toDate",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "$ref": "#/components/schemas/FinanceRequestDate" },
+                { "type": "null" }
+              ],
+              "title": "Todate"
+            }
+          },
+          {
+            "in": "query",
+            "name": "accountId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "format": "uuid", "type": "string" },
+                { "type": "null" }
+              ],
+              "title": "Accountid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "income",
+                    "expense",
+                    "internalTransfer",
+                    "balanceAdjustment"
+                  ],
+                  "type": "string"
+                },
+                { "type": "null" }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "categoryId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "format": "uuid", "type": "string" },
+                { "type": "null" }
+              ],
+              "title": "Categoryid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uncategorized",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "$ref": "#/components/schemas/ActiveUncategorized" },
+                { "type": "null" }
+              ],
+              "title": "Uncategorized"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Pagesize",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionHistoryPageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The resource does not exist."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The query is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "List Finance Transactions",
+        "tags": ["Finance"]
+      },
+      "post": {
+        "description": "Create one supported Finance Transaction.",
+        "operationId": "createFinanceTransaction",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "discriminator": {
+                  "mapping": {
+                    "expense": "#/components/schemas/CreateExpenseTransactionRequest",
+                    "income": "#/components/schemas/CreateIncomeTransactionRequest",
+                    "internalTransfer": "#/components/schemas/CreateInternalTransferTransactionRequest"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateIncomeTransactionRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateExpenseTransactionRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateInternalTransferTransactionRequest"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinanceTransactionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The resource does not exist."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The resource is archived."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The request is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Create a Finance Transaction",
+        "tags": ["Finance"]
+      }
+    },
+    "/finance/ledgers/{ledgerId}/transactions/{transactionId}": {
+      "delete": {
+        "description": "Delete one complete Finance Transaction aggregate of any kind.",
+        "operationId": "deleteFinanceTransaction",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "transactionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transactionid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The resource does not exist."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The path is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Delete a Finance Transaction",
+        "tags": ["Finance"]
+      },
+      "get": {
+        "description": "Read one supported Finance Transaction in an owned Ledger.",
+        "operationId": "getFinanceTransaction",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "transactionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transactionid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinanceTransactionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The resource does not exist."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The path is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Get a Finance Transaction",
+        "tags": ["Finance"]
+      },
+      "put": {
+        "description": "Completely replace one same-kind ordinary Finance Transaction.",
+        "operationId": "replaceFinanceTransaction",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ledgerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ledgerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "transactionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Transactionid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "discriminator": {
+                  "mapping": {
+                    "expense": "#/components/schemas/ReplaceExpenseTransactionRequest",
+                    "income": "#/components/schemas/ReplaceIncomeTransactionRequest",
+                    "internalTransfer": "#/components/schemas/ReplaceInternalTransferTransactionRequest"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/ReplaceIncomeTransactionRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReplaceExpenseTransactionRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReplaceInternalTransferTransactionRequest"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinanceTransactionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "Access is denied."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The resource does not exist."
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The kind is immutable or archived."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "The request is invalid."
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "An unexpected error occurred."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            },
+            "description": "PostgreSQL is unavailable."
+          }
+        },
+        "security": [],
+        "summary": "Replace a Finance Transaction",
+        "tags": ["Finance"]
+      }
+    },
     "/helloWorld": {
       "get": {
         "description": "Returns a minimal response used to verify API connectivity.",
@@ -580,6 +3698,7 @@
   "servers": [{ "description": "Same-origin API gateway", "url": "/api" }],
   "tags": [
     { "description": "Initial API connectivity endpoints", "name": "Hello" },
-    { "description": "Current-user endpoints", "name": "Users" }
+    { "description": "Current-user endpoints", "name": "Users" },
+    { "description": "Personal Finance endpoints", "name": "Finance" }
   ]
 }

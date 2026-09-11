@@ -64,18 +64,15 @@ use the TS7 programming API directly.
 
 ## Finance v1 integration status
 
-The Finance backend implementation and its backend-owned OpenAPI contract
-exist. The authoritative backend contract currently includes the Finance v1
-operations, but this frontend repository's synchronized
-`openapi/openapi.json` snapshot has not yet been updated to include
-`/finance/...` paths. Consequently, the checked-in generated artifacts under
-`src/api/generated/` do not yet provide Finance clients, Query hooks, schemas,
-handlers, or fixtures.
+The current backend-owned Finance v1 OpenAPI contract is synchronized into
+`openapi/openapi.json`. Its 23 operations are available through the generated
+Fetch clients, TanStack Query hooks, Zod schemas, MSW handlers, and Faker
+fixtures under `src/api/generated/`.
 
-Future Finance integration must first synchronize the committed backend
-contract through the existing `pnpm api:update` workflow described above. It
-must not hand-edit the snapshot or generated files, or create a parallel
-handwritten Finance client or invented contract.
+Synchronize future committed backend contract changes through the existing
+`pnpm api:update` workflow described above. Do not hand-edit the snapshot or
+generated files, or create a parallel handwritten Finance client or invented
+contract. Finance product routes and UI remain separate implementation work.
 
 For Finance product and design authority, start with the
 [approved interaction specification](docs/finance-v1-frontend-interaction-spec.md),

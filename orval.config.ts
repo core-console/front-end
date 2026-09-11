@@ -2,11 +2,16 @@ import { defineConfig } from "orval";
 
 const generatedDirectory =
   process.env.ORVAL_OUTPUT_DIR ?? "./src/api/generated";
+const financeCurrency = "CNY";
+const financeMoneyAmount = "12.34";
 
 export default defineConfig({
   coreConsole: {
     input: {
       target: "./openapi/openapi.json",
+      override: {
+        transformer: "./scripts/expand-required-only-any-of.mjs",
+      },
     },
     output: {
       target: `${generatedDirectory}/core-console.ts`,
@@ -40,6 +45,26 @@ export default defineConfig({
         imports: [{ name: "env", importPath: "../../config/env" }],
       },
       override: {
+        // Keep contract-sensitive fixtures valid when Orval cannot infer them
+        // from Zod enum objects or description/pattern-only string schemas.
+        mock: {
+          properties: {
+            "/CurrencyCode/": financeCurrency,
+            month: "2026-09",
+          },
+          schemas: {
+            MoneyRequest: {
+              properties: {
+                amount: financeMoneyAmount,
+              },
+            },
+            MoneyResponse: {
+              properties: {
+                amount: financeMoneyAmount,
+              },
+            },
+          },
+        },
         query: {
           version: 5,
           signal: true,
@@ -51,6 +76,7 @@ export default defineConfig({
           version: 4,
           variant: "classic",
           strict: {
+            body: true,
             response: true,
           },
         },

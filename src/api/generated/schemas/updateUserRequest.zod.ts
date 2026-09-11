@@ -8,7 +8,7 @@
 import { z as zod } from "zod";
 
 export const UpdateUserRequest = zod
-  .object({
+  .strictObject({
     displayName: zod.union([zod.string(), zod.null()]).optional(),
     email: zod.union([zod.string(), zod.null()]).optional(),
     username: zod.union([zod.string(), zod.null()]).optional(),

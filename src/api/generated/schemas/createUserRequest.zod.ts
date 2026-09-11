@@ -8,7 +8,7 @@
 import { z as zod } from "zod";
 
 export const CreateUserRequest = zod
-  .object({
+  .strictObject({
     displayName: zod.union([zod.string(), zod.null()]),
     email: zod.union([zod.string(), zod.null()]),
     identityIssuer: zod.string(),

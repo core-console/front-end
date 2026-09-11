@@ -24,10 +24,38 @@ import type {
 import { env } from "../../config/env";
 
 import type {
+  AccountResponse,
+  BalanceAdjustmentContextResponse,
+  BalanceAdjustmentResultResponse,
+  CategoryResponse,
+  CorrectAccountSemanticsRequest,
+  CreateAccountRequest,
+  CreateBalanceAdjustmentRequest,
+  CreateCategoryRequest,
+  CreateExpenseTransactionRequest,
+  CreateIncomeTransactionRequest,
+  CreateInternalTransferTransactionRequest,
+  CreateLedgerRequest,
   CreateUserRequest,
+  CurrencyResponse,
+  FinanceOverviewResponse,
+  FinanceTransactionResponse,
+  GetBalanceAdjustmentContextParams,
+  GetFinanceOverviewParams,
   HelloWorldResponse,
+  LedgerResponse,
+  ListFinanceTransactionsParams,
   MeResponse,
   ProblemDetails,
+  ReplaceBalanceAdjustmentRequest,
+  ReplaceBalanceAdjustmentResultResponse,
+  ReplaceExpenseTransactionRequest,
+  ReplaceIncomeTransactionRequest,
+  ReplaceInternalTransferTransactionRequest,
+  TransactionHistoryPageResponse,
+  UpdateAccountRequest,
+  UpdateCategoryRequest,
+  UpdateLedgerRequest,
   UpdateUserRequest,
   UserResponse,
 } from "./schemas";
@@ -48,6 +76,4705 @@ const withQueryKey = <T extends object, K>(
     });
   }
   return result;
+};
+
+export type listFinanceCurrenciesResponse200 = {
+  data: CurrencyResponse[];
+  status: 200;
+};
+
+export type listFinanceCurrenciesResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type listFinanceCurrenciesResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type listFinanceCurrenciesResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type listFinanceCurrenciesResponseSuccess =
+  listFinanceCurrenciesResponse200 & {
+    headers: Headers;
+  };
+export type listFinanceCurrenciesResponseError = (
+  | listFinanceCurrenciesResponse403
+  | listFinanceCurrenciesResponse500
+  | listFinanceCurrenciesResponse503
+) & {
+  headers: Headers;
+};
+
+export const getListFinanceCurrenciesUrl = () => {
+  return `${env.VITE_API_BASE_URL}/finance/currencies`;
+};
+
+/**
+ * Returns the deterministic backend-owned Finance currency catalog.
+ * @summary List supported Finance currencies
+ */
+export const listFinanceCurrencies = async (
+  options?: RequestInit,
+): Promise<listFinanceCurrenciesResponseSuccess> => {
+  const res = await fetch(getListFinanceCurrenciesUrl(), {
+    ...options,
+    method: "GET",
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: listFinanceCurrenciesResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: listFinanceCurrenciesResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: listFinanceCurrenciesResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as listFinanceCurrenciesResponseSuccess;
+};
+
+export const getListFinanceCurrenciesQueryKey = () => {
+  return [`${env.VITE_API_BASE_URL}/finance/currencies`] as const;
+};
+
+export const getListFinanceCurrenciesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFinanceCurrencies>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof listFinanceCurrencies>>,
+      TError,
+      TData
+    >
+  >;
+  fetch?: RequestInit;
+}) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListFinanceCurrenciesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listFinanceCurrencies>>
+  > = ({ signal }) =>
+    listFinanceCurrencies({ ...(signal ? { signal } : {}), ...fetchOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFinanceCurrencies>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListFinanceCurrenciesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFinanceCurrencies>>
+>;
+export type ListFinanceCurrenciesQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useListFinanceCurrencies<
+  TData = Awaited<ReturnType<typeof listFinanceCurrencies>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceCurrencies>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceCurrencies>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceCurrencies>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceCurrencies<
+  TData = Awaited<ReturnType<typeof listFinanceCurrencies>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceCurrencies>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceCurrencies>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceCurrencies>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceCurrencies<
+  TData = Awaited<ReturnType<typeof listFinanceCurrencies>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceCurrencies>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary List supported Finance currencies
+ */
+
+export function useListFinanceCurrencies<
+  TData = Awaited<ReturnType<typeof listFinanceCurrencies>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceCurrencies>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListFinanceCurrenciesQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export type listFinanceLedgersResponse200 = {
+  data: LedgerResponse[];
+  status: 200;
+};
+
+export type listFinanceLedgersResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type listFinanceLedgersResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type listFinanceLedgersResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type listFinanceLedgersResponseSuccess =
+  listFinanceLedgersResponse200 & {
+    headers: Headers;
+  };
+export type listFinanceLedgersResponseError = (
+  | listFinanceLedgersResponse403
+  | listFinanceLedgersResponse500
+  | listFinanceLedgersResponse503
+) & {
+  headers: Headers;
+};
+
+export const getListFinanceLedgersUrl = () => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers`;
+};
+
+/**
+ * Returns the Current User's Finance Ledgers in deterministic name order.
+ * @summary List Finance Ledgers
+ */
+export const listFinanceLedgers = async (
+  options?: RequestInit,
+): Promise<listFinanceLedgersResponseSuccess> => {
+  const res = await fetch(getListFinanceLedgersUrl(), {
+    ...options,
+    method: "GET",
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: listFinanceLedgersResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: listFinanceLedgersResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: listFinanceLedgersResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as listFinanceLedgersResponseSuccess;
+};
+
+export const getListFinanceLedgersQueryKey = () => {
+  return [`${env.VITE_API_BASE_URL}/finance/ledgers`] as const;
+};
+
+export const getListFinanceLedgersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFinanceLedgers>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof listFinanceLedgers>>,
+      TError,
+      TData
+    >
+  >;
+  fetch?: RequestInit;
+}) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListFinanceLedgersQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listFinanceLedgers>>
+  > = ({ signal }) =>
+    listFinanceLedgers({ ...(signal ? { signal } : {}), ...fetchOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFinanceLedgers>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListFinanceLedgersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFinanceLedgers>>
+>;
+export type ListFinanceLedgersQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useListFinanceLedgers<
+  TData = Awaited<ReturnType<typeof listFinanceLedgers>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceLedgers>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceLedgers>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceLedgers>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceLedgers<
+  TData = Awaited<ReturnType<typeof listFinanceLedgers>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceLedgers>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceLedgers>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceLedgers>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceLedgers<
+  TData = Awaited<ReturnType<typeof listFinanceLedgers>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceLedgers>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary List Finance Ledgers
+ */
+
+export function useListFinanceLedgers<
+  TData = Awaited<ReturnType<typeof listFinanceLedgers>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceLedgers>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListFinanceLedgersQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export type createFinanceLedgerResponse201 = {
+  data: LedgerResponse;
+  status: 201;
+};
+
+export type createFinanceLedgerResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type createFinanceLedgerResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type createFinanceLedgerResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type createFinanceLedgerResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type createFinanceLedgerResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type createFinanceLedgerResponseSuccess =
+  createFinanceLedgerResponse201 & {
+    headers: Headers;
+  };
+export type createFinanceLedgerResponseError = (
+  | createFinanceLedgerResponse403
+  | createFinanceLedgerResponse409
+  | createFinanceLedgerResponse422
+  | createFinanceLedgerResponse500
+  | createFinanceLedgerResponse503
+) & {
+  headers: Headers;
+};
+
+export const getCreateFinanceLedgerUrl = () => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers`;
+};
+
+/**
+ * Explicitly creates one personally owned Finance Ledger.
+ * @summary Create a Finance Ledger
+ */
+export const createFinanceLedger = async (
+  createLedgerRequest: CreateLedgerRequest,
+  options?: RequestInit,
+): Promise<createFinanceLedgerResponseSuccess> => {
+  const res = await fetch(getCreateFinanceLedgerUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createLedgerRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: createFinanceLedgerResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: createFinanceLedgerResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: createFinanceLedgerResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as createFinanceLedgerResponseSuccess;
+};
+
+export const getCreateFinanceLedgerMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createFinanceLedger>>,
+    TError,
+    { data: CreateLedgerRequest },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createFinanceLedger>>,
+  TError,
+  { data: CreateLedgerRequest },
+  TContext
+> => {
+  const mutationKey = ["createFinanceLedger"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createFinanceLedger>>,
+    { data: CreateLedgerRequest }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createFinanceLedger(data, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateFinanceLedgerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createFinanceLedger>>
+>;
+export type CreateFinanceLedgerMutationBody = CreateLedgerRequest;
+export type CreateFinanceLedgerMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Create a Finance Ledger
+ */
+export const useCreateFinanceLedger = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createFinanceLedger>>,
+      TError,
+      { data: CreateLedgerRequest },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createFinanceLedger>>,
+  TError,
+  { data: CreateLedgerRequest },
+  TContext
+> => {
+  return useMutation(
+    getCreateFinanceLedgerMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type updateFinanceLedgerResponse200 = {
+  data: LedgerResponse;
+  status: 200;
+};
+
+export type updateFinanceLedgerResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type updateFinanceLedgerResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type updateFinanceLedgerResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type updateFinanceLedgerResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type updateFinanceLedgerResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type updateFinanceLedgerResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type updateFinanceLedgerResponseSuccess =
+  updateFinanceLedgerResponse200 & {
+    headers: Headers;
+  };
+export type updateFinanceLedgerResponseError = (
+  | updateFinanceLedgerResponse403
+  | updateFinanceLedgerResponse404
+  | updateFinanceLedgerResponse409
+  | updateFinanceLedgerResponse422
+  | updateFinanceLedgerResponse500
+  | updateFinanceLedgerResponse503
+) & {
+  headers: Headers;
+};
+
+export const getUpdateFinanceLedgerUrl = (ledgerId: string) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}`;
+};
+
+/**
+ * Updates only the name of one personally owned Finance Ledger.
+ * @summary Rename a Finance Ledger
+ */
+export const updateFinanceLedger = async (
+  ledgerId: string,
+  updateLedgerRequest: UpdateLedgerRequest,
+  options?: RequestInit,
+): Promise<updateFinanceLedgerResponseSuccess> => {
+  const res = await fetch(getUpdateFinanceLedgerUrl(ledgerId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateLedgerRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: updateFinanceLedgerResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: updateFinanceLedgerResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: updateFinanceLedgerResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as updateFinanceLedgerResponseSuccess;
+};
+
+export const getUpdateFinanceLedgerMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateFinanceLedger>>,
+    TError,
+    { ledgerId: string; data: UpdateLedgerRequest },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateFinanceLedger>>,
+  TError,
+  { ledgerId: string; data: UpdateLedgerRequest },
+  TContext
+> => {
+  const mutationKey = ["updateFinanceLedger"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateFinanceLedger>>,
+    { ledgerId: string; data: UpdateLedgerRequest }
+  > = (props) => {
+    const { ledgerId, data } = props ?? {};
+
+    return updateFinanceLedger(ledgerId, data, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateFinanceLedgerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateFinanceLedger>>
+>;
+export type UpdateFinanceLedgerMutationBody = UpdateLedgerRequest;
+export type UpdateFinanceLedgerMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Rename a Finance Ledger
+ */
+export const useUpdateFinanceLedger = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateFinanceLedger>>,
+      TError,
+      { ledgerId: string; data: UpdateLedgerRequest },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateFinanceLedger>>,
+  TError,
+  { ledgerId: string; data: UpdateLedgerRequest },
+  TContext
+> => {
+  return useMutation(
+    getUpdateFinanceLedgerMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type listFinanceAccountsResponse200 = {
+  data: AccountResponse[];
+  status: 200;
+};
+
+export type listFinanceAccountsResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type listFinanceAccountsResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type listFinanceAccountsResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type listFinanceAccountsResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type listFinanceAccountsResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type listFinanceAccountsResponseSuccess =
+  listFinanceAccountsResponse200 & {
+    headers: Headers;
+  };
+export type listFinanceAccountsResponseError = (
+  | listFinanceAccountsResponse403
+  | listFinanceAccountsResponse404
+  | listFinanceAccountsResponse422
+  | listFinanceAccountsResponse500
+  | listFinanceAccountsResponse503
+) & {
+  headers: Headers;
+};
+
+export const getListFinanceAccountsUrl = (ledgerId: string) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/accounts`;
+};
+
+/**
+ * Returns active and archived Accounts with derived Current Balances.
+ * @summary List Finance Accounts
+ */
+export const listFinanceAccounts = async (
+  ledgerId: string,
+  options?: RequestInit,
+): Promise<listFinanceAccountsResponseSuccess> => {
+  const res = await fetch(getListFinanceAccountsUrl(ledgerId), {
+    ...options,
+    method: "GET",
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: listFinanceAccountsResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: listFinanceAccountsResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: listFinanceAccountsResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as listFinanceAccountsResponseSuccess;
+};
+
+export const getListFinanceAccountsQueryKey = (ledgerId: string) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/accounts`,
+  ] as const;
+};
+
+export const getListFinanceAccountsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFinanceAccounts>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceAccounts>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListFinanceAccountsQueryKey(ledgerId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listFinanceAccounts>>
+  > = ({ signal }) =>
+    listFinanceAccounts(ledgerId, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: ledgerId !== null && ledgerId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFinanceAccounts>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListFinanceAccountsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFinanceAccounts>>
+>;
+export type ListFinanceAccountsQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useListFinanceAccounts<
+  TData = Awaited<ReturnType<typeof listFinanceAccounts>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceAccounts>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceAccounts>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceAccounts>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceAccounts<
+  TData = Awaited<ReturnType<typeof listFinanceAccounts>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceAccounts>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceAccounts>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceAccounts>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceAccounts<
+  TData = Awaited<ReturnType<typeof listFinanceAccounts>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceAccounts>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary List Finance Accounts
+ */
+
+export function useListFinanceAccounts<
+  TData = Awaited<ReturnType<typeof listFinanceAccounts>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceAccounts>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListFinanceAccountsQueryOptions(ledgerId, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export type createFinanceAccountResponse201 = {
+  data: AccountResponse;
+  status: 201;
+};
+
+export type createFinanceAccountResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type createFinanceAccountResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type createFinanceAccountResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type createFinanceAccountResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type createFinanceAccountResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type createFinanceAccountResponseSuccess =
+  createFinanceAccountResponse201 & {
+    headers: Headers;
+  };
+export type createFinanceAccountResponseError = (
+  | createFinanceAccountResponse403
+  | createFinanceAccountResponse404
+  | createFinanceAccountResponse422
+  | createFinanceAccountResponse500
+  | createFinanceAccountResponse503
+) & {
+  headers: Headers;
+};
+
+export const getCreateFinanceAccountUrl = (ledgerId: string) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/accounts`;
+};
+
+/**
+ * Creates one account-relative position inside an owned Finance Ledger.
+ * @summary Create a Finance Account
+ */
+export const createFinanceAccount = async (
+  ledgerId: string,
+  createAccountRequest: CreateAccountRequest,
+  options?: RequestInit,
+): Promise<createFinanceAccountResponseSuccess> => {
+  const res = await fetch(getCreateFinanceAccountUrl(ledgerId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createAccountRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: createFinanceAccountResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: createFinanceAccountResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: createFinanceAccountResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as createFinanceAccountResponseSuccess;
+};
+
+export const getCreateFinanceAccountMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createFinanceAccount>>,
+    TError,
+    { ledgerId: string; data: CreateAccountRequest },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createFinanceAccount>>,
+  TError,
+  { ledgerId: string; data: CreateAccountRequest },
+  TContext
+> => {
+  const mutationKey = ["createFinanceAccount"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createFinanceAccount>>,
+    { ledgerId: string; data: CreateAccountRequest }
+  > = (props) => {
+    const { ledgerId, data } = props ?? {};
+
+    return createFinanceAccount(ledgerId, data, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateFinanceAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createFinanceAccount>>
+>;
+export type CreateFinanceAccountMutationBody = CreateAccountRequest;
+export type CreateFinanceAccountMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Create a Finance Account
+ */
+export const useCreateFinanceAccount = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createFinanceAccount>>,
+      TError,
+      { ledgerId: string; data: CreateAccountRequest },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createFinanceAccount>>,
+  TError,
+  { ledgerId: string; data: CreateAccountRequest },
+  TContext
+> => {
+  return useMutation(
+    getCreateFinanceAccountMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type updateFinanceAccountResponse200 = {
+  data: AccountResponse;
+  status: 200;
+};
+
+export type updateFinanceAccountResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type updateFinanceAccountResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type updateFinanceAccountResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type updateFinanceAccountResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type updateFinanceAccountResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type updateFinanceAccountResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type updateFinanceAccountResponseSuccess =
+  updateFinanceAccountResponse200 & {
+    headers: Headers;
+  };
+export type updateFinanceAccountResponseError = (
+  | updateFinanceAccountResponse403
+  | updateFinanceAccountResponse404
+  | updateFinanceAccountResponse409
+  | updateFinanceAccountResponse422
+  | updateFinanceAccountResponse500
+  | updateFinanceAccountResponse503
+) & {
+  headers: Headers;
+};
+
+export const getUpdateFinanceAccountUrl = (
+  ledgerId: string,
+  accountId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/accounts/${accountId}`;
+};
+
+/**
+ * Updates ordinary mutable properties or corrects unlocked Nature and Currency of one owned Account.
+ * @summary Update a Finance Account
+ */
+export const updateFinanceAccount = async (
+  ledgerId: string,
+  accountId: string,
+  updateAccountRequestCorrectAccountSemanticsRequest:
+    UpdateAccountRequest | CorrectAccountSemanticsRequest,
+  options?: RequestInit,
+): Promise<updateFinanceAccountResponseSuccess> => {
+  const res = await fetch(getUpdateFinanceAccountUrl(ledgerId, accountId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateAccountRequestCorrectAccountSemanticsRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: updateFinanceAccountResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: updateFinanceAccountResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: updateFinanceAccountResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as updateFinanceAccountResponseSuccess;
+};
+
+export const getUpdateFinanceAccountMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateFinanceAccount>>,
+    TError,
+    {
+      ledgerId: string;
+      accountId: string;
+      data: UpdateAccountRequest | CorrectAccountSemanticsRequest;
+    },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateFinanceAccount>>,
+  TError,
+  {
+    ledgerId: string;
+    accountId: string;
+    data: UpdateAccountRequest | CorrectAccountSemanticsRequest;
+  },
+  TContext
+> => {
+  const mutationKey = ["updateFinanceAccount"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateFinanceAccount>>,
+    {
+      ledgerId: string;
+      accountId: string;
+      data: UpdateAccountRequest | CorrectAccountSemanticsRequest;
+    }
+  > = (props) => {
+    const { ledgerId, accountId, data } = props ?? {};
+
+    return updateFinanceAccount(ledgerId, accountId, data, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateFinanceAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateFinanceAccount>>
+>;
+export type UpdateFinanceAccountMutationBody =
+  UpdateAccountRequest | CorrectAccountSemanticsRequest;
+export type UpdateFinanceAccountMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Update a Finance Account
+ */
+export const useUpdateFinanceAccount = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateFinanceAccount>>,
+      TError,
+      {
+        ledgerId: string;
+        accountId: string;
+        data: UpdateAccountRequest | CorrectAccountSemanticsRequest;
+      },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateFinanceAccount>>,
+  TError,
+  {
+    ledgerId: string;
+    accountId: string;
+    data: UpdateAccountRequest | CorrectAccountSemanticsRequest;
+  },
+  TContext
+> => {
+  return useMutation(
+    getUpdateFinanceAccountMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type archiveFinanceAccountResponse200 = {
+  data: AccountResponse;
+  status: 200;
+};
+
+export type archiveFinanceAccountResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type archiveFinanceAccountResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type archiveFinanceAccountResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type archiveFinanceAccountResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type archiveFinanceAccountResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type archiveFinanceAccountResponseSuccess =
+  archiveFinanceAccountResponse200 & {
+    headers: Headers;
+  };
+export type archiveFinanceAccountResponseError = (
+  | archiveFinanceAccountResponse403
+  | archiveFinanceAccountResponse404
+  | archiveFinanceAccountResponse422
+  | archiveFinanceAccountResponse500
+  | archiveFinanceAccountResponse503
+) & {
+  headers: Headers;
+};
+
+export const getArchiveFinanceAccountUrl = (
+  ledgerId: string,
+  accountId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/accounts/${accountId}/archive`;
+};
+
+/**
+ * Idempotently archives one owned Account without erasing its balance.
+ * @summary Archive a Finance Account
+ */
+export const archiveFinanceAccount = async (
+  ledgerId: string,
+  accountId: string,
+  options?: RequestInit,
+): Promise<archiveFinanceAccountResponseSuccess> => {
+  const res = await fetch(getArchiveFinanceAccountUrl(ledgerId, accountId), {
+    ...options,
+    method: "POST",
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: archiveFinanceAccountResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: archiveFinanceAccountResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: archiveFinanceAccountResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as archiveFinanceAccountResponseSuccess;
+};
+
+export const getArchiveFinanceAccountMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof archiveFinanceAccount>>,
+    TError,
+    { ledgerId: string; accountId: string },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof archiveFinanceAccount>>,
+  TError,
+  { ledgerId: string; accountId: string },
+  TContext
+> => {
+  const mutationKey = ["archiveFinanceAccount"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof archiveFinanceAccount>>,
+    { ledgerId: string; accountId: string }
+  > = (props) => {
+    const { ledgerId, accountId } = props ?? {};
+
+    return archiveFinanceAccount(ledgerId, accountId, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ArchiveFinanceAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof archiveFinanceAccount>>
+>;
+
+export type ArchiveFinanceAccountMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Archive a Finance Account
+ */
+export const useArchiveFinanceAccount = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof archiveFinanceAccount>>,
+      TError,
+      { ledgerId: string; accountId: string },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof archiveFinanceAccount>>,
+  TError,
+  { ledgerId: string; accountId: string },
+  TContext
+> => {
+  return useMutation(
+    getArchiveFinanceAccountMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type getBalanceAdjustmentContextResponse200 = {
+  data: BalanceAdjustmentContextResponse;
+  status: 200;
+};
+
+export type getBalanceAdjustmentContextResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type getBalanceAdjustmentContextResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type getBalanceAdjustmentContextResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type getBalanceAdjustmentContextResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type getBalanceAdjustmentContextResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type getBalanceAdjustmentContextResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type getBalanceAdjustmentContextResponseSuccess =
+  getBalanceAdjustmentContextResponse200 & {
+    headers: Headers;
+  };
+export type getBalanceAdjustmentContextResponseError = (
+  | getBalanceAdjustmentContextResponse403
+  | getBalanceAdjustmentContextResponse404
+  | getBalanceAdjustmentContextResponse409
+  | getBalanceAdjustmentContextResponse422
+  | getBalanceAdjustmentContextResponse500
+  | getBalanceAdjustmentContextResponse503
+) & {
+  headers: Headers;
+};
+
+export const getGetBalanceAdjustmentContextUrl = (
+  ledgerId: string,
+  accountId: string,
+  params: GetBalanceAdjustmentContextParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/accounts/${accountId}/balance-adjustment-context?${stringifiedParams}`
+    : `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/accounts/${accountId}/balance-adjustment-context`;
+};
+
+/**
+ * Return authoritative date-bounded Balance Adjustment command inputs.
+ * @summary Get Balance Adjustment context
+ */
+export const getBalanceAdjustmentContext = async (
+  ledgerId: string,
+  accountId: string,
+  params: GetBalanceAdjustmentContextParams,
+  options?: RequestInit,
+): Promise<getBalanceAdjustmentContextResponseSuccess> => {
+  const res = await fetch(
+    getGetBalanceAdjustmentContextUrl(ledgerId, accountId, params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: getBalanceAdjustmentContextResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: getBalanceAdjustmentContextResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: getBalanceAdjustmentContextResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getBalanceAdjustmentContextResponseSuccess;
+};
+
+export const getGetBalanceAdjustmentContextQueryKey = (
+  ledgerId: string,
+  accountId: string,
+  params?: GetBalanceAdjustmentContextParams,
+) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/accounts/${accountId}/balance-adjustment-context`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetBalanceAdjustmentContextQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBalanceAdjustmentContext>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  accountId: string,
+  params: GetBalanceAdjustmentContextParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getBalanceAdjustmentContext>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetBalanceAdjustmentContextQueryKey(ledgerId, accountId, params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getBalanceAdjustmentContext>>
+  > = ({ signal }) =>
+    getBalanceAdjustmentContext(ledgerId, accountId, params, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      ledgerId !== null &&
+      ledgerId !== undefined &&
+      accountId !== null &&
+      accountId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBalanceAdjustmentContext>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetBalanceAdjustmentContextQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBalanceAdjustmentContext>>
+>;
+export type GetBalanceAdjustmentContextQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useGetBalanceAdjustmentContext<
+  TData = Awaited<ReturnType<typeof getBalanceAdjustmentContext>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  accountId: string,
+  params: GetBalanceAdjustmentContextParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getBalanceAdjustmentContext>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBalanceAdjustmentContext>>,
+          TError,
+          Awaited<ReturnType<typeof getBalanceAdjustmentContext>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetBalanceAdjustmentContext<
+  TData = Awaited<ReturnType<typeof getBalanceAdjustmentContext>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  accountId: string,
+  params: GetBalanceAdjustmentContextParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getBalanceAdjustmentContext>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBalanceAdjustmentContext>>,
+          TError,
+          Awaited<ReturnType<typeof getBalanceAdjustmentContext>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetBalanceAdjustmentContext<
+  TData = Awaited<ReturnType<typeof getBalanceAdjustmentContext>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  accountId: string,
+  params: GetBalanceAdjustmentContextParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getBalanceAdjustmentContext>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Get Balance Adjustment context
+ */
+
+export function useGetBalanceAdjustmentContext<
+  TData = Awaited<ReturnType<typeof getBalanceAdjustmentContext>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  accountId: string,
+  params: GetBalanceAdjustmentContextParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getBalanceAdjustmentContext>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetBalanceAdjustmentContextQueryOptions(
+    ledgerId,
+    accountId,
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export type unarchiveFinanceAccountResponse200 = {
+  data: AccountResponse;
+  status: 200;
+};
+
+export type unarchiveFinanceAccountResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type unarchiveFinanceAccountResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type unarchiveFinanceAccountResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type unarchiveFinanceAccountResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type unarchiveFinanceAccountResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type unarchiveFinanceAccountResponseSuccess =
+  unarchiveFinanceAccountResponse200 & {
+    headers: Headers;
+  };
+export type unarchiveFinanceAccountResponseError = (
+  | unarchiveFinanceAccountResponse403
+  | unarchiveFinanceAccountResponse404
+  | unarchiveFinanceAccountResponse422
+  | unarchiveFinanceAccountResponse500
+  | unarchiveFinanceAccountResponse503
+) & {
+  headers: Headers;
+};
+
+export const getUnarchiveFinanceAccountUrl = (
+  ledgerId: string,
+  accountId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/accounts/${accountId}/unarchive`;
+};
+
+/**
+ * Idempotently restores one owned Account to active status.
+ * @summary Unarchive a Finance Account
+ */
+export const unarchiveFinanceAccount = async (
+  ledgerId: string,
+  accountId: string,
+  options?: RequestInit,
+): Promise<unarchiveFinanceAccountResponseSuccess> => {
+  const res = await fetch(getUnarchiveFinanceAccountUrl(ledgerId, accountId), {
+    ...options,
+    method: "POST",
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: unarchiveFinanceAccountResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: unarchiveFinanceAccountResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: unarchiveFinanceAccountResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as unarchiveFinanceAccountResponseSuccess;
+};
+
+export const getUnarchiveFinanceAccountMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unarchiveFinanceAccount>>,
+    TError,
+    { ledgerId: string; accountId: string },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unarchiveFinanceAccount>>,
+  TError,
+  { ledgerId: string; accountId: string },
+  TContext
+> => {
+  const mutationKey = ["unarchiveFinanceAccount"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unarchiveFinanceAccount>>,
+    { ledgerId: string; accountId: string }
+  > = (props) => {
+    const { ledgerId, accountId } = props ?? {};
+
+    return unarchiveFinanceAccount(ledgerId, accountId, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnarchiveFinanceAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unarchiveFinanceAccount>>
+>;
+
+export type UnarchiveFinanceAccountMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Unarchive a Finance Account
+ */
+export const useUnarchiveFinanceAccount = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof unarchiveFinanceAccount>>,
+      TError,
+      { ledgerId: string; accountId: string },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof unarchiveFinanceAccount>>,
+  TError,
+  { ledgerId: string; accountId: string },
+  TContext
+> => {
+  return useMutation(
+    getUnarchiveFinanceAccountMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type createBalanceAdjustmentResponse200 = {
+  data: BalanceAdjustmentResultResponse;
+  status: 200;
+};
+
+export type createBalanceAdjustmentResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type createBalanceAdjustmentResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type createBalanceAdjustmentResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type createBalanceAdjustmentResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type createBalanceAdjustmentResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type createBalanceAdjustmentResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type createBalanceAdjustmentResponseSuccess =
+  createBalanceAdjustmentResponse200 & {
+    headers: Headers;
+  };
+export type createBalanceAdjustmentResponseError = (
+  | createBalanceAdjustmentResponse403
+  | createBalanceAdjustmentResponse404
+  | createBalanceAdjustmentResponse409
+  | createBalanceAdjustmentResponse422
+  | createBalanceAdjustmentResponse500
+  | createBalanceAdjustmentResponse503
+) & {
+  headers: Headers;
+};
+
+export const getCreateBalanceAdjustmentUrl = (ledgerId: string) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/balance-adjustments`;
+};
+
+/**
+ * Create only the required non-zero account-relative correction delta.
+ * @summary Create a Balance Adjustment
+ */
+export const createBalanceAdjustment = async (
+  ledgerId: string,
+  createBalanceAdjustmentRequest: CreateBalanceAdjustmentRequest,
+  options?: RequestInit,
+): Promise<createBalanceAdjustmentResponseSuccess> => {
+  const res = await fetch(getCreateBalanceAdjustmentUrl(ledgerId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createBalanceAdjustmentRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: createBalanceAdjustmentResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: createBalanceAdjustmentResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: createBalanceAdjustmentResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as createBalanceAdjustmentResponseSuccess;
+};
+
+export const getCreateBalanceAdjustmentMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createBalanceAdjustment>>,
+    TError,
+    { ledgerId: string; data: CreateBalanceAdjustmentRequest },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createBalanceAdjustment>>,
+  TError,
+  { ledgerId: string; data: CreateBalanceAdjustmentRequest },
+  TContext
+> => {
+  const mutationKey = ["createBalanceAdjustment"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createBalanceAdjustment>>,
+    { ledgerId: string; data: CreateBalanceAdjustmentRequest }
+  > = (props) => {
+    const { ledgerId, data } = props ?? {};
+
+    return createBalanceAdjustment(ledgerId, data, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateBalanceAdjustmentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createBalanceAdjustment>>
+>;
+export type CreateBalanceAdjustmentMutationBody =
+  CreateBalanceAdjustmentRequest;
+export type CreateBalanceAdjustmentMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Create a Balance Adjustment
+ */
+export const useCreateBalanceAdjustment = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createBalanceAdjustment>>,
+      TError,
+      { ledgerId: string; data: CreateBalanceAdjustmentRequest },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createBalanceAdjustment>>,
+  TError,
+  { ledgerId: string; data: CreateBalanceAdjustmentRequest },
+  TContext
+> => {
+  return useMutation(
+    getCreateBalanceAdjustmentMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type replaceBalanceAdjustmentResponse200 = {
+  data: ReplaceBalanceAdjustmentResultResponse;
+  status: 200;
+};
+
+export type replaceBalanceAdjustmentResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type replaceBalanceAdjustmentResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type replaceBalanceAdjustmentResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type replaceBalanceAdjustmentResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type replaceBalanceAdjustmentResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type replaceBalanceAdjustmentResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type replaceBalanceAdjustmentResponseSuccess =
+  replaceBalanceAdjustmentResponse200 & {
+    headers: Headers;
+  };
+export type replaceBalanceAdjustmentResponseError = (
+  | replaceBalanceAdjustmentResponse403
+  | replaceBalanceAdjustmentResponse404
+  | replaceBalanceAdjustmentResponse409
+  | replaceBalanceAdjustmentResponse422
+  | replaceBalanceAdjustmentResponse500
+  | replaceBalanceAdjustmentResponse503
+) & {
+  headers: Headers;
+};
+
+export const getReplaceBalanceAdjustmentUrl = (
+  ledgerId: string,
+  transactionId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/balance-adjustments/${transactionId}`;
+};
+
+/**
+ * Replace an Adjustment from a fresh target, or remove it at zero delta.
+ * @summary Replace or remove a Balance Adjustment
+ */
+export const replaceBalanceAdjustment = async (
+  ledgerId: string,
+  transactionId: string,
+  replaceBalanceAdjustmentRequest: ReplaceBalanceAdjustmentRequest,
+  options?: RequestInit,
+): Promise<replaceBalanceAdjustmentResponseSuccess> => {
+  const res = await fetch(
+    getReplaceBalanceAdjustmentUrl(ledgerId, transactionId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(replaceBalanceAdjustmentRequest),
+    },
+  );
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: replaceBalanceAdjustmentResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: replaceBalanceAdjustmentResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: replaceBalanceAdjustmentResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as replaceBalanceAdjustmentResponseSuccess;
+};
+
+export const getReplaceBalanceAdjustmentMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof replaceBalanceAdjustment>>,
+    TError,
+    {
+      ledgerId: string;
+      transactionId: string;
+      data: ReplaceBalanceAdjustmentRequest;
+    },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof replaceBalanceAdjustment>>,
+  TError,
+  {
+    ledgerId: string;
+    transactionId: string;
+    data: ReplaceBalanceAdjustmentRequest;
+  },
+  TContext
+> => {
+  const mutationKey = ["replaceBalanceAdjustment"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof replaceBalanceAdjustment>>,
+    {
+      ledgerId: string;
+      transactionId: string;
+      data: ReplaceBalanceAdjustmentRequest;
+    }
+  > = (props) => {
+    const { ledgerId, transactionId, data } = props ?? {};
+
+    return replaceBalanceAdjustment(
+      ledgerId,
+      transactionId,
+      data,
+      fetchOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReplaceBalanceAdjustmentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof replaceBalanceAdjustment>>
+>;
+export type ReplaceBalanceAdjustmentMutationBody =
+  ReplaceBalanceAdjustmentRequest;
+export type ReplaceBalanceAdjustmentMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Replace or remove a Balance Adjustment
+ */
+export const useReplaceBalanceAdjustment = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof replaceBalanceAdjustment>>,
+      TError,
+      {
+        ledgerId: string;
+        transactionId: string;
+        data: ReplaceBalanceAdjustmentRequest;
+      },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof replaceBalanceAdjustment>>,
+  TError,
+  {
+    ledgerId: string;
+    transactionId: string;
+    data: ReplaceBalanceAdjustmentRequest;
+  },
+  TContext
+> => {
+  return useMutation(
+    getReplaceBalanceAdjustmentMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type listFinanceCategoriesResponse200 = {
+  data: CategoryResponse[];
+  status: 200;
+};
+
+export type listFinanceCategoriesResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type listFinanceCategoriesResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type listFinanceCategoriesResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type listFinanceCategoriesResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type listFinanceCategoriesResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type listFinanceCategoriesResponseSuccess =
+  listFinanceCategoriesResponse200 & {
+    headers: Headers;
+  };
+export type listFinanceCategoriesResponseError = (
+  | listFinanceCategoriesResponse403
+  | listFinanceCategoriesResponse404
+  | listFinanceCategoriesResponse422
+  | listFinanceCategoriesResponse500
+  | listFinanceCategoriesResponse503
+) & {
+  headers: Headers;
+};
+
+export const getListFinanceCategoriesUrl = (ledgerId: string) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/categories`;
+};
+
+/**
+ * Returns active and archived neutral Categories in deterministic order.
+ * @summary List Finance Categories
+ */
+export const listFinanceCategories = async (
+  ledgerId: string,
+  options?: RequestInit,
+): Promise<listFinanceCategoriesResponseSuccess> => {
+  const res = await fetch(getListFinanceCategoriesUrl(ledgerId), {
+    ...options,
+    method: "GET",
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: listFinanceCategoriesResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: listFinanceCategoriesResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: listFinanceCategoriesResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as listFinanceCategoriesResponseSuccess;
+};
+
+export const getListFinanceCategoriesQueryKey = (ledgerId: string) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/categories`,
+  ] as const;
+};
+
+export const getListFinanceCategoriesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFinanceCategories>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceCategories>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListFinanceCategoriesQueryKey(ledgerId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listFinanceCategories>>
+  > = ({ signal }) =>
+    listFinanceCategories(ledgerId, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: ledgerId !== null && ledgerId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFinanceCategories>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListFinanceCategoriesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFinanceCategories>>
+>;
+export type ListFinanceCategoriesQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useListFinanceCategories<
+  TData = Awaited<ReturnType<typeof listFinanceCategories>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceCategories>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceCategories>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceCategories>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceCategories<
+  TData = Awaited<ReturnType<typeof listFinanceCategories>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceCategories>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceCategories>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceCategories>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceCategories<
+  TData = Awaited<ReturnType<typeof listFinanceCategories>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceCategories>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary List Finance Categories
+ */
+
+export function useListFinanceCategories<
+  TData = Awaited<ReturnType<typeof listFinanceCategories>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceCategories>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListFinanceCategoriesQueryOptions(ledgerId, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export type createFinanceCategoryResponse201 = {
+  data: CategoryResponse;
+  status: 201;
+};
+
+export type createFinanceCategoryResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type createFinanceCategoryResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type createFinanceCategoryResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type createFinanceCategoryResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type createFinanceCategoryResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type createFinanceCategoryResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type createFinanceCategoryResponseSuccess =
+  createFinanceCategoryResponse201 & {
+    headers: Headers;
+  };
+export type createFinanceCategoryResponseError = (
+  | createFinanceCategoryResponse403
+  | createFinanceCategoryResponse404
+  | createFinanceCategoryResponse409
+  | createFinanceCategoryResponse422
+  | createFinanceCategoryResponse500
+  | createFinanceCategoryResponse503
+) & {
+  headers: Headers;
+};
+
+export const getCreateFinanceCategoryUrl = (ledgerId: string) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/categories`;
+};
+
+/**
+ * Creates one neutral Category inside an owned Finance Ledger.
+ * @summary Create a Finance Category
+ */
+export const createFinanceCategory = async (
+  ledgerId: string,
+  createCategoryRequest: CreateCategoryRequest,
+  options?: RequestInit,
+): Promise<createFinanceCategoryResponseSuccess> => {
+  const res = await fetch(getCreateFinanceCategoryUrl(ledgerId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createCategoryRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: createFinanceCategoryResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: createFinanceCategoryResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: createFinanceCategoryResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as createFinanceCategoryResponseSuccess;
+};
+
+export const getCreateFinanceCategoryMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createFinanceCategory>>,
+    TError,
+    { ledgerId: string; data: CreateCategoryRequest },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createFinanceCategory>>,
+  TError,
+  { ledgerId: string; data: CreateCategoryRequest },
+  TContext
+> => {
+  const mutationKey = ["createFinanceCategory"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createFinanceCategory>>,
+    { ledgerId: string; data: CreateCategoryRequest }
+  > = (props) => {
+    const { ledgerId, data } = props ?? {};
+
+    return createFinanceCategory(ledgerId, data, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateFinanceCategoryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createFinanceCategory>>
+>;
+export type CreateFinanceCategoryMutationBody = CreateCategoryRequest;
+export type CreateFinanceCategoryMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Create a Finance Category
+ */
+export const useCreateFinanceCategory = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createFinanceCategory>>,
+      TError,
+      { ledgerId: string; data: CreateCategoryRequest },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createFinanceCategory>>,
+  TError,
+  { ledgerId: string; data: CreateCategoryRequest },
+  TContext
+> => {
+  return useMutation(
+    getCreateFinanceCategoryMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type updateFinanceCategoryResponse200 = {
+  data: CategoryResponse;
+  status: 200;
+};
+
+export type updateFinanceCategoryResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type updateFinanceCategoryResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type updateFinanceCategoryResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type updateFinanceCategoryResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type updateFinanceCategoryResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type updateFinanceCategoryResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type updateFinanceCategoryResponseSuccess =
+  updateFinanceCategoryResponse200 & {
+    headers: Headers;
+  };
+export type updateFinanceCategoryResponseError = (
+  | updateFinanceCategoryResponse403
+  | updateFinanceCategoryResponse404
+  | updateFinanceCategoryResponse409
+  | updateFinanceCategoryResponse422
+  | updateFinanceCategoryResponse500
+  | updateFinanceCategoryResponse503
+) & {
+  headers: Headers;
+};
+
+export const getUpdateFinanceCategoryUrl = (
+  ledgerId: string,
+  categoryId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/categories/${categoryId}`;
+};
+
+/**
+ * Renames one neutral Category without changing its status.
+ * @summary Update a Finance Category
+ */
+export const updateFinanceCategory = async (
+  ledgerId: string,
+  categoryId: string,
+  updateCategoryRequest: UpdateCategoryRequest,
+  options?: RequestInit,
+): Promise<updateFinanceCategoryResponseSuccess> => {
+  const res = await fetch(getUpdateFinanceCategoryUrl(ledgerId, categoryId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateCategoryRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: updateFinanceCategoryResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: updateFinanceCategoryResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: updateFinanceCategoryResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as updateFinanceCategoryResponseSuccess;
+};
+
+export const getUpdateFinanceCategoryMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateFinanceCategory>>,
+    TError,
+    { ledgerId: string; categoryId: string; data: UpdateCategoryRequest },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateFinanceCategory>>,
+  TError,
+  { ledgerId: string; categoryId: string; data: UpdateCategoryRequest },
+  TContext
+> => {
+  const mutationKey = ["updateFinanceCategory"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateFinanceCategory>>,
+    { ledgerId: string; categoryId: string; data: UpdateCategoryRequest }
+  > = (props) => {
+    const { ledgerId, categoryId, data } = props ?? {};
+
+    return updateFinanceCategory(ledgerId, categoryId, data, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateFinanceCategoryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateFinanceCategory>>
+>;
+export type UpdateFinanceCategoryMutationBody = UpdateCategoryRequest;
+export type UpdateFinanceCategoryMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Update a Finance Category
+ */
+export const useUpdateFinanceCategory = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateFinanceCategory>>,
+      TError,
+      { ledgerId: string; categoryId: string; data: UpdateCategoryRequest },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateFinanceCategory>>,
+  TError,
+  { ledgerId: string; categoryId: string; data: UpdateCategoryRequest },
+  TContext
+> => {
+  return useMutation(
+    getUpdateFinanceCategoryMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type archiveFinanceCategoryResponse200 = {
+  data: CategoryResponse;
+  status: 200;
+};
+
+export type archiveFinanceCategoryResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type archiveFinanceCategoryResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type archiveFinanceCategoryResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type archiveFinanceCategoryResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type archiveFinanceCategoryResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type archiveFinanceCategoryResponseSuccess =
+  archiveFinanceCategoryResponse200 & {
+    headers: Headers;
+  };
+export type archiveFinanceCategoryResponseError = (
+  | archiveFinanceCategoryResponse403
+  | archiveFinanceCategoryResponse404
+  | archiveFinanceCategoryResponse422
+  | archiveFinanceCategoryResponse500
+  | archiveFinanceCategoryResponse503
+) & {
+  headers: Headers;
+};
+
+export const getArchiveFinanceCategoryUrl = (
+  ledgerId: string,
+  categoryId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/categories/${categoryId}/archive`;
+};
+
+/**
+ * Idempotently archives one neutral Category without deleting it.
+ * @summary Archive a Finance Category
+ */
+export const archiveFinanceCategory = async (
+  ledgerId: string,
+  categoryId: string,
+  options?: RequestInit,
+): Promise<archiveFinanceCategoryResponseSuccess> => {
+  const res = await fetch(getArchiveFinanceCategoryUrl(ledgerId, categoryId), {
+    ...options,
+    method: "POST",
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: archiveFinanceCategoryResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: archiveFinanceCategoryResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: archiveFinanceCategoryResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as archiveFinanceCategoryResponseSuccess;
+};
+
+export const getArchiveFinanceCategoryMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof archiveFinanceCategory>>,
+    TError,
+    { ledgerId: string; categoryId: string },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof archiveFinanceCategory>>,
+  TError,
+  { ledgerId: string; categoryId: string },
+  TContext
+> => {
+  const mutationKey = ["archiveFinanceCategory"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof archiveFinanceCategory>>,
+    { ledgerId: string; categoryId: string }
+  > = (props) => {
+    const { ledgerId, categoryId } = props ?? {};
+
+    return archiveFinanceCategory(ledgerId, categoryId, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ArchiveFinanceCategoryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof archiveFinanceCategory>>
+>;
+
+export type ArchiveFinanceCategoryMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Archive a Finance Category
+ */
+export const useArchiveFinanceCategory = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof archiveFinanceCategory>>,
+      TError,
+      { ledgerId: string; categoryId: string },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof archiveFinanceCategory>>,
+  TError,
+  { ledgerId: string; categoryId: string },
+  TContext
+> => {
+  return useMutation(
+    getArchiveFinanceCategoryMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type unarchiveFinanceCategoryResponse200 = {
+  data: CategoryResponse;
+  status: 200;
+};
+
+export type unarchiveFinanceCategoryResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type unarchiveFinanceCategoryResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type unarchiveFinanceCategoryResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type unarchiveFinanceCategoryResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type unarchiveFinanceCategoryResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type unarchiveFinanceCategoryResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type unarchiveFinanceCategoryResponseSuccess =
+  unarchiveFinanceCategoryResponse200 & {
+    headers: Headers;
+  };
+export type unarchiveFinanceCategoryResponseError = (
+  | unarchiveFinanceCategoryResponse403
+  | unarchiveFinanceCategoryResponse404
+  | unarchiveFinanceCategoryResponse409
+  | unarchiveFinanceCategoryResponse422
+  | unarchiveFinanceCategoryResponse500
+  | unarchiveFinanceCategoryResponse503
+) & {
+  headers: Headers;
+};
+
+export const getUnarchiveFinanceCategoryUrl = (
+  ledgerId: string,
+  categoryId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/categories/${categoryId}/unarchive`;
+};
+
+/**
+ * Idempotently restores one Category after rechecking name uniqueness.
+ * @summary Unarchive a Finance Category
+ */
+export const unarchiveFinanceCategory = async (
+  ledgerId: string,
+  categoryId: string,
+  options?: RequestInit,
+): Promise<unarchiveFinanceCategoryResponseSuccess> => {
+  const res = await fetch(
+    getUnarchiveFinanceCategoryUrl(ledgerId, categoryId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: unarchiveFinanceCategoryResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: unarchiveFinanceCategoryResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: unarchiveFinanceCategoryResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as unarchiveFinanceCategoryResponseSuccess;
+};
+
+export const getUnarchiveFinanceCategoryMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unarchiveFinanceCategory>>,
+    TError,
+    { ledgerId: string; categoryId: string },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unarchiveFinanceCategory>>,
+  TError,
+  { ledgerId: string; categoryId: string },
+  TContext
+> => {
+  const mutationKey = ["unarchiveFinanceCategory"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unarchiveFinanceCategory>>,
+    { ledgerId: string; categoryId: string }
+  > = (props) => {
+    const { ledgerId, categoryId } = props ?? {};
+
+    return unarchiveFinanceCategory(ledgerId, categoryId, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnarchiveFinanceCategoryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unarchiveFinanceCategory>>
+>;
+
+export type UnarchiveFinanceCategoryMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Unarchive a Finance Category
+ */
+export const useUnarchiveFinanceCategory = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof unarchiveFinanceCategory>>,
+      TError,
+      { ledgerId: string; categoryId: string },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof unarchiveFinanceCategory>>,
+  TError,
+  { ledgerId: string; categoryId: string },
+  TContext
+> => {
+  return useMutation(
+    getUnarchiveFinanceCategoryMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type getFinanceOverviewResponse200 = {
+  data: FinanceOverviewResponse;
+  status: 200;
+};
+
+export type getFinanceOverviewResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type getFinanceOverviewResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type getFinanceOverviewResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type getFinanceOverviewResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type getFinanceOverviewResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type getFinanceOverviewResponseSuccess =
+  getFinanceOverviewResponse200 & {
+    headers: Headers;
+  };
+export type getFinanceOverviewResponseError = (
+  | getFinanceOverviewResponse403
+  | getFinanceOverviewResponse404
+  | getFinanceOverviewResponse422
+  | getFinanceOverviewResponse500
+  | getFinanceOverviewResponse503
+) & {
+  headers: Headers;
+};
+
+export const getGetFinanceOverviewUrl = (
+  ledgerId: string,
+  params: GetFinanceOverviewParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/overview?${stringifiedParams}`
+    : `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/overview`;
+};
+
+/**
+ * Returns present Account balances and currency-separated selected-month activity.
+ * @summary Get the Finance Overview
+ */
+export const getFinanceOverview = async (
+  ledgerId: string,
+  params: GetFinanceOverviewParams,
+  options?: RequestInit,
+): Promise<getFinanceOverviewResponseSuccess> => {
+  const res = await fetch(getGetFinanceOverviewUrl(ledgerId, params), {
+    ...options,
+    method: "GET",
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: getFinanceOverviewResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: getFinanceOverviewResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: getFinanceOverviewResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getFinanceOverviewResponseSuccess;
+};
+
+export const getGetFinanceOverviewQueryKey = (
+  ledgerId: string,
+  params?: GetFinanceOverviewParams,
+) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/overview`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetFinanceOverviewQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFinanceOverview>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  params: GetFinanceOverviewParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceOverview>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetFinanceOverviewQueryKey(ledgerId, params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getFinanceOverview>>
+  > = ({ signal }) =>
+    getFinanceOverview(ledgerId, params, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: ledgerId !== null && ledgerId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFinanceOverview>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetFinanceOverviewQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFinanceOverview>>
+>;
+export type GetFinanceOverviewQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useGetFinanceOverview<
+  TData = Awaited<ReturnType<typeof getFinanceOverview>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  params: GetFinanceOverviewParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceOverview>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFinanceOverview>>,
+          TError,
+          Awaited<ReturnType<typeof getFinanceOverview>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetFinanceOverview<
+  TData = Awaited<ReturnType<typeof getFinanceOverview>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  params: GetFinanceOverviewParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceOverview>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFinanceOverview>>,
+          TError,
+          Awaited<ReturnType<typeof getFinanceOverview>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetFinanceOverview<
+  TData = Awaited<ReturnType<typeof getFinanceOverview>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  params: GetFinanceOverviewParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceOverview>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Get the Finance Overview
+ */
+
+export function useGetFinanceOverview<
+  TData = Awaited<ReturnType<typeof getFinanceOverview>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  params: GetFinanceOverviewParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceOverview>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetFinanceOverviewQueryOptions(
+    ledgerId,
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export type listFinanceTransactionsResponse200 = {
+  data: TransactionHistoryPageResponse;
+  status: 200;
+};
+
+export type listFinanceTransactionsResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type listFinanceTransactionsResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type listFinanceTransactionsResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type listFinanceTransactionsResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type listFinanceTransactionsResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type listFinanceTransactionsResponseSuccess =
+  listFinanceTransactionsResponse200 & {
+    headers: Headers;
+  };
+export type listFinanceTransactionsResponseError = (
+  | listFinanceTransactionsResponse403
+  | listFinanceTransactionsResponse404
+  | listFinanceTransactionsResponse422
+  | listFinanceTransactionsResponse500
+  | listFinanceTransactionsResponse503
+) & {
+  headers: Headers;
+};
+
+export const getListFinanceTransactionsUrl = (
+  ledgerId: string,
+  params?: ListFinanceTransactionsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/transactions?${stringifiedParams}`
+    : `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/transactions`;
+};
+
+/**
+ * Browse one owned Ledger's deterministic Transaction history.
+ * @summary List Finance Transactions
+ */
+export const listFinanceTransactions = async (
+  ledgerId: string,
+  params?: ListFinanceTransactionsParams,
+  options?: RequestInit,
+): Promise<listFinanceTransactionsResponseSuccess> => {
+  const res = await fetch(getListFinanceTransactionsUrl(ledgerId, params), {
+    ...options,
+    method: "GET",
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: listFinanceTransactionsResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: listFinanceTransactionsResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: listFinanceTransactionsResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as listFinanceTransactionsResponseSuccess;
+};
+
+export const getListFinanceTransactionsQueryKey = (
+  ledgerId: string,
+  params?: ListFinanceTransactionsParams,
+) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/transactions`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getListFinanceTransactionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFinanceTransactions>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  params?: ListFinanceTransactionsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceTransactions>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListFinanceTransactionsQueryKey(ledgerId, params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listFinanceTransactions>>
+  > = ({ signal }) =>
+    listFinanceTransactions(ledgerId, params, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: ledgerId !== null && ledgerId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFinanceTransactions>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListFinanceTransactionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFinanceTransactions>>
+>;
+export type ListFinanceTransactionsQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useListFinanceTransactions<
+  TData = Awaited<ReturnType<typeof listFinanceTransactions>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  params: undefined | ListFinanceTransactionsParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceTransactions>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceTransactions>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceTransactions>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceTransactions<
+  TData = Awaited<ReturnType<typeof listFinanceTransactions>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  params?: ListFinanceTransactionsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceTransactions>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceTransactions>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceTransactions>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceTransactions<
+  TData = Awaited<ReturnType<typeof listFinanceTransactions>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  params?: ListFinanceTransactionsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceTransactions>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary List Finance Transactions
+ */
+
+export function useListFinanceTransactions<
+  TData = Awaited<ReturnType<typeof listFinanceTransactions>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  params?: ListFinanceTransactionsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceTransactions>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListFinanceTransactionsQueryOptions(
+    ledgerId,
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export type createFinanceTransactionResponse201 = {
+  data: FinanceTransactionResponse;
+  status: 201;
+};
+
+export type createFinanceTransactionResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type createFinanceTransactionResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type createFinanceTransactionResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type createFinanceTransactionResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type createFinanceTransactionResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type createFinanceTransactionResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type createFinanceTransactionResponseSuccess =
+  createFinanceTransactionResponse201 & {
+    headers: Headers;
+  };
+export type createFinanceTransactionResponseError = (
+  | createFinanceTransactionResponse403
+  | createFinanceTransactionResponse404
+  | createFinanceTransactionResponse409
+  | createFinanceTransactionResponse422
+  | createFinanceTransactionResponse500
+  | createFinanceTransactionResponse503
+) & {
+  headers: Headers;
+};
+
+export const getCreateFinanceTransactionUrl = (ledgerId: string) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/transactions`;
+};
+
+/**
+ * Create one supported Finance Transaction.
+ * @summary Create a Finance Transaction
+ */
+export const createFinanceTransaction = async (
+  ledgerId: string,
+  createIncomeTransactionRequestCreateExpenseTransactionRequestCreateInternalTransferTransactionRequest:
+    | CreateIncomeTransactionRequest
+    | CreateExpenseTransactionRequest
+    | CreateInternalTransferTransactionRequest,
+  options?: RequestInit,
+): Promise<createFinanceTransactionResponseSuccess> => {
+  const res = await fetch(getCreateFinanceTransactionUrl(ledgerId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(
+      createIncomeTransactionRequestCreateExpenseTransactionRequestCreateInternalTransferTransactionRequest,
+    ),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: createFinanceTransactionResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: createFinanceTransactionResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: createFinanceTransactionResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as createFinanceTransactionResponseSuccess;
+};
+
+export const getCreateFinanceTransactionMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createFinanceTransaction>>,
+    TError,
+    {
+      ledgerId: string;
+      data:
+        | CreateIncomeTransactionRequest
+        | CreateExpenseTransactionRequest
+        | CreateInternalTransferTransactionRequest;
+    },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createFinanceTransaction>>,
+  TError,
+  {
+    ledgerId: string;
+    data:
+      | CreateIncomeTransactionRequest
+      | CreateExpenseTransactionRequest
+      | CreateInternalTransferTransactionRequest;
+  },
+  TContext
+> => {
+  const mutationKey = ["createFinanceTransaction"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createFinanceTransaction>>,
+    {
+      ledgerId: string;
+      data:
+        | CreateIncomeTransactionRequest
+        | CreateExpenseTransactionRequest
+        | CreateInternalTransferTransactionRequest;
+    }
+  > = (props) => {
+    const { ledgerId, data } = props ?? {};
+
+    return createFinanceTransaction(ledgerId, data, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateFinanceTransactionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createFinanceTransaction>>
+>;
+export type CreateFinanceTransactionMutationBody =
+  | CreateIncomeTransactionRequest
+  | CreateExpenseTransactionRequest
+  | CreateInternalTransferTransactionRequest;
+export type CreateFinanceTransactionMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Create a Finance Transaction
+ */
+export const useCreateFinanceTransaction = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createFinanceTransaction>>,
+      TError,
+      {
+        ledgerId: string;
+        data:
+          | CreateIncomeTransactionRequest
+          | CreateExpenseTransactionRequest
+          | CreateInternalTransferTransactionRequest;
+      },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createFinanceTransaction>>,
+  TError,
+  {
+    ledgerId: string;
+    data:
+      | CreateIncomeTransactionRequest
+      | CreateExpenseTransactionRequest
+      | CreateInternalTransferTransactionRequest;
+  },
+  TContext
+> => {
+  return useMutation(
+    getCreateFinanceTransactionMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type deleteFinanceTransactionResponse204 = {
+  data: void;
+  status: 204;
+};
+
+export type deleteFinanceTransactionResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type deleteFinanceTransactionResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type deleteFinanceTransactionResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type deleteFinanceTransactionResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type deleteFinanceTransactionResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type deleteFinanceTransactionResponseSuccess =
+  deleteFinanceTransactionResponse204 & {
+    headers: Headers;
+  };
+export type deleteFinanceTransactionResponseError = (
+  | deleteFinanceTransactionResponse403
+  | deleteFinanceTransactionResponse404
+  | deleteFinanceTransactionResponse422
+  | deleteFinanceTransactionResponse500
+  | deleteFinanceTransactionResponse503
+) & {
+  headers: Headers;
+};
+
+export const getDeleteFinanceTransactionUrl = (
+  ledgerId: string,
+  transactionId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/transactions/${transactionId}`;
+};
+
+/**
+ * Delete one complete Finance Transaction aggregate of any kind.
+ * @summary Delete a Finance Transaction
+ */
+export const deleteFinanceTransaction = async (
+  ledgerId: string,
+  transactionId: string,
+  options?: RequestInit,
+): Promise<deleteFinanceTransactionResponseSuccess> => {
+  const res = await fetch(
+    getDeleteFinanceTransactionUrl(ledgerId, transactionId),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: deleteFinanceTransactionResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: deleteFinanceTransactionResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: deleteFinanceTransactionResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : undefined;
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as deleteFinanceTransactionResponseSuccess;
+};
+
+export const getDeleteFinanceTransactionMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteFinanceTransaction>>,
+    TError,
+    { ledgerId: string; transactionId: string },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteFinanceTransaction>>,
+  TError,
+  { ledgerId: string; transactionId: string },
+  TContext
+> => {
+  const mutationKey = ["deleteFinanceTransaction"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteFinanceTransaction>>,
+    { ledgerId: string; transactionId: string }
+  > = (props) => {
+    const { ledgerId, transactionId } = props ?? {};
+
+    return deleteFinanceTransaction(ledgerId, transactionId, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteFinanceTransactionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteFinanceTransaction>>
+>;
+
+export type DeleteFinanceTransactionMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Delete a Finance Transaction
+ */
+export const useDeleteFinanceTransaction = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteFinanceTransaction>>,
+      TError,
+      { ledgerId: string; transactionId: string },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteFinanceTransaction>>,
+  TError,
+  { ledgerId: string; transactionId: string },
+  TContext
+> => {
+  return useMutation(
+    getDeleteFinanceTransactionMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type getFinanceTransactionResponse200 = {
+  data: FinanceTransactionResponse;
+  status: 200;
+};
+
+export type getFinanceTransactionResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type getFinanceTransactionResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type getFinanceTransactionResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type getFinanceTransactionResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type getFinanceTransactionResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type getFinanceTransactionResponseSuccess =
+  getFinanceTransactionResponse200 & {
+    headers: Headers;
+  };
+export type getFinanceTransactionResponseError = (
+  | getFinanceTransactionResponse403
+  | getFinanceTransactionResponse404
+  | getFinanceTransactionResponse422
+  | getFinanceTransactionResponse500
+  | getFinanceTransactionResponse503
+) & {
+  headers: Headers;
+};
+
+export const getGetFinanceTransactionUrl = (
+  ledgerId: string,
+  transactionId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/transactions/${transactionId}`;
+};
+
+/**
+ * Read one supported Finance Transaction in an owned Ledger.
+ * @summary Get a Finance Transaction
+ */
+export const getFinanceTransaction = async (
+  ledgerId: string,
+  transactionId: string,
+  options?: RequestInit,
+): Promise<getFinanceTransactionResponseSuccess> => {
+  const res = await fetch(
+    getGetFinanceTransactionUrl(ledgerId, transactionId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: getFinanceTransactionResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: getFinanceTransactionResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: getFinanceTransactionResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getFinanceTransactionResponseSuccess;
+};
+
+export const getGetFinanceTransactionQueryKey = (
+  ledgerId: string,
+  transactionId: string,
+) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/transactions/${transactionId}`,
+  ] as const;
+};
+
+export const getGetFinanceTransactionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFinanceTransaction>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  transactionId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceTransaction>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetFinanceTransactionQueryKey(ledgerId, transactionId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getFinanceTransaction>>
+  > = ({ signal }) =>
+    getFinanceTransaction(ledgerId, transactionId, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      ledgerId !== null &&
+      ledgerId !== undefined &&
+      transactionId !== null &&
+      transactionId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFinanceTransaction>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetFinanceTransactionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFinanceTransaction>>
+>;
+export type GetFinanceTransactionQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useGetFinanceTransaction<
+  TData = Awaited<ReturnType<typeof getFinanceTransaction>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  transactionId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceTransaction>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFinanceTransaction>>,
+          TError,
+          Awaited<ReturnType<typeof getFinanceTransaction>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetFinanceTransaction<
+  TData = Awaited<ReturnType<typeof getFinanceTransaction>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  transactionId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceTransaction>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFinanceTransaction>>,
+          TError,
+          Awaited<ReturnType<typeof getFinanceTransaction>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetFinanceTransaction<
+  TData = Awaited<ReturnType<typeof getFinanceTransaction>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  transactionId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceTransaction>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Get a Finance Transaction
+ */
+
+export function useGetFinanceTransaction<
+  TData = Awaited<ReturnType<typeof getFinanceTransaction>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  transactionId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceTransaction>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetFinanceTransactionQueryOptions(
+    ledgerId,
+    transactionId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export type replaceFinanceTransactionResponse200 = {
+  data: FinanceTransactionResponse;
+  status: 200;
+};
+
+export type replaceFinanceTransactionResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type replaceFinanceTransactionResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type replaceFinanceTransactionResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type replaceFinanceTransactionResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type replaceFinanceTransactionResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type replaceFinanceTransactionResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type replaceFinanceTransactionResponseSuccess =
+  replaceFinanceTransactionResponse200 & {
+    headers: Headers;
+  };
+export type replaceFinanceTransactionResponseError = (
+  | replaceFinanceTransactionResponse403
+  | replaceFinanceTransactionResponse404
+  | replaceFinanceTransactionResponse409
+  | replaceFinanceTransactionResponse422
+  | replaceFinanceTransactionResponse500
+  | replaceFinanceTransactionResponse503
+) & {
+  headers: Headers;
+};
+
+export const getReplaceFinanceTransactionUrl = (
+  ledgerId: string,
+  transactionId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/transactions/${transactionId}`;
+};
+
+/**
+ * Completely replace one same-kind ordinary Finance Transaction.
+ * @summary Replace a Finance Transaction
+ */
+export const replaceFinanceTransaction = async (
+  ledgerId: string,
+  transactionId: string,
+  replaceIncomeTransactionRequestReplaceExpenseTransactionRequestReplaceInternalTransferTransactionRequest:
+    | ReplaceIncomeTransactionRequest
+    | ReplaceExpenseTransactionRequest
+    | ReplaceInternalTransferTransactionRequest,
+  options?: RequestInit,
+): Promise<replaceFinanceTransactionResponseSuccess> => {
+  const res = await fetch(
+    getReplaceFinanceTransactionUrl(ledgerId, transactionId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(
+        replaceIncomeTransactionRequestReplaceExpenseTransactionRequestReplaceInternalTransferTransactionRequest,
+      ),
+    },
+  );
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: replaceFinanceTransactionResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: replaceFinanceTransactionResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: replaceFinanceTransactionResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as replaceFinanceTransactionResponseSuccess;
+};
+
+export const getReplaceFinanceTransactionMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof replaceFinanceTransaction>>,
+    TError,
+    {
+      ledgerId: string;
+      transactionId: string;
+      data:
+        | ReplaceIncomeTransactionRequest
+        | ReplaceExpenseTransactionRequest
+        | ReplaceInternalTransferTransactionRequest;
+    },
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof replaceFinanceTransaction>>,
+  TError,
+  {
+    ledgerId: string;
+    transactionId: string;
+    data:
+      | ReplaceIncomeTransactionRequest
+      | ReplaceExpenseTransactionRequest
+      | ReplaceInternalTransferTransactionRequest;
+  },
+  TContext
+> => {
+  const mutationKey = ["replaceFinanceTransaction"];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof replaceFinanceTransaction>>,
+    {
+      ledgerId: string;
+      transactionId: string;
+      data:
+        | ReplaceIncomeTransactionRequest
+        | ReplaceExpenseTransactionRequest
+        | ReplaceInternalTransferTransactionRequest;
+    }
+  > = (props) => {
+    const { ledgerId, transactionId, data } = props ?? {};
+
+    return replaceFinanceTransaction(
+      ledgerId,
+      transactionId,
+      data,
+      fetchOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReplaceFinanceTransactionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof replaceFinanceTransaction>>
+>;
+export type ReplaceFinanceTransactionMutationBody =
+  | ReplaceIncomeTransactionRequest
+  | ReplaceExpenseTransactionRequest
+  | ReplaceInternalTransferTransactionRequest;
+export type ReplaceFinanceTransactionMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+/**
+ * @summary Replace a Finance Transaction
+ */
+export const useReplaceFinanceTransaction = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof replaceFinanceTransaction>>,
+      TError,
+      {
+        ledgerId: string;
+        transactionId: string;
+        data:
+          | ReplaceIncomeTransactionRequest
+          | ReplaceExpenseTransactionRequest
+          | ReplaceInternalTransferTransactionRequest;
+      },
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof replaceFinanceTransaction>>,
+  TError,
+  {
+    ledgerId: string;
+    transactionId: string;
+    data:
+      | ReplaceIncomeTransactionRequest
+      | ReplaceExpenseTransactionRequest
+      | ReplaceInternalTransferTransactionRequest;
+  },
+  TContext
+> => {
+  return useMutation(
+    getReplaceFinanceTransactionMutationOptions(options),
+    queryClient,
+  );
 };
 
 export type getHelloWorldResponse200 = {
