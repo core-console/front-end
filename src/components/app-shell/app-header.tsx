@@ -9,9 +9,11 @@ interface AppHeaderProps {
 
 export function AppHeader({ collapsed, onToggleSidebar }: AppHeaderProps) {
   const location = useLocation();
-  const pageLabel = matchPath({ end: true, path: "/users" }, location.pathname)
-    ? "Users"
-    : "Home";
+  const pageLabel = matchPath("/finance/*", location.pathname)
+    ? "Finance"
+    : matchPath({ end: true, path: "/users" }, location.pathname)
+      ? "Users"
+      : "Home";
 
   return (
     <header className="flex h-14 min-w-0 items-center border-b border-border bg-card pr-8 pl-[14px]">

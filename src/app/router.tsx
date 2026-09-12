@@ -19,6 +19,14 @@ export const routes = [
         lazy: () => import("@/routes/users"),
       },
       {
+        path: "finance/transactions/:transactionId",
+        lazy: () => import("@/routes/finance"),
+      },
+      {
+        path: "finance/:section?",
+        lazy: () => import("@/routes/finance"),
+      },
+      {
         path: "*",
         lazy: () => import("@/routes/not-found"),
       },

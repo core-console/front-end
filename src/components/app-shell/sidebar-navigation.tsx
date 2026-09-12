@@ -1,4 +1,10 @@
-import { House, Settings, Users, type LucideIcon } from "lucide-react";
+import {
+  House,
+  Settings,
+  Users,
+  WalletCards,
+  type LucideIcon,
+} from "lucide-react";
 import { Link, matchPath, useLocation } from "react-router";
 
 import {
@@ -22,6 +28,7 @@ interface NavigationItem {
 const navigationItems: NavigationItem[] = [
   { icon: House, label: "Home", to: "/" },
   { icon: Users, label: "Users", to: "/users" },
+  { icon: WalletCards, label: "Finance", to: "/finance/overview" },
   { icon: Settings, label: "Settings" },
 ];
 
@@ -107,7 +114,13 @@ export function SidebarNavigation({ collapsed }: SidebarNavigationProps) {
         <NavigationItemView
           active={Boolean(
             item.to &&
-            matchPath({ end: true, path: item.to }, location.pathname),
+            matchPath(
+              {
+                end: item.to !== "/finance/overview",
+                path: item.to === "/finance/overview" ? "/finance/*" : item.to,
+              },
+              location.pathname,
+            ),
           )}
           collapsed={collapsed}
           item={item}

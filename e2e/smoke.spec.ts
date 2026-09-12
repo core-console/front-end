@@ -8,6 +8,7 @@ import {
 } from "@playwright/test";
 
 import {
+  LedgerResponse,
   MeResponse,
   UserResponse,
 } from "../src/api/generated/schemas/index.ts";
@@ -56,6 +57,13 @@ const managedUsers = UserResponse.array().parse([
     identitySubject: "bob",
     status: "inactive",
     username: "bjones",
+  },
+]);
+
+const financeLedgers = LedgerResponse.array().parse([
+  {
+    id: "a40a626a-99f1-4e81-940b-66f9e0d45c90",
+    name: "Personal",
   },
 ]);
 
@@ -189,6 +197,29 @@ test("opens Users management in the production shell", async ({
   await dialog.press("Escape");
   await expect(dialog).not.toBeVisible();
 
+  expectNoBrowserErrors(errors);
+});
+
+test("opens Finance with shared Ledger context", async ({ page }, testInfo) => {
+  const errors = collectBrowserErrors(page);
+  await page.route("**/api/finance/ledgers", async (route) => {
+    await route.fulfill({ json: financeLedgers });
+  });
+  const finance = page.getByRole("region", { name: "Overview" });
+
+  await page.goto("/finance/overview");
+
+  await expect(page).toHaveURL(
+    new RegExp(`/finance/overview\\?ledger=${financeLedgers[0]!.id}$`),
+  );
+  await expect(page.getByRole("button", { name: "Personal" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Finance", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await expect(
+    finance.getByRole("navigation", { name: "Finance navigation" }),
+  ).toBeVisible();
+  await expectNoAccessibilityViolations(page, finance, testInfo);
   expectNoBrowserErrors(errors);
 });
 
