@@ -1,5 +1,5 @@
 import { ChevronDownIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import {
   Link,
   Navigate,
@@ -10,8 +10,8 @@ import {
 
 import { useListFinanceLedgers } from "@/api/generated/core-console";
 import { LedgerResponse } from "@/api/generated/schemas";
-import { LedgerOnboarding } from "@/components/finance/ledger-onboarding";
 import { LedgerNameDialog } from "@/components/finance/ledger-name-dialog";
+import { LedgerOnboarding } from "@/components/finance/ledger-onboarding";
 import {
   addressedLedgerValue,
   buildFinanceSearch,
@@ -37,6 +37,12 @@ const destinations = [
 ] as const;
 
 const rememberedLedgerKey = "core-console.finance.last-ledger-id";
+
+const AccountsDestination = lazy(() =>
+  import("@/components/finance/accounts-destination").then((module) => ({
+    default: module.AccountsDestination,
+  })),
+);
 
 type Destination = (typeof destinations)[number];
 type LedgerDialogState =
@@ -302,7 +308,21 @@ export function Component() {
           }
         />
       ) : null}
-      {selectedLedger ? (
+      {selectedLedger && destination.slug === "accounts" ? (
+        <Suspense
+          fallback={
+            <p className="text-sm text-muted-foreground" role="status">
+              Loading Accounts…
+            </p>
+          }
+        >
+          <AccountsDestination
+            key={selectedLedger.id}
+            ledgerId={selectedLedger.id}
+            ledgerName={selectedLedger.name}
+          />
+        </Suspense>
+      ) : selectedLedger ? (
         <div
           className="rounded-lg border border-border bg-card p-6"
           key={selectedLedger.id}

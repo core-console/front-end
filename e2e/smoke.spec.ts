@@ -8,6 +8,8 @@ import {
 } from "@playwright/test";
 
 import {
+  AccountResponse,
+  CurrencyResponse,
   LedgerResponse,
   MeResponse,
   UserResponse,
@@ -64,6 +66,35 @@ const financeLedgers = LedgerResponse.array().parse([
   {
     id: "a40a626a-99f1-4e81-940b-66f9e0d45c90",
     name: "Personal",
+  },
+]);
+
+const financeCurrencies = CurrencyResponse.array().parse([
+  { code: "CNY", minorUnit: 2 },
+  { code: "JPY", minorUnit: 0 },
+  { code: "USD", minorUnit: 2 },
+]);
+
+const financeAccounts = AccountResponse.array().parse([
+  {
+    currency: "CNY",
+    currentBalance: { amount: "18420.35", currency: "CNY" },
+    id: "11111111-1111-4111-8111-111111111111",
+    name: "Operating cash",
+    nature: "asset",
+    openingBalance: { amount: "10000.00", currency: "CNY" },
+    status: "active",
+    trackingStartDate: "2026-01-01",
+  },
+  {
+    currency: "USD",
+    currentBalance: { amount: "-842.10", currency: "USD" },
+    id: "22222222-2222-4222-8222-222222222222",
+    name: "Travel card",
+    nature: "liability",
+    openingBalance: { amount: "0.00", currency: "USD" },
+    status: "archived",
+    trackingStartDate: "2025-11-15",
   },
 ]);
 
@@ -220,6 +251,50 @@ test("opens Finance with shared Ledger context", async ({ page }, testInfo) => {
     finance.getByRole("navigation", { name: "Finance navigation" }),
   ).toBeVisible();
   await expectNoAccessibilityViolations(page, finance, testInfo);
+  expectNoBrowserErrors(errors);
+});
+
+test("renders accessible responsive Finance Accounts", async ({
+  page,
+}, testInfo) => {
+  const errors = collectBrowserErrors(page);
+  await page.setViewportSize({ height: 900, width: 1024 });
+  await page.route("**/api/finance/ledgers", async (route) => {
+    await route.fulfill({ json: financeLedgers });
+  });
+  await page.route("**/api/finance/currencies", async (route) => {
+    await route.fulfill({ json: financeCurrencies });
+  });
+  await page.route("**/api/finance/ledgers/*/accounts", async (route) => {
+    await route.fulfill({ json: financeAccounts });
+  });
+  const accounts = page.getByRole("region", { exact: true, name: "Accounts" });
+
+  await page.goto(`/finance/accounts?ledger=${financeLedgers[0]!.id}`);
+
+  await expect(
+    accounts.getByRole("heading", { name: "Active Accounts" }),
+  ).toBeVisible();
+  await expect(
+    accounts.getByRole("heading", { name: "Archived Accounts" }),
+  ).toBeVisible();
+  await expect(accounts.getByText("18,420.35 CNY")).toBeVisible();
+  expect(
+    await page.evaluate<boolean>(
+      "document.documentElement.scrollWidth <= document.documentElement.clientWidth",
+    ),
+  ).toBe(true);
+  await expectNoAccessibilityViolations(page, accounts, testInfo);
+
+  await accounts.getByRole("button", { name: "Create account" }).click();
+  const dialog = page.getByRole("dialog", { name: "Create account" });
+  await expect(dialog.getByLabel("Account name")).toBeEditable();
+  await expectNoAccessibilityViolations(page, dialog, testInfo);
+  await dialog.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(
+    accounts.getByRole("button", { name: "Create account" }),
+  ).toBeFocused();
   expectNoBrowserErrors(errors);
 });
 
