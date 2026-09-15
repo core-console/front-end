@@ -286,6 +286,38 @@ test("renders accessible responsive Finance Accounts", async ({
   ).toBe(true);
   await expectNoAccessibilityViolations(page, accounts, testInfo);
 
+  const accountActions = accounts.getByRole("button", {
+    name: "Actions for Operating cash",
+  });
+  await accountActions.click();
+  await page
+    .getByRole("menuitem", {
+      name: "Correct nature or currency for Operating cash",
+    })
+    .click();
+  const correction = page.getByRole("dialog", {
+    name: "Correct nature or currency",
+  });
+  await expect(correction.getByLabel("New nature")).toBeVisible();
+  await expect(correction.getByLabel("New currency")).toBeVisible();
+  await expectNoAccessibilityViolations(page, correction, testInfo);
+  await correction.press("Escape");
+  await expect(correction).not.toBeVisible();
+  await expect(accountActions).toBeFocused();
+
+  await accountActions.click();
+  await page.getByRole("menuitem", { name: "Archive Operating cash" }).click();
+  const archiveConfirmation = page.getByRole("alertdialog", {
+    name: "Archive Operating cash?",
+  });
+  await expect(
+    archiveConfirmation.getByRole("button", { name: "Cancel" }),
+  ).toBeFocused();
+  await expectNoAccessibilityViolations(page, archiveConfirmation, testInfo);
+  await archiveConfirmation.getByRole("button", { name: "Cancel" }).click();
+  await expect(archiveConfirmation).not.toBeVisible();
+  await expect(accountActions).toBeFocused();
+
   await accounts.getByRole("button", { name: "Create account" }).click();
   const dialog = page.getByRole("dialog", { name: "Create account" });
   await expect(dialog.getByLabel("Account name")).toBeEditable();

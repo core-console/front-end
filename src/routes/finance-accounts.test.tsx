@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
@@ -7,10 +7,16 @@ import {
   getListFinanceAccountsMockHandler503,
   getListFinanceCurrenciesMockHandler,
   getListFinanceLedgersMockHandler,
+  getArchiveFinanceAccountMockHandler,
+  getArchiveFinanceAccountMockHandler404,
   getCreateFinanceAccountMockHandler,
   getCreateFinanceAccountMockHandler422,
   getUpdateFinanceAccountMockHandler,
+  getUpdateFinanceAccountMockHandler404,
+  getUpdateFinanceAccountMockHandler409,
   getUpdateFinanceAccountMockHandler422,
+  getUnarchiveFinanceAccountMockHandler,
+  getUnarchiveFinanceAccountMockHandler503,
 } from "@/api/generated/core-console.msw";
 import type { AccountResponse } from "@/api/generated/schemas";
 import { server } from "@/mocks/server";
@@ -100,6 +106,123 @@ describe("Finance Accounts destination", () => {
     expect(within(archived).getByText("Archived")).toBeVisible();
   });
 
+  it("gives duplicate Account names unique contextual action names", async () => {
+    const duplicateAccounts = [
+      { ...accounts[2]!, name: "Shared" },
+      {
+        ...accounts[2]!,
+        id: "66666666-6666-4666-8666-666666666666",
+        name: "Shared",
+      },
+    ] satisfies AccountResponse[];
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceCurrenciesMockHandler([
+        { code: "CNY", minorUnit: 2 },
+        { code: "JPY", minorUnit: 0 },
+        { code: "USD", minorUnit: 2 },
+      ]),
+      getListFinanceAccountsMockHandler(duplicateAccounts),
+    );
+    const user = userEvent.setup();
+    renderRoute(`/finance/accounts?ledger=${ledger.id}`);
+
+    const firstActions = await screen.findByRole(
+      "button",
+      { name: "Actions for Shared, active asset in CNY, 1 of 2" },
+      { timeout: 5_000 },
+    );
+    const secondActions = screen.getByRole("button", {
+      name: "Actions for Shared, active asset in CNY, 2 of 2",
+    });
+    expect(firstActions).toBeVisible();
+    expect(secondActions).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "Edit Shared, active asset in CNY, 1 of 2",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "Edit Shared, active asset in CNY, 2 of 2",
+      }),
+    ).toBeVisible();
+
+    await user.click(secondActions);
+    expect(
+      await screen.findByRole("menuitem", {
+        name: "Archive Shared, active asset in CNY, 2 of 2",
+      }),
+    ).toBeVisible();
+  });
+
+  it("keeps same-name Account identity inside archive and correction workflows", async () => {
+    const duplicateAccounts = [
+      { ...accounts[2]!, name: "Shared" },
+      {
+        ...accounts[2]!,
+        id: "66666666-6666-4666-8666-666666666666",
+        name: "Shared",
+      },
+    ] satisfies AccountResponse[];
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceCurrenciesMockHandler([
+        { code: "CNY", minorUnit: 2 },
+        { code: "JPY", minorUnit: 0 },
+        { code: "USD", minorUnit: 2 },
+      ]),
+      getListFinanceAccountsMockHandler(duplicateAccounts),
+    );
+    const user = userEvent.setup();
+    renderRoute(`/finance/accounts?ledger=${ledger.id}`);
+
+    await user.click(
+      await screen.findByRole(
+        "button",
+        { name: "Actions for Shared, active asset in CNY, 2 of 2" },
+        { timeout: 5_000 },
+      ),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: "Archive Shared, active asset in CNY, 2 of 2",
+      }),
+    );
+    const confirmation = screen.getByRole("alertdialog", {
+      name: "Archive Shared, active asset in CNY, 2 of 2?",
+    });
+    expect(confirmation).toHaveTextContent(
+      "Shared, active asset in CNY, 2 of 2",
+    );
+    expect(confirmation).toHaveAccessibleDescription(
+      /Shared, active asset in CNY, 2 of 2/,
+    );
+    await user.click(
+      within(confirmation).getByRole("button", { name: "Cancel" }),
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Actions for Shared, active asset in CNY, 1 of 2",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: "Correct nature or currency for Shared, active asset in CNY, 1 of 2",
+      }),
+    );
+    const correction = screen.getByRole("dialog", {
+      name: "Correct nature or currency",
+    });
+    expect(correction).toHaveTextContent(
+      "Target Account: Shared, active asset in CNY, 1 of 2",
+    );
+    expect(correction).toHaveAccessibleDescription(
+      /Shared, active asset in CNY, 1 of 2/,
+    );
+  });
+
   it("invites creation without rendering lifecycle sections when no Accounts exist", async () => {
     server.use(
       getListFinanceLedgersMockHandler([ledger]),
@@ -165,6 +288,766 @@ describe("Finance Accounts destination", () => {
     expect(
       screen.queryByRole("region", { name: "Active Accounts" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("confirms every archive consequence and reconciles the confirmed lifecycle", async () => {
+    const user = userEvent.setup();
+    let archiveRequests = 0;
+    let releaseArchive!: () => void;
+    const pendingArchive = new Promise<void>((resolve) => {
+      releaseArchive = resolve;
+    });
+    let listRequests = 0;
+    let releaseRefresh!: () => void;
+    const pendingRefresh = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    let listedAccounts: AccountResponse[] = [accounts[2]!, accounts[1]!];
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceCurrenciesMockHandler([
+        { code: "CNY", minorUnit: 2 },
+        { code: "JPY", minorUnit: 0 },
+        { code: "USD", minorUnit: 2 },
+      ]),
+      getListFinanceAccountsMockHandler(async () => {
+        listRequests += 1;
+        if (listRequests > 1) await pendingRefresh;
+        return listedAccounts;
+      }),
+      getArchiveFinanceAccountMockHandler(async () => {
+        archiveRequests += 1;
+        await pendingArchive;
+        const archived = {
+          ...accounts[2]!,
+          status: "archived",
+        } satisfies AccountResponse;
+        listedAccounts = [archived, accounts[1]!];
+        return archived;
+      }),
+    );
+    renderRoute(`/finance/accounts?ledger=${ledger.id}`);
+
+    const actions = await screen.findByRole(
+      "button",
+      { name: "Actions for Operating cash" },
+      { timeout: 5_000 },
+    );
+    await user.click(actions);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Archive Operating cash" }),
+    );
+
+    const confirmation = screen.getByRole("alertdialog", {
+      name: "Archive Operating cash?",
+    });
+    expect(confirmation).toHaveTextContent("does not delete this Account");
+    expect(confirmation).toHaveTextContent("keeps its historical Transactions");
+    expect(confirmation).toHaveTextContent(
+      "keeps it in current financial-position calculations",
+    );
+    expect(confirmation).toHaveTextContent(
+      "excludes it from ordinary new Transaction references",
+    );
+    expect(confirmation).not.toHaveTextContent(/must be zero|insufficient/i);
+    const cancel = within(confirmation).getByRole("button", { name: "Cancel" });
+    expect(cancel).toHaveFocus();
+
+    await user.click(cancel);
+    expect(archiveRequests).toBe(0);
+    expect(actions).toHaveFocus();
+
+    await user.click(actions);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Archive Operating cash" }),
+    );
+    await user.click(
+      within(
+        screen.getByRole("alertdialog", {
+          name: "Archive Operating cash?",
+        }),
+      ).getByRole("button", { name: "Archive Account" }),
+    );
+
+    const pendingDialog = screen.getByRole("alertdialog", {
+      name: "Archive Operating cash?",
+    });
+    expect(pendingDialog).toHaveAttribute("aria-busy", "true");
+    expect(
+      within(pendingDialog).getByRole("button", { name: "Archiving…" }),
+    ).toBeDisabled();
+    releaseArchive();
+
+    await waitFor(() => {
+      expect(
+        within(
+          screen.getByRole("region", { name: "Archived Accounts" }),
+        ).getByRole("article", { name: "Operating cash" }),
+      ).toBeVisible();
+    });
+    expect(archiveRequests).toBe(1);
+    expect(listRequests).toBe(2);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Operating cash archived.",
+    );
+    expect(
+      screen.getByRole("button", { name: "Actions for Operating cash" }),
+    ).toHaveFocus();
+    releaseRefresh();
+  });
+
+  it("removes a stale Account and refreshes its Ledger after archive not-found", async () => {
+    const user = userEvent.setup();
+    let listRequests = 0;
+    let releaseRefresh!: () => void;
+    const pendingRefresh = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceCurrenciesMockHandler([
+        { code: "CNY", minorUnit: 2 },
+        { code: "JPY", minorUnit: 0 },
+        { code: "USD", minorUnit: 2 },
+      ]),
+      getListFinanceAccountsMockHandler(async () => {
+        listRequests += 1;
+        if (listRequests === 1) return [accounts[2]!];
+        await pendingRefresh;
+        return [];
+      }),
+      getArchiveFinanceAccountMockHandler404({
+        type: "about:blank",
+        title: "Not Found",
+        status: 404,
+        code: "finance_account_not_found",
+        detail: "internal account identifier was not found",
+      }),
+    );
+    renderRoute(`/finance/accounts?ledger=${ledger.id}`);
+
+    const actions = await screen.findByRole(
+      "button",
+      { name: "Actions for Operating cash" },
+      { timeout: 5_000 },
+    );
+    await user.click(actions);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Archive Operating cash" }),
+    );
+    const confirmation = screen.getByRole("alertdialog", {
+      name: "Archive Operating cash?",
+    });
+    await user.click(
+      within(confirmation).getByRole("button", { name: "Archive Account" }),
+    );
+
+    const error = await screen.findByRole("alert");
+    expect(error).toHaveTextContent(
+      "This Account is no longer available. Refresh the list and try again.",
+    );
+    expect(error).not.toHaveTextContent(/internal account identifier/i);
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("article", { name: "Operating cash" }),
+    ).not.toBeInTheDocument();
+    expect(listRequests).toBe(2);
+    expect(screen.getByRole("status")).not.toHaveTextContent(/archived/i);
+    releaseRefresh();
+  });
+
+  it("unarchives directly with accessible error recovery and confirmed cache state", async () => {
+    const user = userEvent.setup();
+    let listedAccounts: AccountResponse[] = [accounts[2]!, accounts[1]!];
+    let listRequests = 0;
+    let releaseRefresh!: () => void;
+    const pendingRefresh = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceCurrenciesMockHandler([
+        { code: "CNY", minorUnit: 2 },
+        { code: "JPY", minorUnit: 0 },
+        { code: "USD", minorUnit: 2 },
+      ]),
+      getListFinanceAccountsMockHandler(async () => {
+        listRequests += 1;
+        if (listRequests > 1) await pendingRefresh;
+        return listedAccounts;
+      }),
+      getUnarchiveFinanceAccountMockHandler503({
+        type: "about:blank",
+        title: "Service Unavailable",
+        status: 503,
+        code: "database_unavailable",
+        detail: "postgres.internal.example refused the connection",
+      }),
+    );
+    renderRoute(`/finance/accounts?ledger=${ledger.id}`);
+
+    const actions = await screen.findByRole(
+      "button",
+      { name: "Actions for Cash reserve" },
+      { timeout: 5_000 },
+    );
+    await user.click(actions);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Unarchive Cash reserve" }),
+    );
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    const error = await screen.findByRole("alert");
+    expect(error).toHaveTextContent(
+      "Accounts are temporarily unavailable. Try again later.",
+    );
+    expect(error).not.toHaveTextContent(/postgres\.internal/i);
+    expect(
+      within(
+        screen.getByRole("region", { name: "Archived Accounts" }),
+      ).getByRole("article", { name: "Cash reserve" }),
+    ).toBeVisible();
+
+    server.use(
+      getUnarchiveFinanceAccountMockHandler(() => {
+        const active = {
+          ...accounts[1]!,
+          status: "active",
+        } satisfies AccountResponse;
+        listedAccounts = [accounts[2]!, active];
+        return active;
+      }),
+    );
+    await user.click(actions);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Unarchive Cash reserve" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        within(
+          screen.getByRole("region", { name: "Active Accounts" }),
+        ).getByRole("article", { name: "Cash reserve" }),
+      ).toBeVisible();
+    });
+    expect(listRequests).toBe(2);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Cash reserve unarchived.",
+    );
+    expect(
+      screen.getByRole("button", { name: "Actions for Cash reserve" }),
+    ).toHaveFocus();
+    releaseRefresh();
+  });
+
+  it("excludes overlapping actions for every Account with a pending mutation", async () => {
+    const user = userEvent.setup();
+    const secondArchived = {
+      ...accounts[1]!,
+      id: "77777777-7777-4777-8777-777777777777",
+      name: "Travel reserve",
+    } satisfies AccountResponse;
+    let listedAccounts: AccountResponse[] = [accounts[1]!, secondArchived];
+    let releaseFirst!: () => void;
+    let releaseSecond!: () => void;
+    const firstPending = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const secondPending = new Promise<void>((resolve) => {
+      releaseSecond = resolve;
+    });
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceCurrenciesMockHandler([
+        { code: "CNY", minorUnit: 2 },
+        { code: "JPY", minorUnit: 0 },
+        { code: "USD", minorUnit: 2 },
+      ]),
+      getListFinanceAccountsMockHandler(() => listedAccounts),
+      getUnarchiveFinanceAccountMockHandler(async ({ params }) => {
+        const accountId = String(params.accountId);
+        await (accountId === accounts[1]!.id ? firstPending : secondPending);
+        const account = listedAccounts.find((item) => item.id === accountId)!;
+        const active = {
+          ...account,
+          status: "active",
+        } satisfies AccountResponse;
+        listedAccounts = listedAccounts.map((item) =>
+          item.id === accountId ? active : item,
+        );
+        return active;
+      }),
+    );
+    renderRoute(`/finance/accounts?ledger=${ledger.id}`);
+
+    const firstActions = await screen.findByRole(
+      "button",
+      { name: "Actions for Cash reserve" },
+      { timeout: 5_000 },
+    );
+    await user.click(firstActions);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Unarchive Cash reserve" }),
+    );
+    const secondActions = screen.getByRole("button", {
+      name: "Actions for Travel reserve",
+    });
+    await user.click(secondActions);
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: "Unarchive Travel reserve",
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Actions for Cash reserve" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Edit Cash reserve" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Actions for Travel reserve" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Edit Travel reserve" }),
+    ).toBeDisabled();
+
+    releaseSecond();
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Actions for Travel reserve" }),
+      ).toBeEnabled();
+    });
+    expect(
+      screen.getByRole("button", { name: "Actions for Cash reserve" }),
+    ).toBeDisabled();
+
+    releaseFirst();
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Actions for Cash reserve" }),
+      ).toBeEnabled();
+    });
+  });
+
+  it("keeps semantic correction separate and sends only the correction family", async () => {
+    const user = userEvent.setup();
+    const correctable = {
+      ...accounts[2]!,
+      name: "Travel fund",
+      openingBalance: { amount: "0", currency: "CNY" },
+      currentBalance: { amount: "0", currency: "CNY" },
+    } satisfies AccountResponse;
+    let requestBody: unknown;
+    let listedAccounts: AccountResponse[] = [correctable];
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceCurrenciesMockHandler([
+        { code: "CNY", minorUnit: 2 },
+        { code: "JPY", minorUnit: 0 },
+        { code: "USD", minorUnit: 2 },
+      ]),
+      getListFinanceAccountsMockHandler(() => listedAccounts),
+      getUpdateFinanceAccountMockHandler(async ({ request }) => {
+        requestBody = await request.json();
+        const corrected = {
+          ...correctable,
+          currency: "USD",
+          currentBalance: { amount: "0", currency: "USD" },
+          openingBalance: { amount: "0", currency: "USD" },
+        } satisfies AccountResponse;
+        listedAccounts = [corrected];
+        return corrected;
+      }),
+    );
+    renderRoute(`/finance/accounts?ledger=${ledger.id}`);
+
+    const actions = await screen.findByRole(
+      "button",
+      { name: "Actions for Travel fund" },
+      { timeout: 5_000 },
+    );
+    await user.click(actions);
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: "Correct nature or currency for Travel fund",
+      }),
+    );
+
+    const dialog = screen.getByRole("dialog", {
+      name: "Correct nature or currency",
+    });
+    expect(dialog).toHaveTextContent(
+      "Opening Balance is zero and no Finance Transaction history exists",
+    );
+    expect(dialog).toHaveTextContent(
+      "Currency correction changes denomination",
+    );
+    expect(within(dialog).getByLabelText("New nature")).toHaveValue("asset");
+    expect(within(dialog).getByLabelText("New currency")).toHaveValue("CNY");
+    expect(
+      within(dialog).getByRole("button", { name: "Apply correction" }),
+    ).toBeDisabled();
+
+    await user.selectOptions(
+      within(dialog).getByLabelText("New currency"),
+      "USD",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Apply correction" }),
+    );
+
+    expect(requestBody).toEqual({ currency: "USD" });
+    expect(
+      await screen.findByRole("article", { name: "Travel fund" }),
+    ).toHaveTextContent("0 USD");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Travel fund corrected.",
+    );
+    expect(actions).toHaveFocus();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("keeps a pending semantic correction bound to its original workflow", async () => {
+    const user = userEvent.setup();
+    const firstAccount = {
+      ...accounts[2]!,
+      name: "Travel fund",
+      openingBalance: { amount: "0", currency: "CNY" },
+      currentBalance: { amount: "0", currency: "CNY" },
+    } satisfies AccountResponse;
+    let releaseCorrection!: () => void;
+    const pendingCorrection = new Promise<void>((resolve) => {
+      releaseCorrection = resolve;
+    });
+    let updateRequests = 0;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceCurrenciesMockHandler([
+        { code: "CNY", minorUnit: 2 },
+        { code: "JPY", minorUnit: 0 },
+        { code: "USD", minorUnit: 2 },
+      ]),
+      getListFinanceAccountsMockHandler([firstAccount, accounts[0]!]),
+      getUpdateFinanceAccountMockHandler(async () => {
+        updateRequests += 1;
+        await pendingCorrection;
+        return {
+          ...firstAccount,
+          currency: "USD",
+          currentBalance: { amount: "0", currency: "USD" },
+          openingBalance: { amount: "0", currency: "USD" },
+        } satisfies AccountResponse;
+      }),
+    );
+    renderRoute(`/finance/accounts?ledger=${ledger.id}`);
+
+    await user.click(
+      await screen.findByRole(
+        "button",
+        {
+          name: "Actions for Travel fund",
+        },
+        { timeout: 5_000 },
+      ),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: "Correct nature or currency for Travel fund",
+      }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Correct nature or currency",
+    });
+    await user.selectOptions(
+      within(dialog).getByLabelText("New currency"),
+      "USD",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Apply correction" }),
+    );
+
+    expect(
+      within(dialog).getByRole("button", { name: "Applying…" }),
+    ).toBeDisabled();
+    expect(
+      within(dialog).queryByRole("button", { name: "Close" }),
+    ).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(dialog).toBeVisible();
+    expect(dialog).toHaveTextContent("Travel fund");
+    expect(updateRequests).toBe(1);
+
+    releaseCorrection();
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    expect(updateRequests).toBe(1);
+    expect(
+      screen.getByRole("button", { name: "Edit Travel fund" }),
+    ).toBeEnabled();
+  });
+
+  it("keeps a pending correction excluded after Accounts unmounts and remounts", async () => {
+    const user = userEvent.setup();
+    const account = {
+      ...accounts[2]!,
+      name: "Travel fund",
+      openingBalance: { amount: "0", currency: "CNY" },
+      currentBalance: { amount: "0", currency: "CNY" },
+    } satisfies AccountResponse;
+    let listedAccounts: AccountResponse[] = [account];
+    let releaseCorrection!: () => void;
+    const pendingCorrection = new Promise<void>((resolve) => {
+      releaseCorrection = resolve;
+    });
+    let updateRequests = 0;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceCurrenciesMockHandler([
+        { code: "CNY", minorUnit: 2 },
+        { code: "JPY", minorUnit: 0 },
+        { code: "USD", minorUnit: 2 },
+      ]),
+      getListFinanceAccountsMockHandler(() => listedAccounts),
+      getUpdateFinanceAccountMockHandler(async () => {
+        updateRequests += 1;
+        await pendingCorrection;
+        const corrected = {
+          ...account,
+          currency: "USD",
+          currentBalance: { amount: "0", currency: "USD" },
+          openingBalance: { amount: "0", currency: "USD" },
+        } satisfies AccountResponse;
+        listedAccounts = [corrected];
+        return corrected;
+      }),
+    );
+    const { router } = renderRoute(`/finance/accounts?ledger=${ledger.id}`);
+
+    await user.click(
+      await screen.findByRole(
+        "button",
+        { name: "Actions for Travel fund" },
+        { timeout: 5_000 },
+      ),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: "Correct nature or currency for Travel fund",
+      }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Correct nature or currency",
+    });
+    await user.selectOptions(
+      within(dialog).getByLabelText("New currency"),
+      "USD",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Apply correction" }),
+    );
+    expect(updateRequests).toBe(1);
+
+    await router.navigate(`/finance/overview?ledger=${ledger.id}`);
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Overview" }),
+    ).toBeVisible();
+    await router.navigate(`/finance/accounts?ledger=${ledger.id}`);
+
+    const remountedActions = await screen.findByRole(
+      "button",
+      { name: "Actions for Travel fund" },
+      { timeout: 5_000 },
+    );
+    expect(remountedActions).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Edit Travel fund" }),
+    ).toBeDisabled();
+    await user.click(remountedActions);
+    expect(screen.queryByRole("menuitem")).not.toBeInTheDocument();
+    expect(updateRequests).toBe(1);
+
+    releaseCorrection();
+    await waitFor(() => expect(remountedActions).toBeEnabled());
+  });
+
+  it("removes a stale Account and refreshes its Ledger after correction not-found", async () => {
+    const user = userEvent.setup();
+    const staleAccount = {
+      ...accounts[2]!,
+      name: "Travel fund",
+      openingBalance: { amount: "0", currency: "CNY" },
+      currentBalance: { amount: "0", currency: "CNY" },
+    } satisfies AccountResponse;
+    let listRequests = 0;
+    let releaseRefresh!: () => void;
+    const pendingRefresh = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceCurrenciesMockHandler([
+        { code: "CNY", minorUnit: 2 },
+        { code: "JPY", minorUnit: 0 },
+        { code: "USD", minorUnit: 2 },
+      ]),
+      getListFinanceAccountsMockHandler(async () => {
+        listRequests += 1;
+        if (listRequests === 1) return [staleAccount];
+        await pendingRefresh;
+        return [];
+      }),
+      getUpdateFinanceAccountMockHandler404({
+        type: "about:blank",
+        title: "Not Found",
+        status: 404,
+        code: "finance_account_not_found",
+        detail: "internal account identifier was not found",
+      }),
+    );
+    renderRoute(`/finance/accounts?ledger=${ledger.id}`);
+
+    await user.click(
+      await screen.findByRole(
+        "button",
+        { name: "Actions for Travel fund" },
+        { timeout: 5_000 },
+      ),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: "Correct nature or currency for Travel fund",
+      }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Correct nature or currency",
+    });
+    await user.selectOptions(
+      within(dialog).getByLabelText("New currency"),
+      "USD",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Apply correction" }),
+    );
+
+    const error = await screen.findByRole("alert");
+    expect(error).toHaveTextContent(
+      "This Account is no longer available. Refresh the list and try again.",
+    );
+    expect(error).not.toHaveTextContent(/internal account identifier/i);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("article", { name: "Travel fund" }),
+    ).not.toBeInTheDocument();
+    expect(listRequests).toBe(2);
+    releaseRefresh();
+  });
+
+  it("recovers a semantics-lock conflict without losing attempted values", async () => {
+    const user = userEvent.setup();
+    const account = {
+      ...accounts[2]!,
+      name: "Travel fund",
+      openingBalance: { amount: "0", currency: "CNY" },
+      currentBalance: { amount: "0", currency: "CNY" },
+    } satisfies AccountResponse;
+    let requestBody: unknown;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceCurrenciesMockHandler([
+        { code: "CNY", minorUnit: 2 },
+        { code: "JPY", minorUnit: 0 },
+        { code: "USD", minorUnit: 2 },
+      ]),
+      getListFinanceAccountsMockHandler([account]),
+      getUpdateFinanceAccountMockHandler409(async ({ request }) => {
+        requestBody = await request.json();
+        return {
+          type: "about:blank",
+          title: "Conflict",
+          status: 409,
+          code: "finance_account_semantics_locked",
+          detail: "internal movement row 42 established semantics",
+        };
+      }),
+    );
+    renderRoute(`/finance/accounts?ledger=${ledger.id}`);
+
+    const actions = await screen.findByRole(
+      "button",
+      { name: "Actions for Travel fund" },
+      { timeout: 5_000 },
+    );
+    await user.click(actions);
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: "Correct nature or currency for Travel fund",
+      }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Correct nature or currency",
+    });
+    const nature = within(dialog).getByLabelText("New nature");
+    const currency = within(dialog).getByLabelText("New currency");
+    await user.selectOptions(nature, "liability");
+    await user.selectOptions(currency, "USD");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Apply correction" }),
+    );
+
+    expect(requestBody).toEqual({ currency: "USD", nature: "liability" });
+    const error = await within(dialog).findByRole("alert");
+    expect(error).toHaveTextContent(
+      "established financial position or Transaction history prevents reinterpretation",
+    );
+    expect(error).toHaveTextContent("attempted values have been kept");
+    expect(error).not.toHaveTextContent(/movement row 42/i);
+    expect(nature).toHaveValue("liability");
+    expect(currency).toHaveValue("USD");
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Return to Accounts" }),
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(actions).toHaveFocus();
+  });
+
+  it("navigates from an archived Account to its validated Transactions filter", async () => {
+    const user = userEvent.setup();
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceCurrenciesMockHandler([]),
+      getListFinanceAccountsMockHandler([accounts[1]!]),
+    );
+    const { router } = renderRoute(`/finance/accounts?ledger=${ledger.id}`);
+
+    await user.click(
+      await screen.findByRole(
+        "button",
+        { name: "Actions for Cash reserve" },
+        { timeout: 5_000 },
+      ),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: "View transactions for Cash reserve",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/finance/transactions");
+    });
+    expect(
+      Object.fromEntries(new URLSearchParams(router.state.location.search)),
+    ).toEqual({
+      account_id: accounts[1]!.id,
+      ledger: ledger.id,
+    });
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Transactions" }),
+    ).toBeVisible();
   });
 
   it("reconciles a created Account in backend order before refresh completes", async () => {

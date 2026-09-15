@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const ledgerIdSchema = z.uuid();
+const accountIdSchema = z.uuid();
 const transactionIdSchema = z.uuid();
 const monthSchema = z
   .string()
@@ -31,6 +32,9 @@ export type PortableFinanceState = {
 export type FinanceRouteState = {
   ledger: AddressedValue;
   portable: PortableFinanceState;
+  resource: {
+    accountId?: string | undefined;
+  };
   transaction: AddressedValue;
 };
 
@@ -87,6 +91,9 @@ export function parseFinanceRouteState(
         uncategorizedSchema,
       ),
     },
+    resource: {
+      accountId: validSearchValue(searchParams, "account_id", accountIdSchema),
+    },
     transaction: parsePathValue(transactionId, transactionIdSchema),
   };
 }
@@ -105,6 +112,7 @@ export function addressedLedgerValue(ledger: AddressedValue) {
 export function buildFinanceSearch(
   ledgerValue: string | undefined,
   portable: PortableFinanceState = {},
+  resource: FinanceRouteState["resource"] = {},
 ) {
   const searchParams = new URLSearchParams();
   if (ledgerValue !== undefined) searchParams.set("ledger", ledgerValue);
@@ -118,6 +126,9 @@ export function buildFinanceSearch(
   ] as const) {
     const value = portable[key];
     if (value !== undefined) searchParams.set(key, value);
+  }
+  if (resource.accountId !== undefined) {
+    searchParams.set("account_id", accountIdSchema.parse(resource.accountId));
   }
   return searchParams.size > 0 ? `?${searchParams.toString()}` : "";
 }

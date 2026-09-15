@@ -82,7 +82,7 @@ describe("Finance foundation", () => {
   it("removes an invalid Transaction id and retains only valid portable state", async () => {
     server.use(getListFinanceLedgersMockHandler([personalLedger]));
     const { router } = renderRoute(
-      `/finance/transactions/not-a-transaction?ledger=${personalLedger.id}&from=2026-08-01&to=invalid&kind=unknown&uncategorized=true`,
+      `/finance/transactions/not-a-transaction?ledger=${personalLedger.id}&from=2026-08-01&to=invalid&kind=unknown&uncategorized=true&account_id=edb4ee80-17c6-46b5-863e-2afa18e84043`,
     );
 
     expect(
@@ -92,7 +92,7 @@ describe("Finance foundation", () => {
       expect(
         `${router.state.location.pathname}${router.state.location.search}`,
       ).toBe(
-        `/finance/transactions?ledger=${personalLedger.id}&from=2026-08-01&uncategorized=true`,
+        `/finance/transactions?ledger=${personalLedger.id}&from=2026-08-01&uncategorized=true&account_id=edb4ee80-17c6-46b5-863e-2afa18e84043`,
       );
     });
   });

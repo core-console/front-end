@@ -188,6 +188,7 @@ export function Component() {
         to={`/finance/transactions${buildFinanceSearch(
           ledgerAddress,
           routeState.portable,
+          routeState.resource,
         )}`}
       />
     );

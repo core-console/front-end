@@ -1,8 +1,14 @@
-import { useRef, useState } from "react";
+import { useMutationState, useQueryClient } from "@tanstack/react-query";
+import { EllipsisIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 
 import {
+  getListFinanceAccountsQueryKey,
+  useArchiveFinanceAccount,
   useListFinanceAccounts,
   useListFinanceCurrencies,
+  useUnarchiveFinanceAccount,
 } from "@/api/generated/core-console";
 import {
   AccountResponse,
@@ -11,7 +17,31 @@ import {
 } from "@/api/generated/schemas";
 import { formatFinanceMoney } from "@/components/finance/finance-money";
 import { AccountFormDialog } from "@/components/finance/account-form-dialog";
+import {
+  reconcileAccountList,
+  removeAccountFromList,
+} from "@/components/finance/account-list-cache";
+import { getAccountProblemFeedback } from "@/components/finance/account-problem";
+import { AccountSemanticsDialog } from "@/components/finance/account-semantics-dialog";
+import { buildFinanceSearch } from "@/components/finance/finance-route-state";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Empty,
   EmptyDescription,
@@ -24,6 +54,11 @@ import { cn } from "@/lib/utils";
 type AccountsDestinationProps = {
   ledgerId: string;
   ledgerName: string;
+};
+
+type AccountWorkflowTarget = {
+  account: Account;
+  label: string;
 };
 
 type Lifecycle = Account["status"];
@@ -39,6 +74,43 @@ const natureLabels: Record<Nature, string> = {
   liability: "Liabilities",
 };
 
+function buildAccountActionLabels(accounts: Account[]) {
+  const nameCounts = new Map<string, number>();
+  const namePositions = new Map<string, number>();
+  const labels = new Map<string, string>();
+
+  for (const account of accounts) {
+    nameCounts.set(account.name, (nameCounts.get(account.name) ?? 0) + 1);
+  }
+  for (const account of accounts) {
+    const count = nameCounts.get(account.name)!;
+    if (count === 1) {
+      labels.set(account.id, account.name);
+      continue;
+    }
+    const position = (namePositions.get(account.name) ?? 0) + 1;
+    namePositions.set(account.name, position);
+    labels.set(
+      account.id,
+      `${account.name}, ${account.status} ${account.nature} in ${account.currency}, ${position} of ${count}`,
+    );
+  }
+
+  return labels;
+}
+
+function accountMutationIdentity(value: unknown) {
+  if (typeof value !== "object" || value === null) return null;
+  if (!("accountId" in value) || !("ledgerId" in value)) return null;
+  if (
+    typeof value.accountId !== "string" ||
+    typeof value.ledgerId !== "string"
+  ) {
+    return null;
+  }
+  return { accountId: value.accountId, ledgerId: value.ledgerId };
+}
+
 function formatFinanceDate(value: string) {
   const [year, month, day] = value.split("-").map(Number);
   return new Intl.DateTimeFormat(undefined, {
@@ -50,12 +122,24 @@ function formatFinanceDate(value: string) {
 
 function AccountRow({
   account,
+  actionLabel,
   changesAvailable,
+  mutationPending,
+  onArchive,
+  onCorrect,
   onEdit,
+  onUnarchive,
+  onViewTransactions,
 }: {
   account: Account;
+  actionLabel: string;
   changesAvailable: boolean;
+  mutationPending: boolean;
+  onArchive: (account: Account, invoker: HTMLButtonElement) => void;
+  onCorrect: (account: Account, invoker: HTMLButtonElement) => void;
   onEdit: (account: Account, invoker: HTMLButtonElement) => void;
+  onUnarchive: (account: Account, invoker: HTMLButtonElement) => void;
+  onViewTransactions: (account: Account) => void;
 }) {
   const details = [
     {
@@ -79,6 +163,7 @@ function AccountRow({
 
   return (
     <article
+      aria-busy={mutationPending}
       aria-label={account.name}
       className="grid gap-x-4 gap-y-3 border-b border-border px-4 py-3 last:border-b-0 @4xl/accounts:grid-cols-[minmax(10rem,1.4fr)_minmax(9rem,1fr)_minmax(9rem,1fr)_minmax(8rem,0.9fr)_minmax(5rem,0.6fr)_auto] @4xl/accounts:items-center"
     >
@@ -107,29 +192,108 @@ function AccountRow({
           </span>
         </div>
       ))}
-      <Button
-        aria-label={`Edit ${account.name}`}
-        disabled={!changesAvailable}
-        onClick={(event) => onEdit(account, event.currentTarget)}
-        size="sm"
-        variant="outline"
-      >
-        Edit
-      </Button>
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          aria-label={`Edit ${actionLabel}`}
+          disabled={!changesAvailable || mutationPending}
+          id={`account-edit-${account.id}`}
+          onClick={(event) => onEdit(account, event.currentTarget)}
+          size="sm"
+          variant="outline"
+        >
+          Edit
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label={`Actions for ${actionLabel}`}
+            disabled={mutationPending}
+            id={`account-actions-${account.id}`}
+            render={<Button size="icon-sm" variant="ghost" />}
+          >
+            <EllipsisIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                aria-label={`Correct nature or currency for ${actionLabel}`}
+                disabled={!changesAvailable}
+                onClick={() => {
+                  const invoker = document.getElementById(
+                    `account-actions-${account.id}`,
+                  );
+                  if (invoker instanceof HTMLButtonElement) {
+                    onCorrect(account, invoker);
+                  }
+                }}
+              >
+                Correct nature or currency
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                aria-label={`View transactions for ${actionLabel}`}
+                onClick={() => onViewTransactions(account)}
+              >
+                View transactions
+              </DropdownMenuItem>
+              {account.status === "active" ? (
+                <DropdownMenuItem
+                  aria-label={`Archive ${actionLabel}`}
+                  onClick={() => {
+                    const invoker = document.getElementById(
+                      `account-actions-${account.id}`,
+                    );
+                    if (invoker instanceof HTMLButtonElement) {
+                      onArchive(account, invoker);
+                    }
+                  }}
+                  variant="destructive"
+                >
+                  Archive
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  aria-label={`Unarchive ${actionLabel}`}
+                  onClick={() => {
+                    const invoker = document.getElementById(
+                      `account-actions-${account.id}`,
+                    );
+                    if (invoker instanceof HTMLButtonElement) {
+                      onUnarchive(account, invoker);
+                    }
+                  }}
+                >
+                  Unarchive
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </article>
   );
 }
 
 function AccountNatureGroup({
+  accountActionLabels,
   accounts,
   changesAvailable,
+  pendingAccountIds,
   nature,
+  onArchive,
+  onCorrect,
   onEdit,
+  onUnarchive,
+  onViewTransactions,
 }: {
+  accountActionLabels: ReadonlyMap<string, string>;
   accounts: Account[];
   changesAvailable: boolean;
+  pendingAccountIds: ReadonlySet<string>;
   nature: Nature;
+  onArchive: (account: Account, invoker: HTMLButtonElement) => void;
+  onCorrect: (account: Account, invoker: HTMLButtonElement) => void;
   onEdit: (account: Account, invoker: HTMLButtonElement) => void;
+  onUnarchive: (account: Account, invoker: HTMLButtonElement) => void;
+  onViewTransactions: (account: Account) => void;
 }) {
   const matchingAccounts = accounts.filter(
     (account) => account.nature === nature,
@@ -162,9 +326,15 @@ function AccountNatureGroup({
         {matchingAccounts.map((account) => (
           <AccountRow
             account={account}
+            actionLabel={accountActionLabels.get(account.id)!}
             changesAvailable={changesAvailable}
             key={account.id}
+            mutationPending={pendingAccountIds.has(account.id)}
+            onArchive={onArchive}
+            onCorrect={onCorrect}
             onEdit={onEdit}
+            onUnarchive={onUnarchive}
+            onViewTransactions={onViewTransactions}
           />
         ))}
       </div>
@@ -173,15 +343,27 @@ function AccountNatureGroup({
 }
 
 function LifecycleGroup({
+  accountActionLabels,
   accounts,
   changesAvailable,
+  pendingAccountIds,
   lifecycle,
+  onArchive,
+  onCorrect,
   onEdit,
+  onUnarchive,
+  onViewTransactions,
 }: {
+  accountActionLabels: ReadonlyMap<string, string>;
   accounts: Account[];
   changesAvailable: boolean;
+  pendingAccountIds: ReadonlySet<string>;
   lifecycle: Lifecycle;
+  onArchive: (account: Account, invoker: HTMLButtonElement) => void;
+  onCorrect: (account: Account, invoker: HTMLButtonElement) => void;
   onEdit: (account: Account, invoker: HTMLButtonElement) => void;
+  onUnarchive: (account: Account, invoker: HTMLButtonElement) => void;
+  onViewTransactions: (account: Account) => void;
 }) {
   const matchingAccounts = accounts.filter(
     (account) => account.status === lifecycle,
@@ -196,11 +378,17 @@ function LifecycleGroup({
       </h2>
       {(["asset", "liability"] as const).map((nature) => (
         <AccountNatureGroup
+          accountActionLabels={accountActionLabels}
           accounts={matchingAccounts}
           changesAvailable={changesAvailable}
           key={nature}
           nature={nature}
+          onArchive={onArchive}
+          onCorrect={onCorrect}
           onEdit={onEdit}
+          onUnarchive={onUnarchive}
+          onViewTransactions={onViewTransactions}
+          pendingAccountIds={pendingAccountIds}
         />
       ))}
     </section>
@@ -211,10 +399,20 @@ export function AccountsDestination({
   ledgerId,
   ledgerName,
 }: AccountsDestinationProps) {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [createOpen, setCreateOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [semanticTarget, setSemanticTarget] =
+    useState<AccountWorkflowTarget | null>(null);
+  const [archiveTarget, setArchiveTarget] =
+    useState<AccountWorkflowTarget | null>(null);
   const [feedback, setFeedback] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [focusAccountActionId, setFocusAccountActionId] = useState("");
   const dialogInvoker = useRef<HTMLButtonElement | null>(null);
+  const archiveCancelRef = useRef<HTMLButtonElement | null>(null);
+  const archiveAccountIdRef = useRef("");
   const accountsQuery = useListFinanceAccounts(ledgerId, {
     query: {
       select: (response) => AccountResponse.array().parse(response.data),
@@ -226,6 +424,99 @@ export function AccountsDestination({
     },
   });
   const changesAvailable = (currenciesQuery.data?.length ?? 0) > 0;
+  const pendingAccountMutationVariables = [
+    ...useMutationState({
+      filters: { mutationKey: ["updateFinanceAccount"], status: "pending" },
+      select: (mutation) => mutation.state.variables,
+    }),
+    ...useMutationState({
+      filters: { mutationKey: ["archiveFinanceAccount"], status: "pending" },
+      select: (mutation) => mutation.state.variables,
+    }),
+    ...useMutationState({
+      filters: {
+        mutationKey: ["unarchiveFinanceAccount"],
+        status: "pending",
+      },
+      select: (mutation) => mutation.state.variables,
+    }),
+  ];
+  const pendingAccountIds = new Set(
+    pendingAccountMutationVariables.flatMap((variables) => {
+      const identity = accountMutationIdentity(variables);
+      return identity?.ledgerId === ledgerId ? [identity.accountId] : [];
+    }),
+  );
+
+  useEffect(() => {
+    if (!focusAccountActionId) return;
+    const action = document.getElementById(
+      `account-actions-${focusAccountActionId}`,
+    );
+    if (!action) return;
+    action.focus();
+    setFocusAccountActionId("");
+  }, [accountsQuery.data, focusAccountActionId]);
+
+  const archiveMutation = useArchiveFinanceAccount({
+    mutation: {
+      onError: (error, variables) => {
+        const problem = getAccountProblemFeedback(
+          error,
+          "The Account could not be archived. Try again.",
+        );
+        if (problem.kind !== "accountNotFound") return;
+        removeAccountFromList(queryClient, ledgerId, variables.accountId);
+        setActionError(problem.message);
+        setArchiveTarget(null);
+        void queryClient.invalidateQueries({
+          queryKey: getListFinanceAccountsQueryKey(ledgerId),
+        });
+      },
+      onSuccess: (response) => {
+        const archived = AccountResponse.parse(response.data);
+        reconcileAccountList(queryClient, ledgerId, archived);
+        setFeedback(`${archived.name} archived.`);
+        setActionError("");
+        setArchiveTarget(null);
+        void queryClient.invalidateQueries({
+          queryKey: getListFinanceAccountsQueryKey(ledgerId),
+        });
+      },
+    },
+  });
+  const archiveError = archiveMutation.isError
+    ? getAccountProblemFeedback(
+        archiveMutation.error,
+        "The Account could not be archived. Try again.",
+      ).message
+    : null;
+  const unarchiveMutation = useUnarchiveFinanceAccount({
+    mutation: {
+      onError: (error, variables) => {
+        const problem = getAccountProblemFeedback(
+          error,
+          "The Account could not be unarchived. Try again.",
+        );
+        setActionError(problem.message);
+        if (problem.kind !== "accountNotFound") return;
+        removeAccountFromList(queryClient, ledgerId, variables.accountId);
+        void queryClient.invalidateQueries({
+          queryKey: getListFinanceAccountsQueryKey(ledgerId),
+        });
+      },
+      onSuccess: (response) => {
+        const active = AccountResponse.parse(response.data);
+        reconcileAccountList(queryClient, ledgerId, active);
+        setFeedback(`${active.name} unarchived.`);
+        setActionError("");
+        void queryClient.invalidateQueries({
+          queryKey: getListFinanceAccountsQueryKey(ledgerId),
+        });
+        setFocusAccountActionId(active.id);
+      },
+    },
+  });
 
   const closeDialog = () => {
     setCreateOpen(false);
@@ -286,6 +577,8 @@ export function AccountsDestination({
     );
   }
 
+  const accountActionLabels = buildAccountActionLabels(accountsQuery.data);
+
   return (
     <div className="@container/accounts flex flex-col gap-7" key={ledgerId}>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -296,6 +589,8 @@ export function AccountsDestination({
           disabled={currenciesQuery.data.length === 0}
           onClick={(event) => {
             dialogInvoker.current = event.currentTarget;
+            setActionError("");
+            setFeedback("");
             setCreateOpen(true);
           }}
         >
@@ -344,14 +639,56 @@ export function AccountsDestination({
           ) : null}
           {(["active", "archived"] as const).map((lifecycle) => (
             <LifecycleGroup
+              accountActionLabels={accountActionLabels}
               accounts={accountsQuery.data}
               changesAvailable={changesAvailable}
               key={lifecycle}
               lifecycle={lifecycle}
+              onArchive={(account, invoker) => {
+                dialogInvoker.current = invoker;
+                archiveAccountIdRef.current = account.id;
+                setActionError("");
+                setFeedback("");
+                archiveMutation.reset();
+                setArchiveTarget({
+                  account,
+                  label: accountActionLabels.get(account.id)!,
+                });
+              }}
+              onCorrect={(account, invoker) => {
+                dialogInvoker.current = invoker;
+                setActionError("");
+                setFeedback("");
+                setSemanticTarget({
+                  account,
+                  label: accountActionLabels.get(account.id)!,
+                });
+              }}
               onEdit={(account, invoker) => {
                 dialogInvoker.current = invoker;
+                setActionError("");
+                setFeedback("");
                 setEditingAccount(account);
               }}
+              onUnarchive={(account, invoker) => {
+                dialogInvoker.current = invoker;
+                setActionError("");
+                setFeedback("");
+                unarchiveMutation.mutate({
+                  accountId: account.id,
+                  ledgerId,
+                });
+              }}
+              onViewTransactions={(account) =>
+                navigate(
+                  `/finance/transactions${buildFinanceSearch(
+                    ledgerId,
+                    {},
+                    { accountId: account.id },
+                  )}`,
+                )
+              }
+              pendingAccountIds={pendingAccountIds}
             />
           ))}
         </>
@@ -359,6 +696,11 @@ export function AccountsDestination({
       <p className="sr-only" role="status">
         {feedback}
       </p>
+      {actionError ? (
+        <p className="text-sm text-destructive" role="alert">
+          {actionError}
+        </p>
+      ) : null}
       {currenciesQuery.data.length > 0 ? (
         <AccountFormDialog
           currencies={currenciesQuery.data}
@@ -382,6 +724,75 @@ export function AccountsDestination({
           open
         />
       ) : null}
+      {semanticTarget && currenciesQuery.data.length > 0 ? (
+        <AccountSemanticsDialog
+          account={semanticTarget.account}
+          accountLabel={semanticTarget.label}
+          currencies={currenciesQuery.data}
+          ledgerId={ledgerId}
+          onOpenChange={(open) => {
+            if (!open) setSemanticTarget(null);
+          }}
+          onSaved={(account) => setFeedback(`${account.name} corrected.`)}
+          onUnavailable={setActionError}
+          open
+        />
+      ) : null}
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open && !archiveMutation.isPending) setArchiveTarget(null);
+        }}
+        open={archiveTarget !== null}
+      >
+        <AlertDialogContent
+          aria-busy={archiveMutation.isPending}
+          finalFocus={() =>
+            document.getElementById(
+              `account-actions-${archiveAccountIdRef.current}`,
+            ) ??
+            document.getElementById(
+              `account-edit-${archiveAccountIdRef.current}`,
+            )
+          }
+          initialFocus={archiveCancelRef}
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive {archiveTarget?.label}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Target Account: {archiveTarget?.label}. Archiving does not delete
+              this Account, keeps its historical Transactions, keeps it in
+              current financial-position calculations, and excludes it from
+              ordinary new Transaction references.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {archiveError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {archiveError}
+            </p>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={archiveMutation.isPending}
+              ref={archiveCancelRef}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={archiveMutation.isPending}
+              onClick={() => {
+                if (!archiveTarget) return;
+                archiveMutation.mutate({
+                  accountId: archiveTarget.account.id,
+                  ledgerId,
+                });
+              }}
+              variant="destructive"
+            >
+              {archiveMutation.isPending ? "Archiving…" : "Archive Account"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

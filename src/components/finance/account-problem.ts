@@ -2,6 +2,7 @@ import { ProblemDetails } from "@/api/generated/schemas";
 
 type AccountProblemFeedback = {
   field?: "trackingStartDate";
+  kind?: "accountNotFound" | "semanticsLocked";
   message: string;
 };
 
@@ -36,8 +37,15 @@ export function getAccountProblemFeedback(
       return { message: "Check the Account fields and try again." };
     case "finance_account_not_found":
       return {
+        kind: "accountNotFound",
         message:
           "This Account is no longer available. Refresh the list and try again.",
+      };
+    case "finance_account_semantics_locked":
+      return {
+        kind: "semanticsLocked",
+        message:
+          "An established financial position or Transaction history prevents reinterpretation. Your attempted values have been kept.",
       };
     case "database_unavailable":
       return {

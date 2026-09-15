@@ -39,3 +39,21 @@ export function reconcileAccountList(
     },
   );
 }
+
+export function removeAccountFromList(
+  queryClient: QueryClient,
+  ledgerId: string,
+  accountId: string,
+) {
+  queryClient.setQueryData<AccountListQueryData>(
+    getListFinanceAccountsQueryKey(ledgerId),
+    (current) => {
+      if (!current) return current;
+      const accounts = AccountResponse.array().parse(current.data);
+      return {
+        ...current,
+        data: accounts.filter((account) => account.id !== accountId),
+      };
+    },
+  );
+}
