@@ -44,6 +44,12 @@ const AccountsDestination = lazy(() =>
   })),
 );
 
+const CategoriesDestination = lazy(() =>
+  import("@/components/finance/categories-destination").then((module) => ({
+    default: module.CategoriesDestination,
+  })),
+);
+
 type Destination = (typeof destinations)[number];
 type LedgerDialogState =
   { mode: "create" } | { ledger: LedgerResponse; mode: "rename" } | null;
@@ -318,6 +324,20 @@ export function Component() {
           }
         >
           <AccountsDestination
+            key={selectedLedger.id}
+            ledgerId={selectedLedger.id}
+            ledgerName={selectedLedger.name}
+          />
+        </Suspense>
+      ) : selectedLedger && destination.slug === "categories" ? (
+        <Suspense
+          fallback={
+            <p className="text-sm text-muted-foreground" role="status">
+              Loading Categories…
+            </p>
+          }
+        >
+          <CategoriesDestination
             key={selectedLedger.id}
             ledgerId={selectedLedger.id}
             ledgerName={selectedLedger.name}

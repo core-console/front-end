@@ -9,6 +9,7 @@ import {
 
 import {
   AccountResponse,
+  CategoryResponse,
   CurrencyResponse,
   LedgerResponse,
   MeResponse,
@@ -95,6 +96,19 @@ const financeAccounts = AccountResponse.array().parse([
     openingBalance: { amount: "0.00", currency: "USD" },
     status: "archived",
     trackingStartDate: "2025-11-15",
+  },
+]);
+
+const financeCategories = CategoryResponse.array().parse([
+  {
+    id: "33333333-3333-4333-8333-333333333333",
+    name: "Food",
+    status: "active",
+  },
+  {
+    id: "44444444-4444-4444-8444-444444444444",
+    name: "Subscriptions",
+    status: "archived",
   },
 ]);
 
@@ -326,6 +340,74 @@ test("renders accessible responsive Finance Accounts", async ({
   await expect(dialog).not.toBeVisible();
   await expect(
     accounts.getByRole("button", { name: "Create account" }),
+  ).toBeFocused();
+  expectNoBrowserErrors(errors);
+});
+
+test("renders accessible responsive Finance Categories", async ({
+  page,
+}, testInfo) => {
+  const errors = collectBrowserErrors(page);
+  await page.setViewportSize({ height: 900, width: 1024 });
+  await page.route("**/api/finance/ledgers", async (route) => {
+    await route.fulfill({ json: financeLedgers });
+  });
+  await page.route("**/api/finance/ledgers/*/categories", async (route) => {
+    await route.fulfill({ json: financeCategories });
+  });
+  const categories = page.getByRole("region", {
+    exact: true,
+    name: "Categories",
+  });
+
+  await page.goto(`/finance/categories?ledger=${financeLedgers[0]!.id}`);
+
+  await expect(
+    categories.getByRole("heading", { name: "Active Categories" }),
+  ).toBeVisible();
+  await expect(
+    categories.getByRole("heading", { name: "Archived Categories" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate<boolean>(
+      "document.documentElement.scrollWidth <= document.documentElement.clientWidth",
+    ),
+  ).toBe(true);
+  await expectNoAccessibilityViolations(page, categories, testInfo);
+
+  const foodActions = categories.getByRole("button", {
+    name: "Actions for Food",
+  });
+  await foodActions.click();
+  await page.getByRole("menuitem", { name: "Rename Food" }).click();
+  const rename = page.getByRole("dialog", { name: "Rename Food" });
+  await expect(rename.getByLabel("Category name")).toHaveValue("Food");
+  await expectNoAccessibilityViolations(page, rename, testInfo);
+  await rename.press("Escape");
+  await expect(rename).not.toBeVisible();
+  await expect(foodActions).toBeFocused();
+
+  await foodActions.click();
+  await page.getByRole("menuitem", { name: "Archive Food" }).click();
+  const archiveConfirmation = page.getByRole("alertdialog", {
+    name: "Archive Food?",
+  });
+  await expect(
+    archiveConfirmation.getByRole("button", { name: "Cancel" }),
+  ).toBeFocused();
+  await expectNoAccessibilityViolations(page, archiveConfirmation, testInfo);
+  await archiveConfirmation.getByRole("button", { name: "Cancel" }).click();
+  await expect(archiveConfirmation).not.toBeVisible();
+  await expect(foodActions).toBeFocused();
+
+  await categories.getByRole("button", { name: "Create category" }).click();
+  const create = page.getByRole("dialog", { name: "Create category" });
+  await expect(create.getByLabel("Category name")).toBeEditable();
+  await expectNoAccessibilityViolations(page, create, testInfo);
+  await create.press("Escape");
+  await expect(create).not.toBeVisible();
+  await expect(
+    categories.getByRole("button", { name: "Create category" }),
   ).toBeFocused();
   expectNoBrowserErrors(errors);
 });

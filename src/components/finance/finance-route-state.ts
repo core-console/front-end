@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const ledgerIdSchema = z.uuid();
 const accountIdSchema = z.uuid();
+const categoryIdSchema = z.uuid();
 const transactionIdSchema = z.uuid();
 const monthSchema = z
   .string()
@@ -34,6 +35,7 @@ export type FinanceRouteState = {
   portable: PortableFinanceState;
   resource: {
     accountId?: string | undefined;
+    categoryId?: string | undefined;
   };
   transaction: AddressedValue;
 };
@@ -93,6 +95,11 @@ export function parseFinanceRouteState(
     },
     resource: {
       accountId: validSearchValue(searchParams, "account_id", accountIdSchema),
+      categoryId: validSearchValue(
+        searchParams,
+        "category_id",
+        categoryIdSchema,
+      ),
     },
     transaction: parsePathValue(transactionId, transactionIdSchema),
   };
@@ -129,6 +136,12 @@ export function buildFinanceSearch(
   }
   if (resource.accountId !== undefined) {
     searchParams.set("account_id", accountIdSchema.parse(resource.accountId));
+  }
+  if (resource.categoryId !== undefined) {
+    searchParams.set(
+      "category_id",
+      categoryIdSchema.parse(resource.categoryId),
+    );
   }
   return searchParams.size > 0 ? `?${searchParams.toString()}` : "";
 }

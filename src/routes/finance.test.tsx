@@ -300,7 +300,7 @@ describe("Finance foundation", () => {
     const user = userEvent.setup();
     server.use(getListFinanceLedgersMockHandler([personalLedger, teamLedger]));
     const { router } = renderRoute(
-      `/finance/transactions/77ef6ca4-f45a-4e77-9a29-07c56191fbca?ledger=${personalLedger.id}&month=2026-13&date=not-a-date&from=2026-08-01&to=2026-02-30&kind=expense&uncategorized=false&account_id=account-1&category_id=category-1&cursor=next`,
+      `/finance/transactions/77ef6ca4-f45a-4e77-9a29-07c56191fbca?ledger=${personalLedger.id}&month=2026-13&date=not-a-date&from=2026-08-01&to=2026-02-30&kind=expense&uncategorized=false&account_id=account-1&category_id=edb4ee80-17c6-46b5-863e-2afa18e84043&cursor=next`,
     );
 
     await user.click(await screen.findByRole("button", { name: "Personal" }));
