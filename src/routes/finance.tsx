@@ -15,6 +15,7 @@ import { LedgerOnboarding } from "@/components/finance/ledger-onboarding";
 import {
   addressedLedgerValue,
   buildFinanceSearch,
+  normalizeTransactionFilterState,
   parseFinanceRouteState,
   parseRememberedLedgerId,
 } from "@/components/finance/finance-route-state";
@@ -47,6 +48,12 @@ const AccountsDestination = lazy(() =>
 const CategoriesDestination = lazy(() =>
   import("@/components/finance/categories-destination").then((module) => ({
     default: module.CategoriesDestination,
+  })),
+);
+
+const TransactionsDestination = lazy(() =>
+  import("@/components/finance/transactions-destination").then((module) => ({
+    default: module.TransactionsDestination,
   })),
 );
 
@@ -131,6 +138,8 @@ export function Component() {
     ? destinations[1]
     : findDestination(section);
   const routeState = parseFinanceRouteState(searchParams, transactionId);
+  const normalizedTransactionFilters =
+    normalizeTransactionFilterState(routeState);
   const ledgerId =
     routeState.ledger.status === "valid" ? routeState.ledger.value : undefined;
   const ledgerAddress = addressedLedgerValue(routeState.ledger);
@@ -196,6 +205,26 @@ export function Component() {
           routeState.portable,
           routeState.resource,
         )}`}
+      />
+    );
+  }
+
+  const normalizedTransactionSearch = buildFinanceSearch(
+    ledgerAddress,
+    normalizedTransactionFilters.portable,
+    normalizedTransactionFilters.resource,
+  );
+  const currentSearch = searchParams.size > 0 ? `?${searchParams}` : "";
+
+  if (
+    destination.slug === "transactions" &&
+    routeState.transaction.status === "absent" &&
+    currentSearch !== normalizedTransactionSearch
+  ) {
+    return (
+      <Navigate
+        replace
+        to={`/finance/transactions${normalizedTransactionSearch}`}
       />
     );
   }
@@ -315,7 +344,24 @@ export function Component() {
           }
         />
       ) : null}
-      {selectedLedger && destination.slug === "accounts" ? (
+      {selectedLedger &&
+      destination.slug === "transactions" &&
+      routeState.transaction.status === "absent" ? (
+        <Suspense
+          fallback={
+            <p className="text-sm text-muted-foreground" role="status">
+              Loading Transactions…
+            </p>
+          }
+        >
+          <TransactionsDestination
+            key={selectedLedger.id}
+            ledgerId={selectedLedger.id}
+            portable={normalizedTransactionFilters.portable}
+            resource={normalizedTransactionFilters.resource}
+          />
+        </Suspense>
+      ) : selectedLedger && destination.slug === "accounts" ? (
         <Suspense
           fallback={
             <p className="text-sm text-muted-foreground" role="status">

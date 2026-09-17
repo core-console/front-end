@@ -116,6 +116,33 @@ export function addressedLedgerValue(ledger: AddressedValue) {
   return undefined;
 }
 
+export function normalizeTransactionFilterState(
+  routeState: FinanceRouteState,
+): Pick<FinanceRouteState, "portable" | "resource"> {
+  const portable: PortableFinanceState = {
+    date: routeState.portable.date,
+    from: routeState.portable.from,
+    kind: routeState.portable.kind,
+    month: routeState.portable.month,
+    to: routeState.portable.to,
+    uncategorized: routeState.portable.uncategorized,
+  };
+  const resource: FinanceRouteState["resource"] = {
+    accountId: routeState.resource.accountId,
+    categoryId: routeState.resource.categoryId,
+  };
+
+  if (portable.from && portable.to && portable.from > portable.to) {
+    delete portable.from;
+    delete portable.to;
+  }
+  if (portable.uncategorized === "true") {
+    delete resource.categoryId;
+  }
+
+  return { portable, resource };
+}
+
 export function buildFinanceSearch(
   ledgerValue: string | undefined,
   portable: PortableFinanceState = {},

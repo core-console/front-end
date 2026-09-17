@@ -13,6 +13,7 @@ import {
   CurrencyResponse,
   LedgerResponse,
   MeResponse,
+  TransactionHistoryPageResponse,
   UserResponse,
 } from "../src/api/generated/schemas/index.ts";
 
@@ -111,6 +112,132 @@ const financeCategories = CategoryResponse.array().parse([
     status: "archived",
   },
 ]);
+
+const financeTransactionPages = [
+  TransactionHistoryPageResponse.parse({
+    items: [
+      {
+        account: {
+          id: financeAccounts[0]!.id,
+          name: financeAccounts[0]!.name,
+          status: financeAccounts[0]!.status,
+        },
+        categoryAllocations: [
+          {
+            amount: { amount: "8500.00", currency: "CNY" },
+            category: null,
+          },
+        ],
+        economicAmount: { amount: "8500.00", currency: "CNY" },
+        id: "55555555-5555-4555-8555-555555555555",
+        kind: "income",
+        ledgerId: financeLedgers[0]!.id,
+        note: "August salary",
+        transactionDate: "2026-08-16",
+      },
+      {
+        account: {
+          id: financeAccounts[1]!.id,
+          name: financeAccounts[1]!.name,
+          status: financeAccounts[1]!.status,
+        },
+        categoryAllocations: [
+          {
+            amount: { amount: "12.99", currency: "USD" },
+            category: {
+              id: financeCategories[1]!.id,
+              name: financeCategories[1]!.name,
+              status: financeCategories[1]!.status,
+            },
+          },
+        ],
+        economicAmount: { amount: "12.99", currency: "USD" },
+        id: "66666666-6666-4666-8666-666666666666",
+        kind: "expense",
+        ledgerId: financeLedgers[0]!.id,
+        note: "Developer tool",
+        transactionDate: "2026-08-15",
+      },
+    ],
+    nextCursor: "opaque-browser-cursor",
+  }),
+  TransactionHistoryPageResponse.parse({
+    items: [
+      {
+        destinationAccount: {
+          id: financeAccounts[0]!.id,
+          name: financeAccounts[0]!.name,
+          status: financeAccounts[0]!.status,
+        },
+        destinationAmount: { amount: "500.00", currency: "CNY" },
+        id: "77777777-7777-4777-8777-777777777777",
+        kind: "internalTransfer",
+        ledgerId: financeLedgers[0]!.id,
+        note: null,
+        sourceAccount: {
+          id: "99999999-9999-4999-8999-999999999999",
+          name: "Old wallet",
+          status: "archived",
+        },
+        sourceAmount: { amount: "500.00", currency: "CNY" },
+        transactionDate: "2026-08-14",
+      },
+      {
+        account: {
+          id: financeAccounts[0]!.id,
+          name: financeAccounts[0]!.name,
+          status: financeAccounts[0]!.status,
+        },
+        correctionDelta: { amount: "-27.00", currency: "CNY" },
+        id: "88888888-8888-4888-8888-888888888888",
+        kind: "balanceAdjustment",
+        ledgerId: financeLedgers[0]!.id,
+        note: "Balance correction",
+        transactionDate: "2026-08-13",
+      },
+    ],
+    nextCursor: null,
+  }),
+] as const;
+
+const longTransactionAccountName = "A".repeat(100);
+const longTransactionCategoryName = "C".repeat(100);
+const longTransactionAccount = AccountResponse.parse({
+  ...financeAccounts[0]!,
+  name: longTransactionAccountName,
+});
+const longTransactionCategory = CategoryResponse.parse({
+  ...financeCategories[0]!,
+  name: longTransactionCategoryName,
+});
+const longReferenceTransactionPage = TransactionHistoryPageResponse.parse({
+  items: [
+    {
+      account: {
+        id: longTransactionAccount.id,
+        name: longTransactionAccount.name,
+        status: longTransactionAccount.status,
+      },
+      categoryAllocations: [
+        {
+          amount: { amount: "8500.00", currency: "CNY" },
+          category: {
+            id: longTransactionCategory.id,
+            name: longTransactionCategory.name,
+            status: longTransactionCategory.status,
+          },
+        },
+      ],
+      economicAmount: { amount: "8500.00", currency: "CNY" },
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      kind: "income",
+      ledgerId: financeLedgers[0]!.id,
+      note: "Long reference regression",
+      transactionDate: "2026-08-16",
+    },
+  ],
+  nextCursor: null,
+});
 
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/me", async (route) => {
@@ -411,6 +538,143 @@ test("renders accessible responsive Finance Categories", async ({
   ).toBeFocused();
   expectNoBrowserErrors(errors);
 });
+
+test("renders accessible responsive Finance Transactions with opaque pagination", async ({
+  page,
+}, testInfo) => {
+  const errors = collectBrowserErrors(page);
+  await page.setViewportSize({ height: 900, width: 1024 });
+  await page.route("**/api/finance/ledgers", async (route) => {
+    await route.fulfill({ json: financeLedgers });
+  });
+  await page.route("**/api/finance/ledgers/*/accounts", async (route) => {
+    await route.fulfill({ json: financeAccounts });
+  });
+  await page.route("**/api/finance/ledgers/*/categories", async (route) => {
+    await route.fulfill({ json: financeCategories });
+  });
+  await page.route("**/api/finance/ledgers/*/transactions**", async (route) => {
+    const cursor = new URL(route.request().url()).searchParams.get("cursor");
+    await route.fulfill({
+      json:
+        cursor === "opaque-browser-cursor"
+          ? financeTransactionPages[1]
+          : financeTransactionPages[0],
+    });
+  });
+  const transactions = page.getByRole("region", {
+    exact: true,
+    name: "Transactions",
+  });
+
+  await page.goto(
+    `/finance/transactions?ledger=${financeLedgers[0]!.id}&uncategorized=true`,
+  );
+
+  await expect(
+    transactions.getByRole("article", {
+      name: "Income on August 16, 2026",
+    }),
+  ).toBeVisible();
+  await expect(
+    transactions
+      .getByRole("article", { name: "Expense on August 15, 2026" })
+      .getByText("From Travel card (archived)"),
+  ).toBeVisible();
+  expect(
+    await page.evaluate<boolean>(
+      "document.documentElement.scrollWidth <= document.documentElement.clientWidth",
+    ),
+  ).toBe(true);
+  await expectNoAccessibilityViolations(page, transactions, testInfo);
+
+  await transactions.getByRole("button", { name: "Load more" }).click();
+  await expect(
+    transactions.getByRole("article", {
+      name: "Balance Adjustment on August 13, 2026",
+    }),
+  ).toBeVisible();
+  await expect(transactions.getByRole("status")).toContainText(
+    "2 more transactions loaded.",
+  );
+
+  await transactions
+    .getByRole("combobox", { name: "Transaction kind" })
+    .selectOption("expense");
+  await expect(page).not.toHaveURL(/kind=expense/);
+  await transactions.getByRole("button", { name: "Apply filters" }).click();
+  await expect(page).toHaveURL(/kind=expense/);
+  expectNoBrowserErrors(errors);
+});
+
+for (const viewportWidth of [1024, 1280]) {
+  test(`wraps long Transaction references at ${viewportWidth}px without horizontal document scroll`, async ({
+    page,
+  }) => {
+    const errors = collectBrowserErrors(page);
+    await page.setViewportSize({ height: 900, width: viewportWidth });
+    await page.route("**/api/finance/ledgers", async (route) => {
+      await route.fulfill({ json: financeLedgers });
+    });
+    await page.route("**/api/finance/ledgers/*/accounts", async (route) => {
+      await route.fulfill({ json: [longTransactionAccount] });
+    });
+    await page.route("**/api/finance/ledgers/*/categories", async (route) => {
+      await route.fulfill({ json: [longTransactionCategory] });
+    });
+    await page.route(
+      "**/api/finance/ledgers/*/transactions**",
+      async (route) => {
+        await route.fulfill({ json: longReferenceTransactionPage });
+      },
+    );
+    const transactions = page.getByRole("region", {
+      exact: true,
+      name: "Transactions",
+    });
+
+    await page.goto(
+      `/finance/transactions?ledger=${financeLedgers[0]!.id}&account_id=${longTransactionAccount.id}&category_id=${longTransactionCategory.id}`,
+    );
+
+    const appliedFilters = transactions.getByText(
+      `Applied filters: Account ${longTransactionAccountName} · Category ${longTransactionCategoryName}`,
+      { exact: true },
+    );
+    const transaction = transactions.getByRole("article", {
+      name: "Income on August 16, 2026",
+    });
+    const accountReference = transaction.getByText(
+      `Into ${longTransactionAccountName}`,
+      { exact: true },
+    );
+    const categoryReference = transaction.getByText(
+      longTransactionCategoryName,
+      { exact: true },
+    );
+
+    await expect(appliedFilters).toBeVisible();
+    await expect(accountReference).toBeVisible();
+    await expect(categoryReference).toBeVisible();
+    for (const reference of [
+      appliedFilters,
+      accountReference,
+      categoryReference,
+    ]) {
+      expect(
+        await reference.evaluate(
+          (element) => element.scrollWidth <= element.clientWidth,
+        ),
+      ).toBe(true);
+    }
+    expect(
+      await page.evaluate<boolean>(
+        "document.documentElement.scrollWidth <= document.documentElement.clientWidth",
+      ),
+    ).toBe(true);
+    expectNoBrowserErrors(errors);
+  });
+}
 
 test("renders the frontend 404 page for an unknown route", async ({
   page,
