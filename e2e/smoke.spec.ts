@@ -553,6 +553,9 @@ test("renders accessible responsive Finance Transactions with opaque pagination"
   await page.route("**/api/finance/ledgers/*/categories", async (route) => {
     await route.fulfill({ json: financeCategories });
   });
+  await page.route("**/api/finance/currencies", async (route) => {
+    await route.fulfill({ json: financeCurrencies });
+  });
   await page.route("**/api/finance/ledgers/*/transactions**", async (route) => {
     const cursor = new URL(route.request().url()).searchParams.get("cursor");
     await route.fulfill({
@@ -588,6 +591,31 @@ test("renders accessible responsive Finance Transactions with opaque pagination"
   ).toBe(true);
   await expectNoAccessibilityViolations(page, transactions, testInfo);
 
+  const recordTransaction = transactions.getByRole("button", {
+    name: "Record transaction",
+  });
+  await expect(recordTransaction).toBeEnabled();
+  await recordTransaction.click();
+  await page.getByRole("menuitem", { name: "Expense" }).click();
+  const expenseDialog = page.getByRole("dialog", { name: "Record expense" });
+  await expect(expenseDialog.getByLabel("Amount")).toBeEditable();
+  await expect(expenseDialog.getByLabel("Transaction date")).toBeEditable();
+  await expect(
+    expenseDialog.getByRole("option", { name: /Travel card/ }),
+  ).toHaveCount(0);
+  await expect(
+    expenseDialog.getByRole("option", { name: /Subscriptions/ }),
+  ).toHaveCount(0);
+  expect(
+    await expenseDialog.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  await expectNoAccessibilityViolations(page, expenseDialog, testInfo);
+  await expenseDialog.press("Escape");
+  await expect(expenseDialog).not.toBeVisible();
+  await expect(recordTransaction).toBeFocused();
+
   await transactions.getByRole("button", { name: "Load more" }).click();
   await expect(
     transactions.getByRole("article", {
@@ -621,6 +649,9 @@ for (const viewportWidth of [1024, 1280]) {
     });
     await page.route("**/api/finance/ledgers/*/categories", async (route) => {
       await route.fulfill({ json: [longTransactionCategory] });
+    });
+    await page.route("**/api/finance/currencies", async (route) => {
+      await route.fulfill({ json: financeCurrencies });
     });
     await page.route(
       "**/api/finance/ledgers/*/transactions**",

@@ -1046,7 +1046,10 @@ describe("Finance Accounts destination", () => {
       ledger: ledger.id,
     });
     expect(
-      screen.getByRole("heading", { level: 1, name: "Transactions" }),
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Transactions",
+      }),
     ).toBeVisible();
   });
 

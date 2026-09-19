@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   getListFinanceAccountsMockHandler,
   getListFinanceCategoriesMockHandler,
+  getListFinanceCurrenciesMockHandler,
   getListFinanceLedgersMockHandler,
   getListFinanceTransactionsMockHandler,
   getListFinanceTransactionsMockHandler503,
@@ -25,7 +26,10 @@ const teamLedger = {
 } as const;
 
 const accountId = "22222222-2222-4222-8222-222222222222";
+const duplicateAccountId = "22222222-2222-4222-8222-222222222223";
 const categoryId = "77777777-7777-4777-8777-777777777777";
+const activeCategoryId = "88888888-8888-4888-8888-888888888888";
+const duplicateCategoryId = "88888888-8888-4888-8888-888888888889";
 
 const accounts = [
   {
@@ -51,7 +55,14 @@ const accounts = [
 ] as const;
 
 const categories = [
+  { id: activeCategoryId, name: "Groceries", status: "active" },
   { id: categoryId, name: "Salary", status: "archived" },
+] as const;
+
+const currencies = [
+  { code: "CNY", minorUnit: 2 },
+  { code: "JPY", minorUnit: 0 },
+  { code: "USD", minorUnit: 2 },
 ] as const;
 
 const history = {
@@ -138,6 +149,983 @@ const history = {
 } satisfies TransactionHistoryPageResponse;
 
 describe("Finance Transactions destination", () => {
+  it("distinguishes duplicate references and associates each picker description", async () => {
+    const user = userEvent.setup();
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([
+        accounts[0],
+        {
+          ...accounts[0],
+          id: duplicateAccountId,
+        },
+      ]),
+      getListFinanceCategoriesMockHandler([
+        categories[0],
+        {
+          ...categories[0],
+          id: duplicateCategoryId,
+        },
+      ]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole(
+      "button",
+      { name: "Record transaction" },
+      { timeout: 5_000 },
+    );
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(await screen.findByRole("menuitem", { name: "Expense" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Record expense" });
+    const account = within(dialog).getByRole("combobox", { name: "Account" });
+    const category = within(dialog).getByRole("combobox", {
+      name: "Category",
+    });
+    expect(
+      within(account).getByRole("option", {
+        name: "Cash, active asset in USD, 1 of 2 · USD",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(account).getByRole("option", {
+        name: "Cash, active asset in USD, 2 of 2 · USD",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(category).getByRole("option", {
+        name: `Groceries, Category ID ${activeCategoryId}`,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(category).getByRole("option", {
+        name: `Groceries, Category ID ${duplicateCategoryId}`,
+      }),
+    ).toBeInTheDocument();
+    expect(account).toHaveAccessibleDescription(
+      "Only active Accounts can be selected. The selected Account supplies currency.",
+    );
+    expect(category).toHaveAccessibleDescription(
+      "Categories are optional; Uncategorized is a complete allocation.",
+    );
+  });
+
+  it("records a fixed Expense with exact Account currency and complete Category allocation", async () => {
+    const user = userEvent.setup();
+    let created = false;
+    let submittedBody: unknown;
+    const createdExpense = {
+      account: {
+        id: accountId,
+        name: "Cash",
+        status: "active",
+      },
+      categoryAllocations: [
+        {
+          amount: { amount: "9007199254740993.25", currency: "USD" },
+          category: {
+            id: activeCategoryId,
+            name: "Groceries",
+            status: "active",
+          },
+        },
+      ],
+      economicAmount: {
+        amount: "9007199254740993.25",
+        currency: "USD",
+      },
+      id: "99999999-9999-4999-8999-999999999999",
+      kind: "expense",
+      ledgerId: ledger.id,
+      note: "Large exact purchase",
+      transactionDate: "2027-01-02",
+    } satisfies TransactionHistoryPageResponse["items"][number];
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler([...categories]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(() => ({
+        items: created ? [createdExpense, ...history.items] : history.items,
+        nextCursor: null,
+      })),
+      http.post(
+        "*/api/finance/ledgers/:ledgerId/transactions",
+        async ({ request }) => {
+          submittedBody = await request.json();
+          created = true;
+          return HttpResponse.json(createdExpense, { status: 201 });
+        },
+      ),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    await screen.findByRole(
+      "article",
+      { name: "Income on August 16, 2026" },
+      { timeout: 5_000 },
+    );
+    const recordTransaction = screen.getByRole("button", {
+      name: "Record transaction",
+    });
+    await waitFor(() => expect(recordTransaction).toBeEnabled());
+    await user.click(recordTransaction);
+    await user.click(await screen.findByRole("menuitem", { name: "Expense" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Record expense" });
+    expect(
+      within(dialog).queryByRole("combobox", { name: /kind/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("option", { name: /Old wallet/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("option", { name: /Salary/ }),
+    ).not.toBeInTheDocument();
+
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Amount" }),
+      "9007199254740993.25",
+    );
+    await user.selectOptions(
+      within(dialog).getByRole("combobox", { name: "Account" }),
+      accountId,
+    );
+    expect(within(dialog).getByText("USD", { exact: true })).toBeVisible();
+    await user.selectOptions(
+      within(dialog).getByRole("combobox", { name: "Category" }),
+      activeCategoryId,
+    );
+    await user.clear(within(dialog).getByLabelText("Transaction date"));
+    await user.type(
+      within(dialog).getByLabelText("Transaction date"),
+      "2027-01-02",
+    );
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Note" }),
+      "  Large exact purchase  ",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record expense" }),
+    );
+
+    expect(submittedBody).toEqual({
+      accountId,
+      categoryAllocations: [
+        {
+          amount: { amount: "9007199254740993.25", currency: "USD" },
+          categoryId: activeCategoryId,
+        },
+      ],
+      economicAmount: {
+        amount: "9007199254740993.25",
+        currency: "USD",
+      },
+      kind: "expense",
+      note: "Large exact purchase",
+      transactionDate: "2027-01-02",
+    });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Record expense" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("Expense recorded.");
+    expect(
+      await screen.findByRole("article", {
+        name: "Expense on January 2, 2027",
+      }),
+    ).toHaveTextContent("9,007,199,254,740,993.25 USD");
+  });
+
+  it("records Income as explicit Uncategorized and focuses the first invalid field", async () => {
+    const user = userEvent.setup();
+    let submittedBody: unknown;
+    const today = new Date();
+    const localToday = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, "0"),
+      String(today.getDate()).padStart(2, "0"),
+    ].join("-");
+    const createdIncome = {
+      account: { id: accountId, name: "Cash", status: "active" },
+      categoryAllocations: [
+        {
+          amount: { amount: "12.5", currency: "USD" },
+          category: null,
+        },
+      ],
+      economicAmount: { amount: "12.5", currency: "USD" },
+      id: "99999999-9999-4999-8999-999999999998",
+      kind: "income",
+      ledgerId: ledger.id,
+      note: null,
+      transactionDate: localToday,
+    } satisfies TransactionHistoryPageResponse["items"][number];
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler([]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.post(
+        "*/api/finance/ledgers/:ledgerId/transactions",
+        async ({ request }) => {
+          submittedBody = await request.json();
+          return HttpResponse.json(createdIncome, { status: 201 });
+        },
+      ),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole("button", {
+      name: "Record transaction",
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(await screen.findByRole("menuitem", { name: "Income" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Record income" });
+    const amount = within(dialog).getByRole("textbox", { name: "Amount" });
+    expect(within(dialog).getByLabelText("Transaction date")).toHaveValue(
+      localToday,
+    );
+    expect(
+      within(dialog).getByRole("combobox", { name: "Category" }),
+    ).toHaveValue("");
+    await user.type(amount, "1.234");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record income" }),
+    );
+    expect(
+      within(dialog).getByText(
+        "USD amounts support at most 2 fractional digits.",
+      ),
+    ).toBeVisible();
+    expect(amount).toHaveFocus();
+    expect(submittedBody).toBeUndefined();
+
+    await user.clear(amount);
+    await user.type(amount, "12.5");
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Note" }),
+      "   ",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record income" }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Record income" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(submittedBody).toEqual({
+      accountId,
+      categoryAllocations: [
+        {
+          amount: { amount: "12.5", currency: "USD" },
+          categoryId: null,
+        },
+      ],
+      economicAmount: { amount: "12.5", currency: "USD" },
+      kind: "income",
+      note: null,
+      transactionDate: localToday,
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("Income recorded.");
+  });
+
+  it("preserves the draft and requires explicit correction after a Category is archived", async () => {
+    const user = userEvent.setup();
+    let categoryArchived = false;
+    let requests = 0;
+    const recoveredExpense = {
+      account: { id: accountId, name: "Cash", status: "active" },
+      categoryAllocations: [
+        {
+          amount: { amount: "42.00", currency: "USD" },
+          category: null,
+        },
+      ],
+      economicAmount: { amount: "42.00", currency: "USD" },
+      id: "99999999-9999-4999-8999-999999999997",
+      kind: "expense",
+      ledgerId: ledger.id,
+      note: "Preserve this draft",
+      transactionDate: "2027-03-04",
+    } satisfies TransactionHistoryPageResponse["items"][number];
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler(() =>
+        categoryArchived
+          ? [
+              { id: activeCategoryId, name: "Groceries", status: "archived" },
+              {
+                id: duplicateCategoryId,
+                name: "Groceries",
+                status: "active",
+              },
+              categories[1],
+            ]
+          : [
+              categories[0],
+              {
+                id: duplicateCategoryId,
+                name: "Groceries",
+                status: "active",
+              },
+              categories[1],
+            ],
+      ),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.post("*/api/finance/ledgers/:ledgerId/transactions", async () => {
+        requests += 1;
+        if (requests === 1) {
+          categoryArchived = true;
+          return HttpResponse.json(
+            {
+              code: "finance_category_archived",
+              detail: "Category is archived.",
+              status: 409,
+              title: "Conflict",
+              type: "about:blank",
+            },
+            { status: 409 },
+          );
+        }
+        return HttpResponse.json(recoveredExpense, { status: 201 });
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole("button", {
+      name: "Record transaction",
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(await screen.findByRole("menuitem", { name: "Expense" }));
+    const dialog = screen.getByRole("dialog", { name: "Record expense" });
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Amount" }),
+      "42.00",
+    );
+    const category = within(dialog).getByRole("combobox", {
+      name: "Category",
+    });
+    await user.selectOptions(category, activeCategoryId);
+    const date = within(dialog).getByLabelText("Transaction date");
+    await user.clear(date);
+    await user.type(date, "2027-03-04");
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Note" }),
+      "Preserve this draft",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record expense" }),
+    );
+
+    expect(
+      await within(dialog).findByText(
+        `The selected Category — Groceries, Category ID ${activeCategoryId} — was archived. Choose another active Category or Uncategorized; your other values have been kept.`,
+      ),
+    ).toBeVisible();
+    await waitFor(() => expect(category).toHaveFocus());
+    expect(category).toHaveAccessibleErrorMessage(
+      `The selected Category — Groceries, Category ID ${activeCategoryId} — was archived. Choose another active Category or Uncategorized; your other values have been kept.`,
+    );
+    expect(category).toHaveValue(activeCategoryId);
+    expect(
+      within(category).getByRole("option", {
+        name: `Groceries, Category ID ${activeCategoryId} (unavailable)`,
+      }),
+    ).toBeDisabled();
+    expect(within(dialog).getByRole("textbox", { name: "Amount" })).toHaveValue(
+      "42.00",
+    );
+    expect(date).toHaveValue("2027-03-04");
+    expect(within(dialog).getByRole("textbox", { name: "Note" })).toHaveValue(
+      "Preserve this draft",
+    );
+
+    await user.selectOptions(category, "");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record expense" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Record expense" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(requests).toBe(2);
+  });
+
+  it("keeps duplicate Account identity in stale-reference recovery", async () => {
+    const user = userEvent.setup();
+    let accountArchived = false;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler(() => [
+        {
+          ...accounts[0],
+          status: accountArchived ? "archived" : "active",
+        },
+        {
+          ...accounts[0],
+          id: duplicateAccountId,
+        },
+      ]),
+      getListFinanceCategoriesMockHandler([]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+        accountArchived = true;
+        return HttpResponse.json(
+          {
+            code: "finance_account_archived",
+            detail: "Account is archived.",
+            status: 409,
+            title: "Conflict",
+            type: "about:blank",
+          },
+          { status: 409 },
+        );
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole("button", {
+      name: "Record transaction",
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(await screen.findByRole("menuitem", { name: "Income" }));
+    const dialog = screen.getByRole("dialog", { name: "Record income" });
+    const account = within(dialog).getByRole("combobox", { name: "Account" });
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Amount" }),
+      "19.00",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record income" }),
+    );
+
+    const message =
+      "The selected Account — Cash, active asset in USD, 1 of 2 — was archived. Choose another active Account; your other values have been kept.";
+    expect(await within(dialog).findByText(message)).toBeVisible();
+    await waitFor(() => expect(account).toHaveFocus());
+    expect(account).toHaveAccessibleErrorMessage(message);
+    expect(account).toHaveValue(accountId);
+    expect(
+      within(account).getByRole("option", {
+        name: "Cash, active asset in USD, 1 of 2 (unavailable)",
+      }),
+    ).toBeDisabled();
+    expect(within(dialog).getByRole("textbox", { name: "Amount" })).toHaveValue(
+      "19.00",
+    );
+  });
+
+  it("keeps the selected duplicate Account identity when a background refresh removes it", async () => {
+    const user = userEvent.setup();
+    let referencesPresent = true;
+    let accountRequests = 0;
+    let releaseResponse!: () => void;
+    const responseGate = new Promise<void>((resolve) => {
+      releaseResponse = resolve;
+    });
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler(() => {
+        accountRequests += 1;
+        return referencesPresent
+          ? [
+              accounts[0],
+              {
+                ...accounts[0],
+                id: duplicateAccountId,
+              },
+            ]
+          : [accounts[0]];
+      }),
+      getListFinanceCategoriesMockHandler([]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.post("*/api/finance/ledgers/:ledgerId/transactions", async () => {
+        await responseGate;
+        return HttpResponse.json(
+          {
+            code: "finance_account_not_found",
+            detail: "Account was not found.",
+            status: 404,
+            title: "Not found",
+            type: "about:blank",
+          },
+          { status: 404 },
+        );
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole(
+      "button",
+      { name: "Record transaction" },
+      { timeout: 5_000 },
+    );
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(await screen.findByRole("menuitem", { name: "Income" }));
+    const dialog = screen.getByRole("dialog", { name: "Record income" });
+    const account = within(dialog).getByRole("combobox", { name: "Account" });
+    await user.selectOptions(account, duplicateAccountId);
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Amount" }),
+      "21.00",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record income" }),
+    );
+
+    referencesPresent = false;
+    act(() => window.dispatchEvent(new Event("visibilitychange")));
+    await waitFor(() => expect(accountRequests).toBeGreaterThan(1));
+    expect(account).toHaveValue(duplicateAccountId);
+    expect(
+      within(account).getByRole("option", {
+        name: "Cash, active asset in USD, 2 of 2 (unavailable)",
+      }),
+    ).toBeDisabled();
+
+    releaseResponse();
+    const message =
+      "The selected Account — Cash, active asset in USD, 2 of 2 — is no longer available. Choose another active Account; your other values have been kept.";
+    expect(await within(dialog).findByText(message)).toBeVisible();
+    await waitFor(() => expect(account).toHaveFocus());
+    expect(account).toHaveAccessibleErrorMessage(message);
+  });
+
+  it("keeps the selected duplicate Category identity when a background refresh removes it", async () => {
+    const user = userEvent.setup();
+    let referencesPresent = true;
+    let categoryRequests = 0;
+    let releaseResponse!: () => void;
+    const responseGate = new Promise<void>((resolve) => {
+      releaseResponse = resolve;
+    });
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler(() => {
+        categoryRequests += 1;
+        return referencesPresent
+          ? [
+              categories[0],
+              {
+                ...categories[0],
+                id: duplicateCategoryId,
+              },
+            ]
+          : [categories[0]];
+      }),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.post("*/api/finance/ledgers/:ledgerId/transactions", async () => {
+        await responseGate;
+        return HttpResponse.json(
+          {
+            code: "finance_category_not_found",
+            detail: "Category was not found.",
+            status: 404,
+            title: "Not found",
+            type: "about:blank",
+          },
+          { status: 404 },
+        );
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole(
+      "button",
+      { name: "Record transaction" },
+      { timeout: 5_000 },
+    );
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(await screen.findByRole("menuitem", { name: "Expense" }));
+    const dialog = screen.getByRole("dialog", { name: "Record expense" });
+    const category = within(dialog).getByRole("combobox", {
+      name: "Category",
+    });
+    await user.selectOptions(category, duplicateCategoryId);
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Amount" }),
+      "22.00",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record expense" }),
+    );
+
+    referencesPresent = false;
+    act(() => window.dispatchEvent(new Event("visibilitychange")));
+    await waitFor(() => expect(categoryRequests).toBeGreaterThan(1));
+    expect(category).toHaveValue(duplicateCategoryId);
+    expect(
+      within(category).getByRole("option", {
+        name: `Groceries, Category ID ${duplicateCategoryId} (unavailable)`,
+      }),
+    ).toBeDisabled();
+
+    releaseResponse();
+    const message = `The selected Category — Groceries, Category ID ${duplicateCategoryId} — is no longer available. Choose another active Category or Uncategorized; your other values have been kept.`;
+    expect(await within(dialog).findByText(message)).toBeVisible();
+    await waitFor(() => expect(category).toHaveFocus());
+    expect(category).toHaveAccessibleErrorMessage(message);
+  });
+
+  it("excludes duplicate submission and cancellation while recording is pending", async () => {
+    const user = userEvent.setup();
+    let releaseRequest!: () => void;
+    const requestGate = new Promise<void>((resolve) => {
+      releaseRequest = resolve;
+    });
+    let requests = 0;
+    const createdExpense = {
+      account: { id: accountId, name: "Cash", status: "active" },
+      categoryAllocations: [
+        {
+          amount: { amount: "8.00", currency: "USD" },
+          category: null,
+        },
+      ],
+      economicAmount: { amount: "8.00", currency: "USD" },
+      id: "99999999-9999-4999-8999-999999999996",
+      kind: "expense",
+      ledgerId: ledger.id,
+      note: null,
+      transactionDate: "2027-03-05",
+    } satisfies TransactionHistoryPageResponse["items"][number];
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler([...categories]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.post("*/api/finance/ledgers/:ledgerId/transactions", async () => {
+        requests += 1;
+        await requestGate;
+        return HttpResponse.json(createdExpense, { status: 201 });
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole("button", {
+      name: "Record transaction",
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(await screen.findByRole("menuitem", { name: "Expense" }));
+    const dialog = screen.getByRole("dialog", { name: "Record expense" });
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Amount" }),
+      "8.00",
+    );
+    const date = within(dialog).getByLabelText("Transaction date");
+    await user.clear(date);
+    await user.type(date, "2027-03-05");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record expense" }),
+    );
+
+    const pendingButton = await within(dialog).findByRole("button", {
+      name: "Recording expense…",
+    });
+    expect(pendingButton).toBeDisabled();
+    expect(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    ).toBeDisabled();
+    expect(
+      within(dialog).getByRole("textbox", { name: "Amount" }),
+    ).toBeDisabled();
+    expect(
+      within(dialog).queryByRole("button", { name: "Close" }),
+    ).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(
+      screen.getByRole("dialog", { name: "Record expense" }),
+    ).toBeVisible();
+    expect(requests).toBe(1);
+
+    releaseRequest();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Record expense" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(requests).toBe(1);
+  });
+
+  it("restores successful empty-state focus only after recording is usable again", async () => {
+    const user = userEvent.setup();
+    let created = false;
+    let accountRequests = 0;
+    let releaseRefresh!: () => void;
+    const refreshGate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    const createdExpense = {
+      account: { id: accountId, name: "Cash", status: "active" },
+      categoryAllocations: [
+        {
+          amount: { amount: "6.00", currency: "USD" },
+          category: null,
+        },
+      ],
+      economicAmount: { amount: "6.00", currency: "USD" },
+      id: "99999999-9999-4999-8999-999999999995",
+      kind: "expense",
+      ledgerId: ledger.id,
+      note: null,
+      transactionDate: "2027-03-06",
+    } satisfies TransactionHistoryPageResponse["items"][number];
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      http.get("*/api/finance/ledgers/:ledgerId/accounts", async () => {
+        accountRequests += 1;
+        if (accountRequests > 1) await refreshGate;
+        return HttpResponse.json(accounts);
+      }),
+      getListFinanceCategoriesMockHandler([]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(() => ({
+        items: created ? [createdExpense] : [],
+        nextCursor: null,
+      })),
+      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+        created = true;
+        return HttpResponse.json(createdExpense, { status: 201 });
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole("button", { name: "Record transaction" }),
+      ).toHaveLength(2),
+    );
+    const triggers = screen.getAllByRole("button", {
+      name: "Record transaction",
+    });
+    expect(triggers[1]).toBeEnabled();
+    const emptyStateTrigger = triggers[1]!;
+    await user.click(emptyStateTrigger);
+    await user.click(await screen.findByRole("menuitem", { name: "Expense" }));
+    const dialog = screen.getByRole("dialog", { name: "Record expense" });
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Amount" }),
+      "6.00",
+    );
+    const date = within(dialog).getByLabelText("Transaction date");
+    await user.clear(date);
+    await user.type(date, "2027-03-06");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record expense" }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Record expense" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(emptyStateTrigger.isConnected).toBe(false);
+    const fallback = screen.getByRole("button", { name: "Record transaction" });
+    expect(fallback).toBeDisabled();
+    expect(fallback).not.toHaveFocus();
+
+    releaseRefresh();
+    await waitFor(() => expect(fallback).toBeEnabled());
+    expect(fallback).toHaveFocus();
+  });
+
+  it("falls back to the Finance heading when the connected invoker stays disabled", async () => {
+    const user = userEvent.setup();
+    let accountsEligible = true;
+    let accountRequests = 0;
+    let releaseRefresh!: () => void;
+    const refreshGate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    const createdExpense = {
+      account: { id: accountId, name: "Cash", status: "active" },
+      categoryAllocations: [
+        {
+          amount: { amount: "7.00", currency: "USD" },
+          category: null,
+        },
+      ],
+      economicAmount: { amount: "7.00", currency: "USD" },
+      id: "99999999-9999-4999-8999-999999999994",
+      kind: "expense",
+      ledgerId: ledger.id,
+      note: null,
+      transactionDate: "2027-03-07",
+    } satisfies TransactionHistoryPageResponse["items"][number];
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      http.get("*/api/finance/ledgers/:ledgerId/accounts", async () => {
+        accountRequests += 1;
+        if (accountRequests > 1) await refreshGate;
+        return HttpResponse.json(accountsEligible ? accounts : []);
+      }),
+      getListFinanceCategoriesMockHandler([]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+        accountsEligible = false;
+        return HttpResponse.json(createdExpense, { status: 201 });
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole(
+      "button",
+      { name: "Record transaction" },
+      { timeout: 5_000 },
+    );
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(await screen.findByRole("menuitem", { name: "Expense" }));
+    const dialog = screen.getByRole("dialog", { name: "Record expense" });
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Amount" }),
+      "7.00",
+    );
+    const date = within(dialog).getByLabelText("Transaction date");
+    await user.clear(date);
+    await user.type(date, "2027-03-07");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record expense" }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Record expense" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(trigger.isConnected).toBe(true);
+    expect(trigger).toBeDisabled();
+    expect(trigger).not.toHaveFocus();
+
+    releaseRefresh();
+    await screen.findByText(
+      "Record transaction is unavailable until this Ledger has an active Account.",
+    );
+    expect(trigger).toBeDisabled();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { level: 1, name: "Transactions" }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it("keeps every value through backend validation and a later server error", async () => {
+    const user = userEvent.setup();
+    let requests = 0;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler([...categories]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+        requests += 1;
+        if (requests === 1) {
+          return HttpResponse.json(
+            {
+              code: "validation_error",
+              detail:
+                "Transaction Date cannot be before the Account Tracking Start Date.",
+              status: 422,
+              title: "Validation error",
+              type: "about:blank",
+            },
+            { status: 422 },
+          );
+        }
+        return HttpResponse.json(
+          {
+            code: "database_unavailable",
+            detail: "internal database host unavailable",
+            status: 503,
+            title: "Service unavailable",
+            type: "about:blank",
+          },
+          { status: 503 },
+        );
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole("button", {
+      name: "Record transaction",
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(await screen.findByRole("menuitem", { name: "Income" }));
+    const dialog = screen.getByRole("dialog", { name: "Record income" });
+    const amount = within(dialog).getByRole("textbox", { name: "Amount" });
+    const category = within(dialog).getByRole("combobox", {
+      name: "Category",
+    });
+    const date = within(dialog).getByLabelText("Transaction date");
+    const note = within(dialog).getByRole("textbox", { name: "Note" });
+    await user.type(amount, "25.00");
+    await user.selectOptions(category, activeCategoryId);
+    await user.clear(date);
+    await user.type(date, "2027-04-05");
+    await user.type(note, "Keep after every failure");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record income" }),
+    );
+
+    expect(
+      await within(dialog).findByText(
+        "Choose a Transaction Date on or after the Account's Tracking Start Date.",
+      ),
+    ).toBeVisible();
+    await waitFor(() => expect(date).toHaveFocus());
+    expect(amount).toHaveValue("25.00");
+    expect(category).toHaveValue(activeCategoryId);
+    expect(note).toHaveValue("Keep after every failure");
+
+    await user.clear(date);
+    await user.type(date, "2027-04-06");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record income" }),
+    );
+    expect(
+      await within(dialog).findByRole("alert", {
+        name: "",
+      }),
+    ).toHaveTextContent(
+      "Transactions are temporarily unavailable. Try again later.",
+    );
+    expect(amount).toHaveValue("25.00");
+    expect(category).toHaveValue(activeCategoryId);
+    expect(date).toHaveValue("2027-04-06");
+    expect(note).toHaveValue("Keep after every failure");
+    expect(
+      within(dialog).queryByText("internal database host unavailable"),
+    ).not.toBeInTheDocument();
+    expect(requests).toBe(2);
+  });
+
   it("renders all four backend projections without flattening their semantics", async () => {
     server.use(
       getListFinanceLedgersMockHandler([ledger]),

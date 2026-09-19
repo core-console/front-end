@@ -15,7 +15,7 @@ import {
   CurrencyResponse,
   type AccountResponse as Account,
 } from "@/api/generated/schemas";
-import { formatFinanceMoney } from "@/components/finance/finance-money";
+import { buildAccountWorkflowLabels } from "@/components/finance/account-identity";
 import { AccountFormDialog } from "@/components/finance/account-form-dialog";
 import {
   reconcileAccountList,
@@ -24,6 +24,7 @@ import {
 import { getAccountProblemFeedback } from "@/components/finance/account-problem";
 import { AccountSemanticsDialog } from "@/components/finance/account-semantics-dialog";
 import { buildFinanceSearch } from "@/components/finance/finance-route-state";
+import { formatFinanceMoney } from "@/components/finance/finance-money";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -73,31 +74,6 @@ const natureLabels: Record<Nature, string> = {
   asset: "Assets",
   liability: "Liabilities",
 };
-
-function buildAccountActionLabels(accounts: Account[]) {
-  const nameCounts = new Map<string, number>();
-  const namePositions = new Map<string, number>();
-  const labels = new Map<string, string>();
-
-  for (const account of accounts) {
-    nameCounts.set(account.name, (nameCounts.get(account.name) ?? 0) + 1);
-  }
-  for (const account of accounts) {
-    const count = nameCounts.get(account.name)!;
-    if (count === 1) {
-      labels.set(account.id, account.name);
-      continue;
-    }
-    const position = (namePositions.get(account.name) ?? 0) + 1;
-    namePositions.set(account.name, position);
-    labels.set(
-      account.id,
-      `${account.name}, ${account.status} ${account.nature} in ${account.currency}, ${position} of ${count}`,
-    );
-  }
-
-  return labels;
-}
 
 function accountMutationIdentity(value: unknown) {
   if (typeof value !== "object" || value === null) return null;
@@ -577,7 +553,7 @@ export function AccountsDestination({
     );
   }
 
-  const accountActionLabels = buildAccountActionLabels(accountsQuery.data);
+  const accountActionLabels = buildAccountWorkflowLabels(accountsQuery.data);
 
   return (
     <div className="@container/accounts flex flex-col gap-7" key={ledgerId}>

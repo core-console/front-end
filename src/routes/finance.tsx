@@ -256,6 +256,7 @@ export function Component() {
           <h1
             className="text-2xl leading-8 font-semibold tracking-tight"
             id="finance-title"
+            tabIndex={-1}
           >
             {destination.label}
           </h1>

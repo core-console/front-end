@@ -1,27 +1,49 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
+import {
+  type InfiniteData,
+  type QueryClient,
+  type QueryKey,
+  useInfiniteQuery,
+  useMutationState,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 import {
+  getGetFinanceOverviewQueryKey,
+  getListFinanceAccountsQueryKey,
   getListFinanceTransactionsQueryKey,
   listFinanceTransactions,
   useListFinanceAccounts,
   useListFinanceCategories,
+  useListFinanceCurrencies,
 } from "@/api/generated/core-console";
 import {
   AccountResponse,
   CategoryResponse,
+  CurrencyResponse,
   ListFinanceTransactionsParams,
   TransactionHistoryPageResponse,
 } from "@/api/generated/schemas";
-import type { TransactionHistoryPageResponseOutput } from "@/api/generated/schemas";
+import type {
+  FinanceTransactionResponseOutput,
+  TransactionHistoryPageResponseOutput,
+} from "@/api/generated/schemas";
 import { formatFinanceMoney } from "@/components/finance/finance-money";
 import {
   buildFinanceSearch,
   type FinanceRouteState,
   type PortableFinanceState,
 } from "@/components/finance/finance-route-state";
+import { TransactionFormDialog } from "@/components/finance/transaction-form-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Empty,
   EmptyContent,
@@ -38,6 +60,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 type Transaction = TransactionHistoryPageResponseOutput["items"][number];
+type OrdinaryTransactionKind = "expense" | "income";
 type TransactionKind = NonNullable<ListFinanceTransactionsParams["kind"]>;
 type AppliedFilters = {
   portable: PortableFinanceState;
@@ -106,6 +129,149 @@ function appliedFilterKey(filters: AppliedFilters) {
     filters.resource.accountId,
     filters.resource.categoryId,
   ].join("|");
+}
+
+function transactionMatchesParams(
+  transaction: FinanceTransactionResponseOutput,
+  params: ListFinanceTransactionsParams,
+) {
+  if (params.fromDate && transaction.transactionDate < params.fromDate) {
+    return false;
+  }
+  if (params.toDate && transaction.transactionDate > params.toDate) {
+    return false;
+  }
+  if (params.kind && transaction.kind !== params.kind) return false;
+  if (
+    params.accountId &&
+    (transaction.kind === "income" || transaction.kind === "expense") &&
+    transaction.account.id !== params.accountId
+  ) {
+    return false;
+  }
+  if (params.accountId && transaction.kind === "internalTransfer") {
+    if (
+      transaction.sourceAccount.id !== params.accountId &&
+      transaction.destinationAccount.id !== params.accountId
+    ) {
+      return false;
+    }
+  }
+  if (
+    params.accountId &&
+    transaction.kind === "balanceAdjustment" &&
+    transaction.account.id !== params.accountId
+  ) {
+    return false;
+  }
+  if (params.categoryId) {
+    if (
+      (transaction.kind !== "income" && transaction.kind !== "expense") ||
+      transaction.categoryAllocations[0]?.category?.id !== params.categoryId
+    ) {
+      return false;
+    }
+  }
+  if (params.uncategorized) {
+    if (
+      (transaction.kind !== "income" && transaction.kind !== "expense") ||
+      transaction.categoryAllocations[0]?.category !== null
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function compareTransactionsByBackendOrder(
+  left: FinanceTransactionResponseOutput,
+  right: FinanceTransactionResponseOutput,
+) {
+  if (left.transactionDate !== right.transactionDate) {
+    return left.transactionDate < right.transactionDate ? 1 : -1;
+  }
+  return left.id < right.id ? 1 : left.id > right.id ? -1 : 0;
+}
+
+function reconcileTransactionHistory(
+  queryClient: QueryClient,
+  queryKey: QueryKey,
+  params: ListFinanceTransactionsParams,
+  confirmed: FinanceTransactionResponseOutput,
+) {
+  queryClient.setQueryData<
+    InfiniteData<TransactionHistoryPageResponseOutput, string | undefined>
+  >(queryKey, (current) => {
+    if (!current || !transactionMatchesParams(confirmed, params)) {
+      return current;
+    }
+
+    const items = current.pages
+      .flatMap((page) => page.items)
+      .filter((transaction) => transaction.id !== confirmed.id);
+    items.push(confirmed);
+    items.sort(compareTransactionsByBackendOrder);
+    let offset = 0;
+    const pages = current.pages.map((page, index) => {
+      const isLastPage = index === current.pages.length - 1;
+      const pageSize = isLastPage ? items.length - offset : page.items.length;
+      const nextPage = {
+        ...page,
+        items: items.slice(offset, offset + pageSize),
+      };
+      offset += pageSize;
+      return nextPage;
+    });
+
+    return { ...current, pages };
+  });
+}
+
+function transactionMutationLedgerId(variables: unknown) {
+  if (
+    typeof variables !== "object" ||
+    variables === null ||
+    !("ledgerId" in variables) ||
+    typeof variables.ledgerId !== "string"
+  ) {
+    return undefined;
+  }
+  return variables.ledgerId;
+}
+
+function RecordTransactionMenu({
+  disabled,
+  id,
+  onSelect,
+}: {
+  disabled: boolean;
+  id: string;
+  onSelect: (kind: OrdinaryTransactionKind, invoker: HTMLButtonElement) => void;
+}) {
+  const selectKind = (kind: OrdinaryTransactionKind) => {
+    const invoker = document.getElementById(id);
+    if (invoker instanceof HTMLButtonElement) onSelect(kind, invoker);
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<Button disabled={disabled} id={id} size="sm" />}
+      >
+        Record transaction
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => selectKind("expense")}>
+            Expense
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => selectKind("income")}>
+            Income
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 function FilterForm({
@@ -440,7 +606,13 @@ export function TransactionsDestination({
   portable: PortableFinanceState;
   resource: FinanceRouteState["resource"];
 }) {
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [dialogKind, setDialogKind] = useState<OrdinaryTransactionKind | null>(
+    null,
+  );
+  const dialogInvoker = useRef<HTMLButtonElement | null>(null);
+  const focusRestorePending = useRef(false);
   const appliedFilters = useMemo<AppliedFilters>(
     () => ({
       portable: {
@@ -496,8 +668,60 @@ export function TransactionsDestination({
       select: (response) => CategoryResponse.array().parse(response.data),
     },
   });
+  const currenciesQuery = useListFinanceCurrencies({
+    query: {
+      select: (response) => CurrencyResponse.array().parse(response.data),
+    },
+  });
+  const pendingTransactionVariables = useMutationState({
+    filters: { mutationKey: ["createFinanceTransaction"], status: "pending" },
+    select: (mutation) => mutation.state.variables,
+  });
+  const createPending = pendingTransactionVariables.some(
+    (variables) => transactionMutationLedgerId(variables) === ledgerId,
+  );
+  const activeAccounts = (accountsQuery.data ?? []).filter(
+    (account) => account.status === "active",
+  );
+  const recordAvailable =
+    accountsQuery.isSuccess &&
+    currenciesQuery.isSuccess &&
+    activeAccounts.some((account) =>
+      currenciesQuery.data.some(
+        (currency) => currency.code === account.currency,
+      ),
+    ) &&
+    !createPending;
+
+  useEffect(() => {
+    if (!focusRestorePending.current || dialogKind || createPending) return;
+
+    const invoker = dialogInvoker.current;
+    const recordFallback = document.getElementById(
+      "record-transaction-trigger",
+    );
+    const headingFallback = document.getElementById("finance-title");
+    const target =
+      [invoker, recordFallback].find(
+        (candidate): candidate is HTMLButtonElement =>
+          candidate instanceof HTMLButtonElement &&
+          candidate.isConnected &&
+          !candidate.disabled,
+      ) ??
+      (headingFallback instanceof HTMLElement && headingFallback.isConnected
+        ? headingFallback
+        : null);
+    if (!target) return;
+
+    target.focus();
+    focusRestorePending.current = false;
+  }, [createPending, dialogKind, recordAvailable]);
   const [announcement, setAnnouncement] = useState("");
   const paginationSnapshot = useRef({ count: 0, key: "", pages: 0 });
+  const transactionsQueryKey = useMemo(
+    () => [...getListFinanceTransactionsQueryKey(ledgerId, params), "infinite"],
+    [ledgerId, params],
+  );
   const transactionsQuery = useInfiniteQuery({
     initialPageParam: undefined as string | undefined,
     queryFn: async ({
@@ -515,10 +739,7 @@ export function TransactionsDestination({
       return TransactionHistoryPageResponse.parse(response.data);
     },
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    queryKey: [
-      ...getListFinanceTransactionsQueryKey(ledgerId, params),
-      "infinite",
-    ],
+    queryKey: transactionsQueryKey,
   });
   const transactions = useMemo(() => {
     const seen = new Set<string>();
@@ -598,6 +819,42 @@ export function TransactionsDestination({
         ? `Category ${appliedCategory ? referenceLabel(appliedCategory) : "unavailable"}`
         : null,
   ].filter((description): description is string => description !== null);
+  const openTransactionDialog = (
+    kind: OrdinaryTransactionKind,
+    invoker: HTMLButtonElement,
+  ) => {
+    dialogInvoker.current = invoker;
+    setAnnouncement("");
+    setDialogKind(kind);
+  };
+  const closeTransactionDialog = () => {
+    focusRestorePending.current = true;
+    setDialogKind(null);
+  };
+  const recordTransaction = async (
+    transaction: FinanceTransactionResponseOutput,
+  ) => {
+    reconcileTransactionHistory(
+      queryClient,
+      transactionsQueryKey,
+      params,
+      transaction,
+    );
+    setAnnouncement(
+      `${transaction.kind === "expense" ? "Expense" : "Income"} recorded.`,
+    );
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: getListFinanceTransactionsQueryKey(ledgerId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: getListFinanceAccountsQueryKey(ledgerId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: getGetFinanceOverviewQueryKey(ledgerId),
+      }),
+    ]);
+  };
 
   let historyContent;
 
@@ -665,9 +922,11 @@ export function TransactionsDestination({
               Clear filters
             </Button>
           ) : (
-            <Button disabled size="sm" type="button">
-              Record transaction
-            </Button>
+            <RecordTransactionMenu
+              disabled={!recordAvailable}
+              id="record-transaction-empty-trigger"
+              onSelect={openTransactionDialog}
+            />
           )}
         </EmptyContent>
       </Empty>
@@ -701,10 +960,36 @@ export function TransactionsDestination({
             ? `Applied filters: ${appliedFilterDescriptions.join(" · ")}`
             : "No filters applied. Showing all transactions in backend order."}
         </p>
-        <Button disabled size="sm" type="button">
-          Record transaction
-        </Button>
+        <RecordTransactionMenu
+          disabled={!recordAvailable}
+          id="record-transaction-trigger"
+          onSelect={openTransactionDialog}
+        />
       </div>
+      {accountsQuery.isSuccess && activeAccounts.length === 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4">
+          <p className="text-sm text-muted-foreground">
+            Record transaction is unavailable until this Ledger has an active
+            Account.
+          </p>
+          <Button
+            nativeButton={false}
+            render={
+              <Link to={`/finance/accounts${buildFinanceSearch(ledgerId)}`} />
+            }
+            size="sm"
+            variant="outline"
+          >
+            Manage Accounts
+          </Button>
+        </div>
+      ) : null}
+      {currenciesQuery.isError ? (
+        <p className="text-sm text-destructive" role="alert">
+          Transaction recording is temporarily unavailable because supported
+          currencies could not be loaded.
+        </p>
+      ) : null}
       <FilterForm
         key={appliedFilterKey(appliedFilters)}
         accounts={accountsQuery.data ?? []}
@@ -759,6 +1044,23 @@ export function TransactionsDestination({
       <p aria-live="polite" className="sr-only" role="status">
         {announcement}
       </p>
+      {dialogKind ? (
+        <TransactionFormDialog
+          accounts={accountsQuery.data ?? []}
+          categories={categoriesQuery.data ?? []}
+          currencies={currenciesQuery.data ?? []}
+          kind={dialogKind}
+          ledgerId={ledgerId}
+          onOpenChange={(open) => {
+            if (!open) closeTransactionDialog();
+          }}
+          onRecorded={recordTransaction}
+          open
+          refreshReferences={() =>
+            Promise.all([accountsQuery.refetch(), categoriesQuery.refetch()])
+          }
+        />
+      ) : null}
     </div>
   );
 }
