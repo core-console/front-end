@@ -27,6 +27,8 @@ const teamLedger = {
 
 const accountId = "22222222-2222-4222-8222-222222222222";
 const duplicateAccountId = "22222222-2222-4222-8222-222222222223";
+const destinationAccountId = "22222222-2222-4222-8222-222222222224";
+const cnyAccountId = "22222222-2222-4222-8222-222222222225";
 const categoryId = "77777777-7777-4777-8777-777777777777";
 const activeCategoryId = "88888888-8888-4888-8888-888888888888";
 const duplicateCategoryId = "88888888-8888-4888-8888-888888888889";
@@ -438,6 +440,885 @@ describe("Finance Transactions destination", () => {
       transactionDate: localToday,
     });
     expect(screen.getByRole("status")).toHaveTextContent("Income recorded.");
+  });
+
+  it("records one exact same-currency Internal Transfer and reconciles history", async () => {
+    const user = userEvent.setup();
+    let created = false;
+    let submittedBody: unknown;
+    const transferAccounts = [
+      accounts[0],
+      {
+        ...accounts[0],
+        currentBalance: { amount: "125.00", currency: "USD" },
+        id: destinationAccountId,
+        name: "Savings",
+      },
+      {
+        ...accounts[0],
+        currency: "CNY",
+        currentBalance: { amount: "80.00", currency: "CNY" },
+        id: cnyAccountId,
+        name: "CNY wallet",
+        openingBalance: { amount: "0.00", currency: "CNY" },
+      },
+      accounts[1],
+    ] as const;
+    const createdTransfer = {
+      destinationAccount: {
+        id: destinationAccountId,
+        name: "Savings",
+        status: "active",
+      },
+      destinationAmount: {
+        amount: "9007199254740993.25",
+        currency: "USD",
+      },
+      id: "99999999-9999-4999-8999-999999999993",
+      kind: "internalTransfer",
+      ledgerId: ledger.id,
+      note: "Move exact reserve",
+      sourceAccount: { id: accountId, name: "Cash", status: "active" },
+      sourceAmount: {
+        amount: "9007199254740993.25",
+        currency: "USD",
+      },
+      transactionDate: "2027-04-07",
+    } satisfies TransactionHistoryPageResponse["items"][number];
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...transferAccounts]),
+      getListFinanceCategoriesMockHandler([...categories]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(() => ({
+        items: created ? [createdTransfer, ...history.items] : history.items,
+        nextCursor: null,
+      })),
+      http.post(
+        "*/api/finance/ledgers/:ledgerId/transactions",
+        async ({ request }) => {
+          submittedBody = await request.json();
+          created = true;
+          return HttpResponse.json(createdTransfer, { status: 201 });
+        },
+      ),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole(
+      "button",
+      { name: "Record transaction" },
+      { timeout: 5_000 },
+    );
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Internal Transfer" }),
+    );
+
+    const dialog = screen.getByRole("dialog", {
+      name: "Record internal transfer",
+    });
+    const source = within(dialog).getByRole("combobox", {
+      name: "Source Account",
+    });
+    const destination = within(dialog).getByRole("combobox", {
+      name: "Destination Account",
+    });
+    expect(source).toHaveValue(accountId);
+    expect(
+      within(destination).queryByRole("option", { name: /Cash/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(destination).queryByRole("option", { name: /CNY wallet/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(destination).getByRole("option", { name: "Savings · USD" }),
+    ).toBeInTheDocument();
+    await user.selectOptions(destination, destinationAccountId);
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Amount" }),
+      "9007199254740993.25",
+    );
+    expect(within(dialog).getByText("USD", { exact: true })).toBeVisible();
+    await user.clear(within(dialog).getByLabelText("Transaction date"));
+    await user.type(
+      within(dialog).getByLabelText("Transaction date"),
+      "2027-04-07",
+    );
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Note" }),
+      "  Move exact reserve  ",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record transfer" }),
+    );
+
+    expect(submittedBody).toEqual({
+      amount: { amount: "9007199254740993.25", currency: "USD" },
+      destinationAccountId,
+      kind: "internalTransfer",
+      note: "Move exact reserve",
+      sourceAccountId: accountId,
+      transactionDate: "2027-04-07",
+    });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Record internal transfer" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Internal Transfer recorded.",
+    );
+    expect(
+      await screen.findByRole("article", {
+        name: "Internal Transfer on April 7, 2027",
+      }),
+    ).toHaveTextContent("9,007,199,254,740,993.25 USD");
+  });
+
+  it("preserves duplicate transfer identities when refresh removes the destination", async () => {
+    const user = userEvent.setup();
+    let referencesPresent = true;
+    let accountRequests = 0;
+    let releaseResponse!: () => void;
+    const responseGate = new Promise<void>((resolve) => {
+      releaseResponse = resolve;
+    });
+    const duplicateAccounts = [
+      accounts[0],
+      { ...accounts[0], id: duplicateAccountId },
+      {
+        ...accounts[0],
+        id: destinationAccountId,
+        name: "Savings",
+      },
+    ] as const;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      http.get("*/api/finance/ledgers/:ledgerId/accounts", () => {
+        accountRequests += 1;
+        return HttpResponse.json(
+          referencesPresent
+            ? duplicateAccounts
+            : [duplicateAccounts[0], duplicateAccounts[2]],
+        );
+      }),
+      getListFinanceCategoriesMockHandler([]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.post("*/api/finance/ledgers/:ledgerId/transactions", async () => {
+        await responseGate;
+        return HttpResponse.json(
+          {
+            code: "finance_account_not_found",
+            detail: "Account was not found.",
+            status: 404,
+            title: "Not found",
+            type: "about:blank",
+          },
+          { status: 404 },
+        );
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole(
+      "button",
+      { name: "Record transaction" },
+      { timeout: 5_000 },
+    );
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Internal Transfer" }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Record internal transfer",
+    });
+    const source = within(dialog).getByRole("combobox", {
+      name: "Source Account",
+    });
+    const destination = within(dialog).getByRole("combobox", {
+      name: "Destination Account",
+    });
+    const amount = within(dialog).getByRole("textbox", { name: "Amount" });
+    const date = within(dialog).getByLabelText("Transaction date");
+    const note = within(dialog).getByRole("textbox", { name: "Note" });
+    await user.selectOptions(destination, duplicateAccountId);
+    await user.type(amount, "27.50");
+    await user.clear(date);
+    await user.type(date, "2027-04-08");
+    await user.type(note, "Keep transfer draft");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record transfer" }),
+    );
+
+    referencesPresent = false;
+    act(() => window.dispatchEvent(new Event("visibilitychange")));
+    await waitFor(() => expect(accountRequests).toBeGreaterThan(1));
+    expect(source).toHaveValue(accountId);
+    expect(
+      within(source).getByRole("option", {
+        name: "Cash, active asset in USD, 1 of 2 · USD",
+      }),
+    ).not.toHaveAttribute("disabled");
+    expect(destination).toHaveValue(duplicateAccountId);
+    expect(
+      within(destination).getByRole("option", {
+        name: "Cash, active asset in USD, 2 of 2 (unavailable)",
+      }),
+    ).toBeDisabled();
+    expect(amount).toHaveValue("27.50");
+    expect(date).toHaveValue("2027-04-08");
+    expect(note).toHaveValue("Keep transfer draft");
+
+    releaseResponse();
+    const message =
+      "The selected Destination Account — Cash, active asset in USD, 2 of 2 — is no longer available. Choose another compatible active Account; your other values have been kept.";
+    expect(await within(dialog).findByText(message)).toBeVisible();
+    await waitFor(() => expect(destination).toHaveFocus());
+    expect(destination).toHaveAccessibleErrorMessage(message);
+    expect(amount).toHaveValue("27.50");
+    expect(date).toHaveValue("2027-04-08");
+    expect(note).toHaveValue("Keep transfer draft");
+  });
+
+  it("refreshes Accounts and requires source re-selection after its currency changes", async () => {
+    const user = userEvent.setup();
+    let sourceCurrencyChanged = false;
+    let accountRequests = 0;
+    let transactionRequests = 0;
+    const duplicateAccounts = [
+      accounts[0],
+      { ...accounts[0], id: duplicateAccountId },
+      {
+        ...accounts[0],
+        currency: "CNY",
+        currentBalance: { amount: "18.00", currency: "CNY" },
+        id: cnyAccountId,
+        name: "Yuan reserve",
+        openingBalance: { amount: "0.00", currency: "CNY" },
+      },
+    ] as const;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      http.get("*/api/finance/ledgers/:ledgerId/accounts", () => {
+        accountRequests += 1;
+        return HttpResponse.json(
+          sourceCurrencyChanged
+            ? [
+                {
+                  ...duplicateAccounts[0],
+                  currency: "CNY",
+                  currentBalance: { amount: "20.00", currency: "CNY" },
+                  openingBalance: { amount: "0.00", currency: "CNY" },
+                },
+                duplicateAccounts[1],
+                duplicateAccounts[2],
+              ]
+            : duplicateAccounts,
+        );
+      }),
+      getListFinanceCategoriesMockHandler([]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+        transactionRequests += 1;
+        sourceCurrencyChanged = true;
+        return HttpResponse.json(
+          {
+            code: "validation_error",
+            detail: "Transfer Accounts and amount must use the same currency.",
+            status: 422,
+            title: "Validation error",
+            type: "about:blank",
+          },
+          { status: 422 },
+        );
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole(
+      "button",
+      { name: "Record transaction" },
+      { timeout: 5_000 },
+    );
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Internal Transfer" }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Record internal transfer",
+    });
+    const source = within(dialog).getByRole("combobox", {
+      name: "Source Account",
+    });
+    const destination = within(dialog).getByRole("combobox", {
+      name: "Destination Account",
+    });
+    const amount = within(dialog).getByRole("textbox", { name: "Amount" });
+    const date = within(dialog).getByLabelText("Transaction date");
+    const note = within(dialog).getByRole("textbox", { name: "Note" });
+    await user.selectOptions(destination, duplicateAccountId);
+    await user.type(amount, "27.50");
+    await user.clear(date);
+    await user.type(date, "2027-04-10");
+    await user.type(note, "Keep source currency draft");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record transfer" }),
+    );
+
+    const message =
+      "The selected Source Account — Cash, active asset in USD, 1 of 2 — changed currency. Choose a valid Source Account again; your other values have been kept.";
+    expect(await within(dialog).findByText(message)).toBeVisible();
+    await waitFor(() => expect(accountRequests).toBeGreaterThan(1));
+    await waitFor(() => expect(source).toHaveFocus());
+    expect(source).toHaveAccessibleErrorMessage(message);
+    expect(source).toHaveValue(accountId);
+    expect(
+      within(source).getByRole("option", {
+        name: "Cash, active asset in USD, 1 of 2 · CNY",
+      }),
+    ).not.toBeDisabled();
+    expect(destination).toHaveValue(duplicateAccountId);
+    expect(
+      within(destination).getByRole("option", {
+        name: "Cash, active asset in USD, 2 of 2 (unavailable)",
+      }),
+    ).toBeDisabled();
+    expect(amount).toHaveValue("27.50");
+    expect(date).toHaveValue("2027-04-10");
+    expect(note).toHaveValue("Keep source currency draft");
+    expect(within(dialog).getByText("CNY", { exact: true })).toBeVisible();
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record transfer" }),
+    );
+    expect(transactionRequests).toBe(1);
+    expect(source).toHaveValue(accountId);
+    expect(destination).toHaveValue(duplicateAccountId);
+    await user.selectOptions(source, cnyAccountId);
+    expect(source).toHaveValue(cnyAccountId);
+    expect(destination).toHaveValue("");
+    expect(within(dialog).queryByText(message)).not.toBeInTheDocument();
+    expect(amount).toHaveValue("27.50");
+    expect(date).toHaveValue("2027-04-10");
+    expect(note).toHaveValue("Keep source currency draft");
+  });
+
+  it("refreshes Accounts and requires destination re-selection after its currency changes", async () => {
+    const user = userEvent.setup();
+    let destinationCurrencyChanged = false;
+    let accountRequests = 0;
+    let transactionRequests = 0;
+    const duplicateAccounts = [
+      accounts[0],
+      { ...accounts[0], id: duplicateAccountId },
+      {
+        ...accounts[0],
+        id: destinationAccountId,
+        name: "Savings",
+      },
+    ] as const;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      http.get("*/api/finance/ledgers/:ledgerId/accounts", () => {
+        accountRequests += 1;
+        return HttpResponse.json(
+          destinationCurrencyChanged
+            ? [
+                duplicateAccounts[0],
+                {
+                  ...duplicateAccounts[1],
+                  currency: "CNY",
+                  currentBalance: { amount: "20.00", currency: "CNY" },
+                  openingBalance: { amount: "0.00", currency: "CNY" },
+                },
+                duplicateAccounts[2],
+              ]
+            : duplicateAccounts,
+        );
+      }),
+      getListFinanceCategoriesMockHandler([]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+        transactionRequests += 1;
+        destinationCurrencyChanged = true;
+        return HttpResponse.json(
+          {
+            code: "validation_error",
+            detail: "Transfer Accounts and amount must use the same currency.",
+            status: 422,
+            title: "Validation error",
+            type: "about:blank",
+          },
+          { status: 422 },
+        );
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole(
+      "button",
+      { name: "Record transaction" },
+      { timeout: 5_000 },
+    );
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Internal Transfer" }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Record internal transfer",
+    });
+    const source = within(dialog).getByRole("combobox", {
+      name: "Source Account",
+    });
+    const destination = within(dialog).getByRole("combobox", {
+      name: "Destination Account",
+    });
+    const amount = within(dialog).getByRole("textbox", { name: "Amount" });
+    const date = within(dialog).getByLabelText("Transaction date");
+    const note = within(dialog).getByRole("textbox", { name: "Note" });
+    await user.selectOptions(destination, duplicateAccountId);
+    await user.type(amount, "63.25");
+    await user.clear(date);
+    await user.type(date, "2027-04-11");
+    await user.type(note, "Keep destination currency draft");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record transfer" }),
+    );
+
+    const message =
+      "The selected Destination Account — Cash, active asset in USD, 2 of 2 — changed currency. Choose a compatible Destination Account again; your other values have been kept.";
+    expect(await within(dialog).findByText(message)).toBeVisible();
+    await waitFor(() => expect(accountRequests).toBeGreaterThan(1));
+    await waitFor(() => expect(destination).toHaveFocus());
+    expect(destination).toHaveAccessibleErrorMessage(message);
+    expect(source).toHaveValue(accountId);
+    expect(destination).toHaveValue(duplicateAccountId);
+    expect(
+      within(destination).getByRole("option", {
+        name: "Cash, active asset in USD, 2 of 2 (unavailable)",
+      }),
+    ).toBeDisabled();
+    expect(amount).toHaveValue("63.25");
+    expect(date).toHaveValue("2027-04-11");
+    expect(note).toHaveValue("Keep destination currency draft");
+    expect(within(dialog).getByText("USD", { exact: true })).toBeVisible();
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record transfer" }),
+    );
+    expect(transactionRequests).toBe(1);
+    await user.selectOptions(destination, destinationAccountId);
+    expect(destination).toHaveValue(destinationAccountId);
+    expect(within(dialog).queryByText(message)).not.toBeInTheDocument();
+    expect(amount).toHaveValue("63.25");
+    expect(date).toHaveValue("2027-04-11");
+    expect(note).toHaveValue("Keep destination currency draft");
+  });
+
+  it("fails closed when currency recovery cannot refresh Accounts", async () => {
+    const user = userEvent.setup();
+    let accountRequests = 0;
+    let transactionRequests = 0;
+    const duplicateAccounts = [
+      accounts[0],
+      { ...accounts[0], id: duplicateAccountId },
+    ] as const;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      http.get("*/api/finance/ledgers/:ledgerId/accounts", () => {
+        accountRequests += 1;
+        if (accountRequests > 1) {
+          return HttpResponse.json(
+            {
+              code: "database_unavailable",
+              detail: "Database unavailable.",
+              status: 503,
+              title: "Service unavailable",
+              type: "about:blank",
+            },
+            { status: 503 },
+          );
+        }
+        return HttpResponse.json(duplicateAccounts);
+      }),
+      getListFinanceCategoriesMockHandler([]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+        transactionRequests += 1;
+        return HttpResponse.json(
+          {
+            code: "validation_error",
+            detail: "Transfer Accounts and amount must use the same currency.",
+            status: 422,
+            title: "Validation error",
+            type: "about:blank",
+          },
+          { status: 422 },
+        );
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole(
+      "button",
+      { name: "Record transaction" },
+      { timeout: 5_000 },
+    );
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Internal Transfer" }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Record internal transfer",
+    });
+    const source = within(dialog).getByRole("combobox", {
+      name: "Source Account",
+    });
+    const destination = within(dialog).getByRole("combobox", {
+      name: "Destination Account",
+    });
+    const amount = within(dialog).getByRole("textbox", { name: "Amount" });
+    const date = within(dialog).getByLabelText("Transaction date");
+    const note = within(dialog).getByRole("textbox", { name: "Note" });
+    await user.selectOptions(destination, duplicateAccountId);
+    await user.type(amount, "71.25");
+    await user.clear(date);
+    await user.type(date, "2027-04-12");
+    await user.type(note, "Keep failed refresh draft");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record transfer" }),
+    );
+
+    const recoveryAlert = await within(dialog).findByRole("alert");
+    expect(recoveryAlert).toHaveTextContent(
+      "Accounts could not be refreshed. Retry Account refresh before submitting this transfer.",
+    );
+    expect(
+      within(dialog).getByRole("button", { name: "Retry Account refresh" }),
+    ).toBeEnabled();
+    expect(
+      within(dialog).getByRole("button", { name: "Record transfer" }),
+    ).toBeDisabled();
+    expect(accountRequests).toBe(2);
+    expect(transactionRequests).toBe(1);
+    expect(source).toHaveValue(accountId);
+    expect(destination).toHaveValue(duplicateAccountId);
+    expect(
+      within(source).getByRole("option", {
+        name: "Cash, active asset in USD, 1 of 2 · USD",
+      }),
+    ).not.toBeDisabled();
+    expect(
+      within(destination).getByRole("option", {
+        name: "Cash, active asset in USD, 2 of 2 · USD",
+      }),
+    ).not.toBeDisabled();
+    expect(amount).toHaveValue("71.25");
+    expect(date).toHaveValue("2027-04-12");
+    expect(note).toHaveValue("Keep failed refresh draft");
+    await user.type(note, " revised");
+    expect(note).toHaveValue("Keep failed refresh draft revised");
+    expect(recoveryAlert).toHaveTextContent(
+      "Accounts could not be refreshed. Retry Account refresh before submitting this transfer.",
+    );
+    expect(
+      within(dialog).getByRole("button", { name: "Retry Account refresh" }),
+    ).toBeEnabled();
+    expect(
+      within(dialog).getByRole("button", { name: "Record transfer" }),
+    ).toBeDisabled();
+    expect(source).toHaveValue(accountId);
+    expect(destination).toHaveValue(duplicateAccountId);
+  });
+
+  it("re-evaluates the preserved draft after Account recovery retry succeeds", async () => {
+    const user = userEvent.setup();
+    let accountRequests = 0;
+    let transactionRequests = 0;
+    const duplicateAccounts = [
+      accounts[0],
+      { ...accounts[0], id: duplicateAccountId },
+      {
+        ...accounts[0],
+        id: destinationAccountId,
+        name: "Savings",
+      },
+    ] as const;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      http.get("*/api/finance/ledgers/:ledgerId/accounts", () => {
+        accountRequests += 1;
+        if (accountRequests === 2) {
+          return HttpResponse.json(
+            {
+              code: "database_unavailable",
+              detail: "Database unavailable.",
+              status: 503,
+              title: "Service unavailable",
+              type: "about:blank",
+            },
+            { status: 503 },
+          );
+        }
+        if (accountRequests > 2) {
+          return HttpResponse.json([
+            duplicateAccounts[0],
+            {
+              ...duplicateAccounts[1],
+              currency: "CNY",
+              currentBalance: { amount: "20.00", currency: "CNY" },
+              openingBalance: { amount: "0.00", currency: "CNY" },
+            },
+            duplicateAccounts[2],
+          ]);
+        }
+        return HttpResponse.json(duplicateAccounts);
+      }),
+      getListFinanceCategoriesMockHandler([]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+        transactionRequests += 1;
+        return HttpResponse.json(
+          {
+            code: "validation_error",
+            detail: "Transfer Accounts and amount must use the same currency.",
+            status: 422,
+            title: "Validation error",
+            type: "about:blank",
+          },
+          { status: 422 },
+        );
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole(
+      "button",
+      { name: "Record transaction" },
+      { timeout: 5_000 },
+    );
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Internal Transfer" }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Record internal transfer",
+    });
+    const source = within(dialog).getByRole("combobox", {
+      name: "Source Account",
+    });
+    const destination = within(dialog).getByRole("combobox", {
+      name: "Destination Account",
+    });
+    const amount = within(dialog).getByRole("textbox", { name: "Amount" });
+    const date = within(dialog).getByLabelText("Transaction date");
+    const note = within(dialog).getByRole("textbox", { name: "Note" });
+    await user.selectOptions(destination, duplicateAccountId);
+    await user.type(amount, "82.75");
+    await user.clear(date);
+    await user.type(date, "2027-04-13");
+    await user.type(note, "Keep retry recovery draft");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record transfer" }),
+    );
+
+    const retry = await within(dialog).findByRole("button", {
+      name: "Retry Account refresh",
+    });
+    expect(
+      within(dialog).getByRole("button", { name: "Record transfer" }),
+    ).toBeDisabled();
+    await user.click(retry);
+
+    const message =
+      "The selected Destination Account — Cash, active asset in USD, 2 of 2 — changed currency. Choose a compatible Destination Account again; your other values have been kept.";
+    expect(await within(dialog).findByText(message)).toBeVisible();
+    await waitFor(() => expect(destination).toHaveFocus());
+    expect(accountRequests).toBe(3);
+    expect(transactionRequests).toBe(1);
+    expect(
+      within(dialog).queryByRole("button", { name: "Retry Account refresh" }),
+    ).not.toBeInTheDocument();
+    const recordTransfer = within(dialog).getByRole("button", {
+      name: "Record transfer",
+    });
+    expect(recordTransfer).toBeEnabled();
+    expect(source).toHaveValue(accountId);
+    expect(destination).toHaveValue(duplicateAccountId);
+    expect(
+      within(destination).getByRole("option", {
+        name: "Cash, active asset in USD, 2 of 2 (unavailable)",
+      }),
+    ).toBeDisabled();
+    expect(amount).toHaveValue("82.75");
+    expect(date).toHaveValue("2027-04-13");
+    expect(note).toHaveValue("Keep retry recovery draft");
+
+    await user.click(recordTransfer);
+    expect(transactionRequests).toBe(1);
+    expect(destination).toHaveAccessibleErrorMessage(message);
+    await user.selectOptions(destination, destinationAccountId);
+    expect(destination).toHaveValue(destinationAccountId);
+    expect(within(dialog).queryByText(message)).not.toBeInTheDocument();
+    expect(amount).toHaveValue("82.75");
+    expect(date).toHaveValue("2027-04-13");
+    expect(note).toHaveValue("Keep retry recovery draft");
+  });
+
+  it("explains when no compatible transfer pair is available", async () => {
+    const user = userEvent.setup();
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler([]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole(
+      "button",
+      { name: "Record transaction" },
+      { timeout: 5_000 },
+    );
+    await waitFor(() => expect(trigger).toBeEnabled());
+    expect(
+      screen.getByText(
+        "Internal Transfer is unavailable until this Ledger has two active Accounts in the same currency.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Manage Accounts" }),
+    ).toHaveAttribute("href", `/finance/accounts?ledger=${ledger.id}`);
+    await user.click(trigger);
+    expect(
+      await screen.findByRole("menuitem", { name: "Internal Transfer" }),
+    ).toHaveAttribute("data-disabled");
+  });
+
+  it("keeps a transfer pending across route remount without allowing another submit", async () => {
+    const user = userEvent.setup();
+    let releaseRequest!: () => void;
+    const requestGate = new Promise<void>((resolve) => {
+      releaseRequest = resolve;
+    });
+    let requests = 0;
+    let created = false;
+    const transferAccounts = [
+      accounts[0],
+      {
+        ...accounts[0],
+        id: destinationAccountId,
+        name: "Savings",
+      },
+    ] as const;
+    const createdTransfer = {
+      destinationAccount: {
+        id: destinationAccountId,
+        name: "Savings",
+        status: "active",
+      },
+      destinationAmount: { amount: "31.00", currency: "USD" },
+      id: "99999999-9999-4999-8999-999999999992",
+      kind: "internalTransfer",
+      ledgerId: ledger.id,
+      note: null,
+      sourceAccount: { id: accountId, name: "Cash", status: "active" },
+      sourceAmount: { amount: "31.00", currency: "USD" },
+      transactionDate: "2027-04-09",
+    } satisfies TransactionHistoryPageResponse["items"][number];
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...transferAccounts]),
+      getListFinanceCategoriesMockHandler([]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(() => ({
+        items: created ? [createdTransfer, ...history.items] : history.items,
+        nextCursor: null,
+      })),
+      http.post("*/api/finance/ledgers/:ledgerId/transactions", async () => {
+        requests += 1;
+        await requestGate;
+        created = true;
+        return HttpResponse.json(createdTransfer, { status: 201 });
+      }),
+    );
+    const { router } = renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole(
+      "button",
+      { name: "Record transaction" },
+      { timeout: 5_000 },
+    );
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Internal Transfer" }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Record internal transfer",
+    });
+    await user.selectOptions(
+      within(dialog).getByRole("combobox", { name: "Destination Account" }),
+      destinationAccountId,
+    );
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Amount" }),
+      "31.00",
+    );
+    const date = within(dialog).getByLabelText("Transaction date");
+    await user.clear(date);
+    await user.type(date, "2027-04-09");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record transfer" }),
+    );
+
+    expect(
+      await within(dialog).findByRole("button", {
+        name: "Recording transfer…",
+      }),
+    ).toBeDisabled();
+    expect(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    ).toBeDisabled();
+    await user.keyboard("{Escape}");
+    expect(dialog).toBeVisible();
+    expect(requests).toBe(1);
+
+    await act(async () => {
+      await router.navigate(`/finance/accounts?ledger=${ledger.id}`);
+    });
+    await screen.findByRole("heading", { level: 1, name: "Accounts" });
+    await act(async () => {
+      await router.navigate(`/finance/transactions?ledger=${ledger.id}`);
+    });
+    await screen.findByRole("heading", { level: 1, name: "Transactions" });
+    const remountedTrigger = await screen.findByRole("button", {
+      name: "Record transaction",
+    });
+    expect(remountedTrigger).toBeDisabled();
+    expect(requests).toBe(1);
+
+    releaseRequest();
+    await waitFor(() => expect(remountedTrigger).toBeEnabled());
+    expect(requests).toBe(1);
+    expect(
+      await screen.findByRole("article", {
+        name: "Internal Transfer on April 9, 2027",
+      }),
+    ).toBeVisible();
   });
 
   it("preserves the draft and requires explicit correction after a Category is archived", async () => {

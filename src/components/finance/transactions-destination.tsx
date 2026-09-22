@@ -35,6 +35,7 @@ import {
   type FinanceRouteState,
   type PortableFinanceState,
 } from "@/components/finance/finance-route-state";
+import { InternalTransferFormDialog } from "@/components/finance/internal-transfer-form-dialog";
 import { TransactionFormDialog } from "@/components/finance/transaction-form-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,6 +62,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 type Transaction = TransactionHistoryPageResponseOutput["items"][number];
 type OrdinaryTransactionKind = "expense" | "income";
+type RecordTransactionKind = OrdinaryTransactionKind | "internalTransfer";
 type TransactionKind = NonNullable<ListFinanceTransactionsParams["kind"]>;
 type AppliedFilters = {
   portable: PortableFinanceState;
@@ -243,12 +245,14 @@ function RecordTransactionMenu({
   disabled,
   id,
   onSelect,
+  transferAvailable,
 }: {
   disabled: boolean;
   id: string;
-  onSelect: (kind: OrdinaryTransactionKind, invoker: HTMLButtonElement) => void;
+  onSelect: (kind: RecordTransactionKind, invoker: HTMLButtonElement) => void;
+  transferAvailable: boolean;
 }) {
-  const selectKind = (kind: OrdinaryTransactionKind) => {
+  const selectKind = (kind: RecordTransactionKind) => {
     const invoker = document.getElementById(id);
     if (invoker instanceof HTMLButtonElement) onSelect(kind, invoker);
   };
@@ -267,6 +271,12 @@ function RecordTransactionMenu({
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => selectKind("income")}>
             Income
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!transferAvailable}
+            onClick={() => selectKind("internalTransfer")}
+          >
+            Internal Transfer
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
@@ -608,7 +618,7 @@ export function TransactionsDestination({
 }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [dialogKind, setDialogKind] = useState<OrdinaryTransactionKind | null>(
+  const [dialogKind, setDialogKind] = useState<RecordTransactionKind | null>(
     null,
   );
   const dialogInvoker = useRef<HTMLButtonElement | null>(null);
@@ -692,6 +702,14 @@ export function TransactionsDestination({
       ),
     ) &&
     !createPending;
+  const hasCompatibleTransferPair = activeAccounts.some((source) =>
+    activeAccounts.some(
+      (destination) =>
+        destination.id !== source.id &&
+        destination.currency === source.currency,
+    ),
+  );
+  const transferAvailable = recordAvailable && hasCompatibleTransferPair;
 
   useEffect(() => {
     if (!focusRestorePending.current || dialogKind || createPending) return;
@@ -820,7 +838,7 @@ export function TransactionsDestination({
         : null,
   ].filter((description): description is string => description !== null);
   const openTransactionDialog = (
-    kind: OrdinaryTransactionKind,
+    kind: RecordTransactionKind,
     invoker: HTMLButtonElement,
   ) => {
     dialogInvoker.current = invoker;
@@ -841,7 +859,13 @@ export function TransactionsDestination({
       transaction,
     );
     setAnnouncement(
-      `${transaction.kind === "expense" ? "Expense" : "Income"} recorded.`,
+      `${
+        transaction.kind === "expense"
+          ? "Expense"
+          : transaction.kind === "income"
+            ? "Income"
+            : "Internal Transfer"
+      } recorded.`,
     );
     await Promise.all([
       queryClient.invalidateQueries({
@@ -926,6 +950,7 @@ export function TransactionsDestination({
               disabled={!recordAvailable}
               id="record-transaction-empty-trigger"
               onSelect={openTransactionDialog}
+              transferAvailable={transferAvailable}
             />
           )}
         </EmptyContent>
@@ -964,6 +989,7 @@ export function TransactionsDestination({
           disabled={!recordAvailable}
           id="record-transaction-trigger"
           onSelect={openTransactionDialog}
+          transferAvailable={transferAvailable}
         />
       </div>
       {accountsQuery.isSuccess && activeAccounts.length === 0 ? (
@@ -971,6 +997,26 @@ export function TransactionsDestination({
           <p className="text-sm text-muted-foreground">
             Record transaction is unavailable until this Ledger has an active
             Account.
+          </p>
+          <Button
+            nativeButton={false}
+            render={
+              <Link to={`/finance/accounts${buildFinanceSearch(ledgerId)}`} />
+            }
+            size="sm"
+            variant="outline"
+          >
+            Manage Accounts
+          </Button>
+        </div>
+      ) : null}
+      {accountsQuery.isSuccess &&
+      activeAccounts.length > 0 &&
+      !hasCompatibleTransferPair ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4">
+          <p className="text-sm text-muted-foreground">
+            Internal Transfer is unavailable until this Ledger has two active
+            Accounts in the same currency.
           </p>
           <Button
             nativeButton={false}
@@ -1044,7 +1090,24 @@ export function TransactionsDestination({
       <p aria-live="polite" className="sr-only" role="status">
         {announcement}
       </p>
-      {dialogKind ? (
+      {dialogKind === "internalTransfer" ? (
+        <InternalTransferFormDialog
+          accounts={accountsQuery.data ?? []}
+          currencies={currenciesQuery.data ?? []}
+          ledgerId={ledgerId}
+          onOpenChange={(open) => {
+            if (!open) closeTransactionDialog();
+          }}
+          onRecorded={recordTransaction}
+          open
+          refreshAccounts={async () => {
+            const result = await accountsQuery.refetch();
+            return result.isSuccess && !result.isRefetchError
+              ? { accounts: result.data, status: "success" }
+              : { status: "error" };
+          }}
+        />
+      ) : dialogKind ? (
         <TransactionFormDialog
           accounts={accountsQuery.data ?? []}
           categories={categoriesQuery.data ?? []}

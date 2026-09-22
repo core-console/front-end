@@ -98,6 +98,16 @@ const financeAccounts = AccountResponse.array().parse([
     status: "archived",
     trackingStartDate: "2025-11-15",
   },
+  {
+    currency: "CNY",
+    currentBalance: { amount: "3200.00", currency: "CNY" },
+    id: "55555555-5555-4555-8555-555555555555",
+    name: "Reserve cash",
+    nature: "asset",
+    openingBalance: { amount: "0.00", currency: "CNY" },
+    status: "active",
+    trackingStartDate: "2026-01-01",
+  },
 ]);
 
 const financeCategories = CategoryResponse.array().parse([
@@ -614,6 +624,36 @@ test("renders accessible responsive Finance Transactions with opaque pagination"
   await expectNoAccessibilityViolations(page, expenseDialog, testInfo);
   await expenseDialog.press("Escape");
   await expect(expenseDialog).not.toBeVisible();
+  await expect(recordTransaction).toBeFocused();
+
+  await recordTransaction.click();
+  await page.getByRole("menuitem", { name: "Internal Transfer" }).click();
+  const transferDialog = page.getByRole("dialog", {
+    name: "Record internal transfer",
+  });
+  await expect(transferDialog.getByLabel("Source Account")).toHaveValue(
+    financeAccounts[0]!.id,
+  );
+  const transferDestination = transferDialog.getByLabel("Destination Account");
+  await expect(transferDestination).toBeEditable();
+  await expect(
+    transferDestination.getByRole("option", { name: "Reserve cash · CNY" }),
+  ).toHaveCount(1);
+  await expect(
+    transferDestination.getByRole("option", { name: /Operating cash/ }),
+  ).toHaveCount(0);
+  await expect(
+    transferDestination.getByRole("option", { name: /Travel card/ }),
+  ).toHaveCount(0);
+  await expect(transferDialog.getByText("CNY", { exact: true })).toBeVisible();
+  expect(
+    await transferDialog.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  await expectNoAccessibilityViolations(page, transferDialog, testInfo);
+  await transferDialog.press("Escape");
+  await expect(transferDialog).not.toBeVisible();
   await expect(recordTransaction).toBeFocused();
 
   await transactions.getByRole("button", { name: "Load more" }).click();
