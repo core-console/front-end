@@ -9,6 +9,7 @@ import {
 
 import {
   AccountResponse,
+  BalanceAdjustmentContextResponse,
   CategoryResponse,
   CurrencyResponse,
   LedgerResponse,
@@ -560,6 +561,26 @@ test("renders accessible responsive Finance Transactions with opaque pagination"
   await page.route("**/api/finance/ledgers/*/accounts", async (route) => {
     await route.fulfill({ json: financeAccounts });
   });
+  await page.route(
+    "**/api/finance/ledgers/*/accounts/*/balance-adjustment-context**",
+    async (route) => {
+      const transactionDate = new URL(route.request().url()).searchParams.get(
+        "transactionDate",
+      );
+      await route.fulfill({
+        json: BalanceAdjustmentContextResponse.parse({
+          account: {
+            id: financeAccounts[0]!.id,
+            name: financeAccounts[0]!.name,
+            status: financeAccounts[0]!.status,
+          },
+          accountNature: financeAccounts[0]!.nature,
+          derivedComparisonBalance: financeAccounts[0]!.currentBalance,
+          transactionDate,
+        }),
+      });
+    },
+  );
   await page.route("**/api/finance/ledgers/*/categories", async (route) => {
     await route.fulfill({ json: financeCategories });
   });
@@ -654,6 +675,31 @@ test("renders accessible responsive Finance Transactions with opaque pagination"
   await expectNoAccessibilityViolations(page, transferDialog, testInfo);
   await transferDialog.press("Escape");
   await expect(transferDialog).not.toBeVisible();
+  await expect(recordTransaction).toBeFocused();
+
+  await recordTransaction.click();
+  await page.getByRole("menuitem", { name: "Balance Adjustment" }).click();
+  const adjustmentDialog = page.getByRole("dialog", {
+    name: "Record balance adjustment",
+  });
+  await expect(adjustmentDialog.getByLabel("Account")).toHaveValue(
+    financeAccounts[0]!.id,
+  );
+  await expect(adjustmentDialog.getByText("18,420.35 CNY")).toBeVisible();
+  await expect(adjustmentDialog.getByText("Asset")).toBeVisible();
+  await expect(
+    adjustmentDialog.getByText(/known end-of-day Account Balance/),
+  ).toBeVisible();
+  await adjustmentDialog.getByLabel("Target balance").fill("18421.35");
+  await expect(adjustmentDialog.getByText("+1.00 CNY")).toBeVisible();
+  expect(
+    await adjustmentDialog.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  await expectNoAccessibilityViolations(page, adjustmentDialog, testInfo);
+  await adjustmentDialog.press("Escape");
+  await expect(adjustmentDialog).not.toBeVisible();
   await expect(recordTransaction).toBeFocused();
 
   await transactions.getByRole("button", { name: "Load more" }).click();

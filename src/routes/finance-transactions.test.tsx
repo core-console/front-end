@@ -1,8 +1,15 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
 
+import { getGetBalanceAdjustmentContextQueryKey } from "@/api/generated/core-console";
 import {
   getListFinanceAccountsMockHandler,
   getListFinanceCategoriesMockHandler,
@@ -11,7 +18,11 @@ import {
   getListFinanceTransactionsMockHandler,
   getListFinanceTransactionsMockHandler503,
 } from "@/api/generated/core-console.msw";
-import type { TransactionHistoryPageResponse } from "@/api/generated/schemas";
+import type {
+  BalanceAdjustmentContextResponse,
+  BalanceAdjustmentResultResponse,
+  TransactionHistoryPageResponse,
+} from "@/api/generated/schemas";
 import { server } from "@/mocks/server";
 import { renderRoute } from "@/test/render";
 
@@ -575,6 +586,1165 @@ describe("Finance Transactions destination", () => {
         name: "Internal Transfer on April 7, 2027",
       }),
     ).toHaveTextContent("9,007,199,254,740,993.25 USD");
+  });
+
+  it("records a Balance Adjustment from reviewed authoritative context", async () => {
+    const user = userEvent.setup();
+    let created = false;
+    let submittedBody: unknown;
+    const context = {
+      account: { id: accountId, name: "Cash", status: "active" },
+      accountNature: "asset",
+      derivedComparisonBalance: {
+        amount: "9007199254740993.25",
+        currency: "USD",
+      },
+      transactionDate: "2027-04-10",
+    } satisfies BalanceAdjustmentContextResponse;
+    const adjustment = {
+      account: context.account,
+      correctionDelta: { amount: "5.25", currency: "USD" },
+      id: "99999999-9999-4999-8999-999999999991",
+      kind: "balanceAdjustment",
+      ledgerId: ledger.id,
+      note: "Counted cash",
+      transactionDate: context.transactionDate,
+    } satisfies TransactionHistoryPageResponse["items"][number];
+    const result = {
+      outcome: "created",
+      transaction: adjustment,
+    } satisfies BalanceAdjustmentResultResponse;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler([...categories]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(() => ({
+        items: created ? [adjustment, ...history.items] : history.items,
+        nextCursor: null,
+      })),
+      http.get(
+        "*/api/finance/ledgers/:ledgerId/accounts/:accountId/balance-adjustment-context",
+        ({ request }) => {
+          const transactionDate = new URL(request.url).searchParams.get(
+            "transactionDate",
+          );
+          return HttpResponse.json({ ...context, transactionDate });
+        },
+      ),
+      http.post(
+        "*/api/finance/ledgers/:ledgerId/balance-adjustments",
+        async ({ request }) => {
+          submittedBody = await request.json();
+          created = true;
+          return HttpResponse.json(result);
+        },
+      ),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole(
+      "button",
+      { name: "Record transaction" },
+      { timeout: 5_000 },
+    );
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Balance Adjustment" }),
+    );
+
+    const dialog = screen.getByRole("dialog", {
+      name: "Record balance adjustment",
+    });
+    const date = within(dialog).getByLabelText("Transaction date");
+    await user.clear(date);
+    await user.type(date, context.transactionDate);
+    expect(
+      await within(dialog).findByText(
+        "9,007,199,254,740,993.25 USD",
+        undefined,
+        {
+          timeout: 5_000,
+        },
+      ),
+    ).toBeVisible();
+    expect(within(dialog).getByText("Asset")).toBeVisible();
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Target balance" }),
+      "9007199254740998.50",
+    );
+    expect(within(dialog).getByText("+5.25 USD")).toBeVisible();
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Note" }),
+      "  Counted cash  ",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record adjustment" }),
+    );
+
+    expect(submittedBody).toEqual({
+      accountId,
+      expectedAccountNature: "asset",
+      expectedDerivedBalance: {
+        amount: "9007199254740993.25",
+        currency: "USD",
+      },
+      note: "Counted cash",
+      targetBalance: {
+        amount: "9007199254740998.50",
+        currency: "USD",
+      },
+      transactionDate: "2027-04-10",
+    });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", {
+          name: "Record balance adjustment",
+        }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Balance Adjustment recorded.",
+    );
+    expect(
+      await screen.findByRole("article", {
+        name: "Balance Adjustment on April 10, 2027",
+      }),
+    ).toHaveTextContent("+5.25 USD");
+  });
+
+  it("completes a zero-delta noChange adjustment without creating history", async () => {
+    const user = userEvent.setup();
+    const today = new Date();
+    const transactionDate = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, "0"),
+      String(today.getDate()).padStart(2, "0"),
+    ].join("-");
+    let submittedBody: unknown;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler([...categories]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.get(
+        "*/api/finance/ledgers/:ledgerId/accounts/:accountId/balance-adjustment-context",
+        ({ request }) =>
+          HttpResponse.json({
+            account: { id: accountId, name: "Cash", status: "active" },
+            accountNature: "asset",
+            derivedComparisonBalance: {
+              amount: "-12.30",
+              currency: "USD",
+            },
+            transactionDate:
+              new URL(request.url).searchParams.get("transactionDate") ?? "",
+          } satisfies BalanceAdjustmentContextResponse),
+      ),
+      http.post(
+        "*/api/finance/ledgers/:ledgerId/balance-adjustments",
+        async ({ request }) => {
+          submittedBody = await request.json();
+          return HttpResponse.json({
+            outcome: "noChange",
+            transaction: null,
+          } satisfies BalanceAdjustmentResultResponse);
+        },
+      ),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole("button", {
+      name: "Record transaction",
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Balance Adjustment" }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Record balance adjustment",
+    });
+    expect(await within(dialog).findByText("-12.30 USD")).toBeVisible();
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Target balance" }),
+      "-12.30",
+    );
+    expect(within(dialog).getByText("0.00 USD")).toBeVisible();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record adjustment" }),
+    );
+
+    expect(submittedBody).toEqual({
+      accountId,
+      expectedAccountNature: "asset",
+      expectedDerivedBalance: { amount: "-12.30", currency: "USD" },
+      note: null,
+      targetBalance: { amount: "-12.30", currency: "USD" },
+      transactionDate,
+    });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", {
+          name: "Record balance adjustment",
+        }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Balance already matched the target. No Balance Adjustment was created.",
+    );
+  });
+
+  it("validates the Adjustment date, target precision, and note", async () => {
+    const user = userEvent.setup();
+    const today = new Date();
+    const transactionDate = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, "0"),
+      String(today.getDate()).padStart(2, "0"),
+    ].join("-");
+    let adjustmentRequests = 0;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler([...categories]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.get(
+        "*/api/finance/ledgers/:ledgerId/accounts/:accountId/balance-adjustment-context",
+        ({ request }) =>
+          HttpResponse.json({
+            account: { id: accountId, name: "Cash", status: "active" },
+            accountNature: "asset",
+            derivedComparisonBalance: { amount: "20.00", currency: "USD" },
+            transactionDate:
+              new URL(request.url).searchParams.get("transactionDate") ?? "",
+          } satisfies BalanceAdjustmentContextResponse),
+      ),
+      http.post("*/api/finance/ledgers/:ledgerId/balance-adjustments", () => {
+        adjustmentRequests += 1;
+        return HttpResponse.json({
+          outcome: "noChange",
+          transaction: null,
+        } satisfies BalanceAdjustmentResultResponse);
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole("button", {
+      name: "Record transaction",
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Balance Adjustment" }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Record balance adjustment",
+    });
+    const date = within(dialog).getByLabelText("Transaction date");
+    const target = within(dialog).getByRole("textbox", {
+      name: "Target balance",
+    });
+    await user.clear(date);
+    await user.type(date, "2025-12-31");
+    expect(
+      within(dialog).getByText(
+        "Choose a Transaction Date on or after the Account's Tracking Start Date.",
+      ),
+    ).toBeVisible();
+    expect(target).toBeDisabled();
+
+    await user.clear(date);
+    await user.type(date, transactionDate);
+    await waitFor(() => expect(target).toBeEnabled());
+    await user.type(target, "12.345");
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "Note" }), {
+      target: { value: "x".repeat(501) },
+    });
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record adjustment" }),
+    );
+
+    expect(
+      within(dialog).getByText(
+        "USD balances support at most 2 fractional digits.",
+      ),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByText("Note must be 500 characters or fewer."),
+    ).toBeVisible();
+    expect(target).toHaveFocus();
+    expect(adjustmentRequests).toBe(0);
+  });
+
+  it.each([
+    {
+      code: "account_balance_changed",
+      expectedChange: "Derived balance changed from 20.00 USD to 27.50 USD.",
+      expectedPreview: "-2.50 USD",
+      expectedTitle: "Account balance changed",
+      refreshedBalance: "27.50",
+      refreshedNature: "asset" as const,
+    },
+    {
+      code: "finance_account_semantics_changed",
+      expectedChange: "Account nature changed from Asset to Liability.",
+      expectedPreview: "+5.00 USD",
+      expectedTitle: "Account nature changed",
+      refreshedBalance: "20.00",
+      refreshedNature: "liability" as const,
+    },
+  ])(
+    "refreshes and requires explicit resubmission after $code",
+    async ({
+      code,
+      expectedChange,
+      expectedPreview,
+      expectedTitle,
+      refreshedBalance,
+      refreshedNature,
+    }) => {
+      const user = userEvent.setup();
+      const today = new Date();
+      const transactionDate = [
+        today.getFullYear(),
+        String(today.getMonth() + 1).padStart(2, "0"),
+        String(today.getDate()).padStart(2, "0"),
+      ].join("-");
+      let contextRequests = 0;
+      let releaseRefresh!: () => void;
+      const refreshGate = new Promise<void>((resolve) => {
+        releaseRefresh = resolve;
+      });
+      const submittedBodies: unknown[] = [];
+      server.use(
+        getListFinanceLedgersMockHandler([ledger]),
+        getListFinanceAccountsMockHandler([...accounts]),
+        getListFinanceCategoriesMockHandler([...categories]),
+        getListFinanceCurrenciesMockHandler([...currencies]),
+        getListFinanceTransactionsMockHandler(history),
+        http.get(
+          "*/api/finance/ledgers/:ledgerId/accounts/:accountId/balance-adjustment-context",
+          async ({ request }) => {
+            contextRequests += 1;
+            if (contextRequests > 1) await refreshGate;
+            return HttpResponse.json({
+              account: { id: accountId, name: "Cash", status: "active" },
+              accountNature: contextRequests === 1 ? "asset" : refreshedNature,
+              derivedComparisonBalance: {
+                amount: contextRequests === 1 ? "20.00" : refreshedBalance,
+                currency: "USD",
+              },
+              transactionDate: new URL(request.url).searchParams.get(
+                "transactionDate",
+              ),
+            });
+          },
+        ),
+        http.post(
+          "*/api/finance/ledgers/:ledgerId/balance-adjustments",
+          async ({ request }) => {
+            submittedBodies.push(await request.json());
+            if (submittedBodies.length === 1) {
+              return HttpResponse.json(
+                {
+                  code,
+                  detail: "Authoritative adjustment context changed.",
+                  status: 409,
+                  title: "Conflict",
+                  type: "about:blank",
+                },
+                { status: 409 },
+              );
+            }
+            return HttpResponse.json({
+              outcome: "noChange",
+              transaction: null,
+            } satisfies BalanceAdjustmentResultResponse);
+          },
+        ),
+      );
+      renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+      const trigger = await screen.findByRole(
+        "button",
+        { name: "Record transaction" },
+        { timeout: 5_000 },
+      );
+      await waitFor(() => expect(trigger).toBeEnabled());
+      await user.click(trigger);
+      await user.click(
+        await screen.findByRole("menuitem", { name: "Balance Adjustment" }),
+      );
+      const dialog = screen.getByRole("dialog", {
+        name: "Record balance adjustment",
+      });
+      const account = within(dialog).getByRole("combobox", { name: "Account" });
+      const target = await within(dialog).findByRole(
+        "textbox",
+        { name: "Target balance" },
+        { timeout: 5_000 },
+      );
+      const note = within(dialog).getByRole("textbox", { name: "Note" });
+      await user.type(target, "25.00");
+      expect(within(dialog).getByText("+5.00 USD")).toBeVisible();
+      await user.type(note, "Preserve this reconciliation note");
+      await user.click(
+        within(dialog).getByRole("button", { name: "Record adjustment" }),
+      );
+
+      expect(
+        await within(dialog).findByRole("status", {
+          name: "Refreshing authoritative Balance Adjustment context",
+        }),
+      ).toBeVisible();
+      expect(within(dialog).queryByText("+5.00 USD")).not.toBeInTheDocument();
+      expect(account).toHaveValue(accountId);
+      expect(target).toHaveValue("25.00");
+      expect(note).toHaveValue("Preserve this reconciliation note");
+      expect(submittedBodies).toHaveLength(1);
+      releaseRefresh();
+
+      const conflict = await within(dialog).findByRole("alert");
+      expect(within(conflict).getByText(expectedTitle)).toBeVisible();
+      expect(within(conflict).getByText(expectedChange)).toBeVisible();
+      expect(within(dialog).getByText(expectedPreview)).toBeVisible();
+      expect(contextRequests).toBe(2);
+      expect(submittedBodies).toHaveLength(1);
+      expect(account).toHaveValue(accountId);
+      expect(target).toHaveValue("25.00");
+      expect(note).toHaveValue("Preserve this reconciliation note");
+
+      await user.click(
+        within(dialog).getByRole("button", { name: "Record adjustment" }),
+      );
+      await waitFor(() => expect(submittedBodies).toHaveLength(2));
+      expect(submittedBodies).toEqual([
+        {
+          accountId,
+          expectedAccountNature: "asset",
+          expectedDerivedBalance: { amount: "20.00", currency: "USD" },
+          note: "Preserve this reconciliation note",
+          targetBalance: { amount: "25.00", currency: "USD" },
+          transactionDate,
+        },
+        {
+          accountId,
+          expectedAccountNature: refreshedNature,
+          expectedDerivedBalance: {
+            amount: refreshedBalance,
+            currency: "USD",
+          },
+          note: "Preserve this reconciliation note",
+          targetBalance: { amount: "25.00", currency: "USD" },
+          transactionDate,
+        },
+      ]);
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Balance already matched the target. No Balance Adjustment was created.",
+      );
+    },
+  );
+
+  it("blocks stale resubmission until a failed conflict refresh is retried", async () => {
+    const user = userEvent.setup();
+    let contextRequests = 0;
+    let refreshAvailable = false;
+    let adjustmentRequests = 0;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler([...categories]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.get(
+        "*/api/finance/ledgers/:ledgerId/accounts/:accountId/balance-adjustment-context",
+        ({ request }) => {
+          contextRequests += 1;
+          if (contextRequests > 1 && !refreshAvailable) {
+            return HttpResponse.json(
+              {
+                code: "database_unavailable",
+                detail: "private database detail",
+                status: 503,
+                title: "Service Unavailable",
+                type: "about:blank",
+              },
+              { status: 503 },
+            );
+          }
+          return HttpResponse.json({
+            account: { id: accountId, name: "Cash", status: "active" },
+            accountNature: "asset",
+            derivedComparisonBalance: {
+              amount: contextRequests === 1 ? "20.00" : "22.00",
+              currency: "USD",
+            },
+            transactionDate: new URL(request.url).searchParams.get(
+              "transactionDate",
+            ),
+          });
+        },
+      ),
+      http.post("*/api/finance/ledgers/:ledgerId/balance-adjustments", () => {
+        adjustmentRequests += 1;
+        if (adjustmentRequests === 1) {
+          return HttpResponse.json(
+            {
+              code: "account_balance_changed",
+              detail: "The balance changed.",
+              status: 409,
+              title: "Conflict",
+              type: "about:blank",
+            },
+            { status: 409 },
+          );
+        }
+        return HttpResponse.json({
+          outcome: "noChange",
+          transaction: null,
+        } satisfies BalanceAdjustmentResultResponse);
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole("button", {
+      name: "Record transaction",
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Balance Adjustment" }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Record balance adjustment",
+    });
+    const target = await within(dialog).findByRole("textbox", {
+      name: "Target balance",
+    });
+    await user.type(target, "25.00");
+    expect(within(dialog).getByText("+5.00 USD")).toBeVisible();
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Note" }),
+      "Keep this draft",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record adjustment" }),
+    );
+
+    expect(
+      await within(dialog).findByText("Authoritative context refresh failed"),
+    ).toBeVisible();
+    expect(within(dialog).queryByText("+5.00 USD")).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByText(
+        "The refreshed Account context could not be loaded. Retry the refresh before submitting this target again.",
+      ),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: "Record adjustment" }),
+    ).toBeDisabled();
+    await user.type(target, "{enter}");
+    expect(adjustmentRequests).toBe(1);
+    expect(target).toHaveValue("25.00");
+    expect(within(dialog).getByRole("textbox", { name: "Note" })).toHaveValue(
+      "Keep this draft",
+    );
+
+    refreshAvailable = true;
+    await user.click(
+      within(dialog).getByRole("button", { name: "Retry context refresh" }),
+    );
+    expect(
+      await within(dialog).findByText(
+        "Derived balance changed from 20.00 USD to 22.00 USD.",
+      ),
+    ).toBeVisible();
+    expect(within(dialog).getByText("+3.00 USD")).toBeVisible();
+    expect(contextRequests).toBe(3);
+    expect(adjustmentRequests).toBe(1);
+    const record = within(dialog).getByRole("button", {
+      name: "Record adjustment",
+    });
+    expect(record).toBeEnabled();
+    await user.click(record);
+    await waitFor(() => expect(adjustmentRequests).toBe(2));
+  });
+
+  it("keeps cached context invalid after failed conflict refresh and a date change", async () => {
+    const user = userEvent.setup();
+    const submittedDate = "2027-04-09";
+    const cachedDate = "2027-04-10";
+    const cachedContext = {
+      account: { id: accountId, name: "Cash", status: "active" },
+      accountNature: "asset",
+      derivedComparisonBalance: { amount: "22.00", currency: "USD" },
+      transactionDate: cachedDate,
+    } satisfies BalanceAdjustmentContextResponse;
+    let releaseFreshDate!: () => void;
+    const freshDateGate = new Promise<void>((resolve) => {
+      releaseFreshDate = resolve;
+    });
+    let submittedDateRequests = 0;
+    const submittedBodies: unknown[] = [];
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler([...categories]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.get(
+        "*/api/finance/ledgers/:ledgerId/accounts/:accountId/balance-adjustment-context",
+        async ({ request }) => {
+          const transactionDate = new URL(request.url).searchParams.get(
+            "transactionDate",
+          );
+          if (transactionDate === cachedDate) {
+            await freshDateGate;
+            return HttpResponse.json({
+              ...cachedContext,
+              derivedComparisonBalance: { amount: "24.00", currency: "USD" },
+            } satisfies BalanceAdjustmentContextResponse);
+          }
+          if (transactionDate === submittedDate) {
+            submittedDateRequests += 1;
+            if (submittedDateRequests > 1) {
+              return HttpResponse.json(
+                {
+                  code: "database_unavailable",
+                  detail: "Context refresh failed.",
+                  status: 503,
+                  title: "Service Unavailable",
+                  type: "about:blank",
+                },
+                { status: 503 },
+              );
+            }
+          }
+          return HttpResponse.json({
+            ...cachedContext,
+            derivedComparisonBalance: { amount: "20.00", currency: "USD" },
+            transactionDate: transactionDate ?? "",
+          } satisfies BalanceAdjustmentContextResponse);
+        },
+      ),
+      http.post(
+        "*/api/finance/ledgers/:ledgerId/balance-adjustments",
+        async ({ request }) => {
+          submittedBodies.push(await request.json());
+          if (submittedBodies.length === 1) {
+            return HttpResponse.json(
+              {
+                code: "account_balance_changed",
+                detail: "The balance changed.",
+                status: 409,
+                title: "Conflict",
+                type: "about:blank",
+              },
+              { status: 409 },
+            );
+          }
+          return HttpResponse.json({
+            outcome: "noChange",
+            transaction: null,
+          } satisfies BalanceAdjustmentResultResponse);
+        },
+      ),
+    );
+    const { queryClient } = renderRoute(
+      `/finance/transactions?ledger=${ledger.id}`,
+    );
+    queryClient.setQueryData(
+      getGetBalanceAdjustmentContextQueryKey(ledger.id, accountId, {
+        transactionDate: cachedDate,
+      }),
+      { data: cachedContext, headers: new Headers(), status: 200 },
+    );
+
+    const trigger = await screen.findByRole(
+      "button",
+      { name: "Record transaction" },
+      { timeout: 5_000 },
+    );
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Balance Adjustment" }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Record balance adjustment",
+    });
+    const date = within(dialog).getByLabelText("Transaction date");
+    fireEvent.change(date, { target: { value: submittedDate } });
+    expect(await within(dialog).findByText("20.00 USD")).toBeVisible();
+    const account = within(dialog).getByRole("combobox", { name: "Account" });
+    const target = within(dialog).getByRole("textbox", {
+      name: "Target balance",
+    });
+    const note = within(dialog).getByRole("textbox", { name: "Note" });
+    await user.type(target, "25.00");
+    await user.type(note, "Preserve this note");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record adjustment" }),
+    );
+    expect(
+      await within(dialog).findByText("Authoritative context refresh failed"),
+    ).toBeVisible();
+
+    fireEvent.change(date, { target: { value: cachedDate } });
+    expect(date).toHaveValue(cachedDate);
+    expect(within(dialog).queryByText("+3.00 USD")).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: /adjustment/ }),
+    ).toBeDisabled();
+    expect(account).toHaveValue(accountId);
+    expect(target).toHaveValue("25.00");
+    expect(note).toHaveValue("Preserve this note");
+    expect(submittedBodies).toHaveLength(1);
+
+    releaseFreshDate();
+    expect(await within(dialog).findByText("+1.00 USD")).toBeVisible();
+    const record = within(dialog).getByRole("button", {
+      name: "Record adjustment",
+    });
+    expect(record).toBeEnabled();
+    await user.click(record);
+    await waitFor(() => expect(submittedBodies).toHaveLength(2));
+    expect(submittedBodies[1]).toMatchObject({
+      accountId,
+      expectedAccountNature: "asset",
+      expectedDerivedBalance: { amount: "24.00", currency: "USD" },
+      targetBalance: { amount: "25.00", currency: "USD" },
+      transactionDate: cachedDate,
+    });
+  });
+
+  it("does not let an old pending conflict refresh authorize a cached date", async () => {
+    const user = userEvent.setup();
+    const submittedDate = "2027-04-09";
+    const cachedDate = "2027-04-10";
+    const account = { id: accountId, name: "Cash", status: "active" } as const;
+    let releaseOldRefresh!: () => void;
+    const oldRefreshGate = new Promise<void>((resolve) => {
+      releaseOldRefresh = resolve;
+    });
+    let releaseFreshDate!: () => void;
+    const freshDateGate = new Promise<void>((resolve) => {
+      releaseFreshDate = resolve;
+    });
+    let oldDateRequests = 0;
+    let oldRefreshResponded = false;
+    let adjustmentRequests = 0;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler([...categories]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.get(
+        "*/api/finance/ledgers/:ledgerId/accounts/:accountId/balance-adjustment-context",
+        async ({ request }) => {
+          const transactionDate = new URL(request.url).searchParams.get(
+            "transactionDate",
+          );
+          if (transactionDate === cachedDate) {
+            await freshDateGate;
+            return HttpResponse.json({
+              account,
+              accountNature: "asset",
+              derivedComparisonBalance: { amount: "24.00", currency: "USD" },
+              transactionDate: cachedDate,
+            } satisfies BalanceAdjustmentContextResponse);
+          }
+          if (transactionDate === submittedDate) {
+            oldDateRequests += 1;
+            if (oldDateRequests > 1) {
+              await oldRefreshGate;
+              oldRefreshResponded = true;
+            }
+          }
+          return HttpResponse.json({
+            account,
+            accountNature: "asset",
+            derivedComparisonBalance: {
+              amount: oldDateRequests > 1 ? "27.00" : "20.00",
+              currency: "USD",
+            },
+            transactionDate: transactionDate ?? "",
+          } satisfies BalanceAdjustmentContextResponse);
+        },
+      ),
+      http.post("*/api/finance/ledgers/:ledgerId/balance-adjustments", () => {
+        adjustmentRequests += 1;
+        return HttpResponse.json(
+          {
+            code: "account_balance_changed",
+            detail: "The balance changed.",
+            status: 409,
+            title: "Conflict",
+            type: "about:blank",
+          },
+          { status: 409 },
+        );
+      }),
+    );
+    const { queryClient } = renderRoute(
+      `/finance/transactions?ledger=${ledger.id}`,
+    );
+    queryClient.setQueryData(
+      getGetBalanceAdjustmentContextQueryKey(ledger.id, accountId, {
+        transactionDate: cachedDate,
+      }),
+      {
+        data: {
+          account,
+          accountNature: "asset",
+          derivedComparisonBalance: { amount: "22.00", currency: "USD" },
+          transactionDate: cachedDate,
+        } satisfies BalanceAdjustmentContextResponse,
+        headers: new Headers(),
+        status: 200,
+      },
+    );
+
+    const trigger = await screen.findByRole(
+      "button",
+      { name: "Record transaction" },
+      { timeout: 5_000 },
+    );
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Balance Adjustment" }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Record balance adjustment",
+    });
+    const date = within(dialog).getByLabelText("Transaction date");
+    fireEvent.change(date, { target: { value: submittedDate } });
+    expect(await within(dialog).findByText("20.00 USD")).toBeVisible();
+    const target = within(dialog).getByRole("textbox", {
+      name: "Target balance",
+    });
+    const note = within(dialog).getByRole("textbox", { name: "Note" });
+    await user.type(target, "25.00");
+    await user.type(note, "Preserve pending draft");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record adjustment" }),
+    );
+    expect(
+      await within(dialog).findByRole("status", {
+        name: "Refreshing authoritative Balance Adjustment context",
+      }),
+    ).toBeVisible();
+    expect(adjustmentRequests).toBe(1);
+
+    fireEvent.change(date, { target: { value: cachedDate } });
+    expect(date).toHaveValue(cachedDate);
+    expect(within(dialog).queryByText("+3.00 USD")).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: /adjustment/ }),
+    ).toBeDisabled();
+    expect(target).toHaveValue("25.00");
+    expect(note).toHaveValue("Preserve pending draft");
+
+    releaseOldRefresh();
+    await waitFor(() => expect(oldRefreshResponded).toBe(true));
+    expect(within(dialog).queryByText("+3.00 USD")).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: /adjustment/ }),
+    ).toBeDisabled();
+
+    releaseFreshDate();
+    expect(await within(dialog).findByText("+1.00 USD")).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: "Record adjustment" }),
+    ).toBeEnabled();
+    expect(adjustmentRequests).toBe(1);
+  });
+
+  it("preserves duplicate Account identity when the selected reference becomes stale", async () => {
+    const user = userEvent.setup();
+    let selectedAccountArchived = false;
+    const duplicateAccounts = [
+      accounts[0],
+      {
+        ...accounts[0],
+        id: duplicateAccountId,
+      },
+    ] as const;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler(() =>
+        selectedAccountArchived
+          ? [
+              duplicateAccounts[0],
+              { ...duplicateAccounts[1], status: "archived" as const },
+            ]
+          : [...duplicateAccounts],
+      ),
+      getListFinanceCategoriesMockHandler([...categories]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.get(
+        "*/api/finance/ledgers/:ledgerId/accounts/:accountId/balance-adjustment-context",
+        ({ params, request }) =>
+          HttpResponse.json({
+            account: {
+              id: String(params.accountId),
+              name: "Cash",
+              status: "active",
+            },
+            accountNature: "asset",
+            derivedComparisonBalance: { amount: "20.00", currency: "USD" },
+            transactionDate: new URL(request.url).searchParams.get(
+              "transactionDate",
+            ),
+          }),
+      ),
+      http.post("*/api/finance/ledgers/:ledgerId/balance-adjustments", () => {
+        selectedAccountArchived = true;
+        return HttpResponse.json(
+          {
+            code: "finance_account_archived",
+            detail: "The selected Account is archived.",
+            status: 409,
+            title: "Conflict",
+            type: "about:blank",
+          },
+          { status: 409 },
+        );
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole("button", {
+      name: "Record transaction",
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Balance Adjustment" }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Record balance adjustment",
+    });
+    const account = within(dialog).getByRole("combobox", { name: "Account" });
+    await user.selectOptions(account, duplicateAccountId);
+    const target = await within(dialog).findByRole("textbox", {
+      name: "Target balance",
+    });
+    const note = within(dialog).getByRole("textbox", { name: "Note" });
+    await user.type(target, "25.00");
+    await user.type(note, "Keep duplicate identity");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record adjustment" }),
+    );
+
+    expect(
+      await within(dialog).findByText(
+        "The selected Account — Cash, active asset in USD, 2 of 2 — was archived. Choose another active Account; your target balance and note have been kept.",
+      ),
+    ).toBeVisible();
+    expect(account).toHaveValue(duplicateAccountId);
+    expect(
+      within(account).getByRole("option", {
+        name: "Cash, active asset in USD, 2 of 2 (unavailable)",
+      }),
+    ).toBeDisabled();
+    expect(target).toHaveValue("25.00");
+    expect(note).toHaveValue("Keep duplicate identity");
+    expect(
+      within(dialog).getByRole("button", { name: "Record adjustment" }),
+    ).toBeDisabled();
+    expect(account).toHaveFocus();
+  });
+
+  it("keeps target entry blocked until an initial context failure is retried", async () => {
+    const user = userEvent.setup();
+    let contextAvailable = false;
+    let contextRequests = 0;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler([...categories]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.get(
+        "*/api/finance/ledgers/:ledgerId/accounts/:accountId/balance-adjustment-context",
+        ({ request }) => {
+          contextRequests += 1;
+          if (!contextAvailable) {
+            return HttpResponse.json(
+              {
+                code: "database_unavailable",
+                detail: "private database detail",
+                status: 503,
+                title: "Service Unavailable",
+                type: "about:blank",
+              },
+              { status: 503 },
+            );
+          }
+          return HttpResponse.json({
+            account: { id: accountId, name: "Cash", status: "active" },
+            accountNature: "asset",
+            derivedComparisonBalance: { amount: "20.00", currency: "USD" },
+            transactionDate: new URL(request.url).searchParams.get(
+              "transactionDate",
+            ),
+          });
+        },
+      ),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole("button", {
+      name: "Record transaction",
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Balance Adjustment" }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Record balance adjustment",
+    });
+    expect(
+      await within(dialog).findByText("Adjustment context could not be loaded"),
+    ).toBeVisible();
+    expect(
+      within(dialog).queryByText(/private database/i),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("textbox", { name: "Target balance" }),
+    ).toBeDisabled();
+    expect(
+      within(dialog).getByRole("button", { name: "Record adjustment" }),
+    ).toBeDisabled();
+
+    contextAvailable = true;
+    await user.click(
+      within(dialog).getByRole("button", { name: "Retry context" }),
+    );
+    expect(await within(dialog).findByText("20.00 USD")).toBeVisible();
+    expect(contextRequests).toBe(2);
+    expect(
+      within(dialog).getByRole("textbox", { name: "Target balance" }),
+    ).toBeEnabled();
+  });
+
+  it("keeps a Balance Adjustment pending across route remount", async () => {
+    const user = userEvent.setup();
+    const today = new Date();
+    const transactionDate = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, "0"),
+      String(today.getDate()).padStart(2, "0"),
+    ].join("-");
+    let releaseRequest!: () => void;
+    const requestGate = new Promise<void>((resolve) => {
+      releaseRequest = resolve;
+    });
+    let requests = 0;
+    let created = false;
+    const adjustment = {
+      account: { id: accountId, name: "Cash", status: "active" },
+      correctionDelta: { amount: "1.00", currency: "USD" },
+      id: "99999999-9999-4999-8999-999999999990",
+      kind: "balanceAdjustment",
+      ledgerId: ledger.id,
+      note: null,
+      transactionDate,
+    } satisfies TransactionHistoryPageResponse["items"][number];
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler([...categories]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(() => ({
+        items: created ? [adjustment, ...history.items] : history.items,
+        nextCursor: null,
+      })),
+      http.get(
+        "*/api/finance/ledgers/:ledgerId/accounts/:accountId/balance-adjustment-context",
+        ({ request }) =>
+          HttpResponse.json({
+            account: adjustment.account,
+            accountNature: "asset",
+            derivedComparisonBalance: { amount: "20.00", currency: "USD" },
+            transactionDate: new URL(request.url).searchParams.get(
+              "transactionDate",
+            ),
+          }),
+      ),
+      http.post(
+        "*/api/finance/ledgers/:ledgerId/balance-adjustments",
+        async () => {
+          requests += 1;
+          await requestGate;
+          created = true;
+          return HttpResponse.json({
+            outcome: "created",
+            transaction: adjustment,
+          } satisfies BalanceAdjustmentResultResponse);
+        },
+      ),
+    );
+    const { router } = renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+
+    const trigger = await screen.findByRole("button", {
+      name: "Record transaction",
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Balance Adjustment" }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Record balance adjustment",
+    });
+    const target = await within(dialog).findByRole("textbox", {
+      name: "Target balance",
+    });
+    await user.type(target, "21.00");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Record adjustment" }),
+    );
+
+    expect(
+      await within(dialog).findByRole("button", {
+        name: "Recording adjustment…",
+      }),
+    ).toBeDisabled();
+    expect(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    ).toBeDisabled();
+    await user.keyboard("{Escape}");
+    expect(dialog).toBeVisible();
+    expect(requests).toBe(1);
+
+    await act(async () => {
+      await router.navigate(`/finance/accounts?ledger=${ledger.id}`);
+    });
+    await screen.findByRole("heading", { level: 1, name: "Accounts" });
+    await act(async () => {
+      await router.navigate(`/finance/transactions?ledger=${ledger.id}`);
+    });
+    await screen.findByRole("heading", { level: 1, name: "Transactions" });
+    const remountedTrigger = await screen.findByRole("button", {
+      name: "Record transaction",
+    });
+    expect(remountedTrigger).toBeDisabled();
+    expect(requests).toBe(1);
+
+    releaseRequest();
+    await waitFor(() => expect(remountedTrigger).toBeEnabled());
+    expect(requests).toBe(1);
+    expect(await screen.findByText("Correction +1.00 USD")).toBeVisible();
   });
 
   it("preserves duplicate transfer identities when refresh removes the destination", async () => {

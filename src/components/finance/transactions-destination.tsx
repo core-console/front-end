@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 
 import {
+  getGetBalanceAdjustmentContextQueryKey,
   getGetFinanceOverviewQueryKey,
   getListFinanceAccountsQueryKey,
   getListFinanceTransactionsQueryKey,
@@ -26,9 +27,11 @@ import {
   TransactionHistoryPageResponse,
 } from "@/api/generated/schemas";
 import type {
+  BalanceAdjustmentResultResponseOutput,
   FinanceTransactionResponseOutput,
   TransactionHistoryPageResponseOutput,
 } from "@/api/generated/schemas";
+import { BalanceAdjustmentFormDialog } from "@/components/finance/balance-adjustment-form-dialog";
 import { formatFinanceMoney } from "@/components/finance/finance-money";
 import {
   buildFinanceSearch,
@@ -62,7 +65,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 type Transaction = TransactionHistoryPageResponseOutput["items"][number];
 type OrdinaryTransactionKind = "expense" | "income";
-type RecordTransactionKind = OrdinaryTransactionKind | "internalTransfer";
+type RecordTransactionKind =
+  OrdinaryTransactionKind | "balanceAdjustment" | "internalTransfer";
 type TransactionKind = NonNullable<ListFinanceTransactionsParams["kind"]>;
 type AppliedFilters = {
   portable: PortableFinanceState;
@@ -277,6 +281,9 @@ function RecordTransactionMenu({
             onClick={() => selectKind("internalTransfer")}
           >
             Internal Transfer
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => selectKind("balanceAdjustment")}>
+            Balance Adjustment
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
@@ -690,6 +697,14 @@ export function TransactionsDestination({
   const createPending = pendingTransactionVariables.some(
     (variables) => transactionMutationLedgerId(variables) === ledgerId,
   );
+  const pendingAdjustmentVariables = useMutationState({
+    filters: { mutationKey: ["createBalanceAdjustment"], status: "pending" },
+    select: (mutation) => mutation.state.variables,
+  });
+  const adjustmentPending = pendingAdjustmentVariables.some(
+    (variables) => transactionMutationLedgerId(variables) === ledgerId,
+  );
+  const workflowPending = createPending || adjustmentPending;
   const activeAccounts = (accountsQuery.data ?? []).filter(
     (account) => account.status === "active",
   );
@@ -701,7 +716,7 @@ export function TransactionsDestination({
         (currency) => currency.code === account.currency,
       ),
     ) &&
-    !createPending;
+    !workflowPending;
   const hasCompatibleTransferPair = activeAccounts.some((source) =>
     activeAccounts.some(
       (destination) =>
@@ -712,7 +727,7 @@ export function TransactionsDestination({
   const transferAvailable = recordAvailable && hasCompatibleTransferPair;
 
   useEffect(() => {
-    if (!focusRestorePending.current || dialogKind || createPending) return;
+    if (!focusRestorePending.current || dialogKind || workflowPending) return;
 
     const invoker = dialogInvoker.current;
     const recordFallback = document.getElementById(
@@ -733,7 +748,7 @@ export function TransactionsDestination({
 
     target.focus();
     focusRestorePending.current = false;
-  }, [createPending, dialogKind, recordAvailable]);
+  }, [dialogKind, recordAvailable, workflowPending]);
   const [announcement, setAnnouncement] = useState("");
   const paginationSnapshot = useRef({ count: 0, key: "", pages: 0 });
   const transactionsQueryKey = useMemo(
@@ -878,6 +893,39 @@ export function TransactionsDestination({
         queryKey: getGetFinanceOverviewQueryKey(ledgerId),
       }),
     ]);
+  };
+  const recordBalanceAdjustment = async (
+    result: BalanceAdjustmentResultResponseOutput,
+    accountId: string,
+  ) => {
+    if (result.outcome === "created") {
+      reconcileTransactionHistory(
+        queryClient,
+        transactionsQueryKey,
+        params,
+        result.transaction,
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: getListFinanceTransactionsQueryKey(ledgerId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: getListFinanceAccountsQueryKey(ledgerId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: getGetFinanceOverviewQueryKey(ledgerId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: getGetBalanceAdjustmentContextQueryKey(ledgerId, accountId),
+        }),
+      ]);
+      setAnnouncement("Balance Adjustment recorded.");
+      return;
+    }
+
+    setAnnouncement(
+      "Balance already matched the target. No Balance Adjustment was created.",
+    );
   };
 
   let historyContent;
@@ -1090,7 +1138,24 @@ export function TransactionsDestination({
       <p aria-live="polite" className="sr-only" role="status">
         {announcement}
       </p>
-      {dialogKind === "internalTransfer" ? (
+      {dialogKind === "balanceAdjustment" ? (
+        <BalanceAdjustmentFormDialog
+          accounts={accountsQuery.data ?? []}
+          currencies={currenciesQuery.data ?? []}
+          ledgerId={ledgerId}
+          onAdjusted={recordBalanceAdjustment}
+          onOpenChange={(open) => {
+            if (!open) closeTransactionDialog();
+          }}
+          open
+          refreshAccounts={async () => {
+            const result = await accountsQuery.refetch();
+            return result.isSuccess && !result.isRefetchError
+              ? { accounts: result.data, status: "success" }
+              : { status: "error" };
+          }}
+        />
+      ) : dialogKind === "internalTransfer" ? (
         <InternalTransferFormDialog
           accounts={accountsQuery.data ?? []}
           currencies={currenciesQuery.data ?? []}
