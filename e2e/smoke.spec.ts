@@ -793,6 +793,128 @@ for (const viewportWidth of [1024, 1280]) {
   });
 }
 
+for (const viewportWidth of [1024, 1280]) {
+  test(`shows accessible Transaction detail and confirmation at ${viewportWidth}px`, async ({
+    page,
+  }, testInfo) => {
+    const errors = collectBrowserErrors(page);
+    const expense = financeTransactionPages[0]!.items[1]!;
+    await page.setViewportSize({ height: 900, width: viewportWidth });
+    await page.route("**/api/finance/ledgers", async (route) => {
+      await route.fulfill({ json: financeLedgers });
+    });
+    await page.route("**/api/finance/ledgers/*/accounts", async (route) => {
+      await route.fulfill({ json: financeAccounts });
+    });
+    await page.route("**/api/finance/ledgers/*/categories", async (route) => {
+      await route.fulfill({ json: financeCategories });
+    });
+    await page.route("**/api/finance/currencies", async (route) => {
+      await route.fulfill({ json: financeCurrencies });
+    });
+    await page.route(
+      "**/api/finance/ledgers/*/transactions**",
+      async (route) => {
+        await route.fulfill({ json: financeTransactionPages[0] });
+      },
+    );
+    await page.route(
+      "**/api/finance/ledgers/*/transactions/*",
+      async (route) => {
+        await route.fulfill({ json: expense });
+      },
+    );
+
+    await page.goto(
+      `/finance/transactions/${expense.id}?ledger=${financeLedgers[0]!.id}`,
+    );
+    await expect(
+      page.getByRole("heading", { name: "Transaction detail" }),
+    ).toBeVisible();
+    await expect(page.getByText("Travel card (archived)")).toBeVisible();
+    await expect(page.getByText("Subscriptions (archived)")).toBeVisible();
+    expect(
+      await page.evaluate<boolean>(
+        "document.documentElement.scrollWidth <= document.documentElement.clientWidth",
+      ),
+    ).toBe(true);
+    await expectNoAccessibilityViolations(
+      page,
+      page.getByRole("region", { name: "Transactions" }),
+      testInfo,
+    );
+
+    await page.getByRole("button", { name: "Delete transaction" }).click();
+    const confirmation = page.getByRole("alertdialog", {
+      name: "Delete transaction?",
+    });
+    await expect(
+      confirmation.getByRole("button", { name: "Cancel" }),
+    ).toBeFocused();
+    await expect(confirmation).toContainText("cannot be undone or restored");
+    await expectNoAccessibilityViolations(page, confirmation, testInfo);
+    await confirmation.getByRole("button", { name: "Cancel" }).click();
+    await expect(confirmation).not.toBeVisible();
+    await page.getByRole("link", { name: "Back to Transactions" }).click();
+    await expect(page).toHaveURL(
+      `/finance/transactions?ledger=${financeLedgers[0]!.id}`,
+    );
+    await page.goBack();
+    await expect(
+      page.getByRole("heading", { name: "Transaction detail" }),
+    ).toBeVisible();
+    expectNoBrowserErrors(errors);
+  });
+}
+
+test("keeps long Account names and Transaction identity inside a narrow delete confirmation", async ({
+  page,
+}, testInfo) => {
+  const errors = collectBrowserErrors(page);
+  const transaction = longReferenceTransactionPage.items[0]!;
+  await page.setViewportSize({ height: 812, width: 375 });
+  await page.route("**/api/finance/ledgers", async (route) => {
+    await route.fulfill({ json: financeLedgers });
+  });
+  await page.route("**/api/finance/ledgers/*/transactions/*", async (route) => {
+    await route.fulfill({ json: transaction });
+  });
+
+  await page.goto(
+    `/finance/transactions/${transaction.id}?ledger=${financeLedgers[0]!.id}`,
+  );
+  await page.getByRole("button", { name: "Delete transaction" }).click();
+  const confirmation = page.getByRole("alertdialog", {
+    name: "Delete transaction?",
+  });
+  await expect(confirmation).toContainText(longTransactionAccountName);
+  await expect(confirmation).toContainText(`Transaction ID ${transaction.id}`);
+  await expect(
+    confirmation.getByRole("button", { name: "Cancel" }),
+  ).toBeFocused();
+  for (const locator of [
+    confirmation,
+    confirmation.locator('[data-slot="alert-dialog-description"]'),
+  ]) {
+    expect(
+      await locator.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
+  }
+  expect(
+    await confirmation.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return (
+        bounds.left >= 0 &&
+        bounds.right <= element.ownerDocument.documentElement.clientWidth
+      );
+    }),
+  ).toBe(true);
+  await expectNoAccessibilityViolations(page, confirmation, testInfo);
+  expectNoBrowserErrors(errors);
+});
+
 test("renders the frontend 404 page for an unknown route", async ({
   page,
 }, testInfo) => {

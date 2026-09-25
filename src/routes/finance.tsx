@@ -56,6 +56,11 @@ const TransactionsDestination = lazy(() =>
     default: module.TransactionsDestination,
   })),
 );
+const TransactionDetail = lazy(() =>
+  import("@/components/finance/transaction-detail").then((module) => ({
+    default: module.TransactionDetail,
+  })),
+);
 
 type Destination = (typeof destinations)[number];
 type LedgerDialogState =
@@ -140,6 +145,13 @@ export function Component() {
   const routeState = parseFinanceRouteState(searchParams, transactionId);
   const normalizedTransactionFilters =
     normalizeTransactionFilterState(routeState);
+  const returnToOverview =
+    searchParams.getAll("return").length === 1 &&
+    searchParams.get("return") === "overview" &&
+    Boolean(
+      routeState.portable.month &&
+      routeState.portable.date?.startsWith(`${routeState.portable.month}-`),
+    );
   const ledgerId =
     routeState.ledger.status === "valid" ? routeState.ledger.value : undefined;
   const ledgerAddress = addressedLedgerValue(routeState.ledger);
@@ -215,6 +227,23 @@ export function Component() {
     normalizedTransactionFilters.resource,
   );
   const currentSearch = searchParams.size > 0 ? `?${searchParams}` : "";
+  const normalizedDetailSearch = `${normalizedTransactionSearch}${
+    returnToOverview
+      ? `${normalizedTransactionSearch ? "&" : "?"}return=overview`
+      : ""
+  }`;
+
+  if (
+    routeState.transaction.status === "valid" &&
+    currentSearch !== normalizedDetailSearch
+  ) {
+    return (
+      <Navigate
+        replace
+        to={`/finance/transactions/${routeState.transaction.value}${normalizedDetailSearch}`}
+      />
+    );
+  }
 
   if (
     destination.slug === "transactions" &&
@@ -237,11 +266,15 @@ export function Component() {
     return (
       <Navigate
         replace
-        to={destinationHref(
-          destination,
-          selectedLedger.id,
-          routeState.portable,
-        )}
+        to={
+          routeState.transaction.status === "valid"
+            ? `/finance/transactions/${routeState.transaction.value}${buildFinanceSearch(selectedLedger.id, normalizedTransactionFilters.portable, normalizedTransactionFilters.resource)}${returnToOverview ? "&return=overview" : ""}`
+            : destinationHref(
+                destination,
+                selectedLedger.id,
+                routeState.portable,
+              )
+        }
       />
     );
   }
@@ -360,6 +393,17 @@ export function Component() {
             ledgerId={selectedLedger.id}
             portable={normalizedTransactionFilters.portable}
             resource={normalizedTransactionFilters.resource}
+          />
+        </Suspense>
+      ) : selectedLedger && routeState.transaction.status === "valid" ? (
+        <Suspense fallback={<p role="status">Loading Transaction detail…</p>}>
+          <TransactionDetail
+            key={`${selectedLedger.id}:${routeState.transaction.value}`}
+            ledgerId={selectedLedger.id}
+            resource={normalizedTransactionFilters.resource}
+            routeState={routeState}
+            returnToOverview={returnToOverview}
+            transactionId={routeState.transaction.value}
           />
         </Suspense>
       ) : selectedLedger && destination.slug === "accounts" ? (

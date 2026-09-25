@@ -3230,16 +3230,24 @@ describe("Finance Transactions destination", () => {
     expect(adjustment).toHaveTextContent("Adjusts Cash");
     expect(adjustment).not.toHaveTextContent(/target balance/i);
 
-    for (const transaction of [income, expense, transfer, adjustment]) {
+    for (const [index, transaction] of [
+      income,
+      expense,
+      transfer,
+      adjustment,
+    ].entries()) {
       expect(
-        within(transaction).getByRole("button", { name: /view details/i }),
-      ).toBeDisabled();
+        within(transaction).getByRole("link", { name: /view details/i }),
+      ).toHaveAttribute(
+        "href",
+        `/finance/transactions/${history.items[index]!.id}?ledger=${ledger.id}`,
+      );
       expect(
         within(transaction).getByRole("button", { name: /^edit/i }),
       ).toBeDisabled();
       expect(
         within(transaction).getByRole("button", { name: /^delete/i }),
-      ).toBeDisabled();
+      ).toBeEnabled();
     }
   });
 

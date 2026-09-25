@@ -40,7 +40,11 @@ describe("Finance foundation", () => {
     renderRoute(`/finance/transactions?ledger=${personalLedger.id}`);
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Transactions" }),
+      await screen.findByRole(
+        "heading",
+        { level: 1, name: "Transactions" },
+        { timeout: 5_000 },
+      ),
     ).toBeVisible();
     expect(
       within(screen.getByRole("banner")).getByText("Finance"),

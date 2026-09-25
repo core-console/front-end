@@ -33,6 +33,7 @@ import type {
 } from "@/api/generated/schemas";
 import { BalanceAdjustmentFormDialog } from "@/components/finance/balance-adjustment-form-dialog";
 import { formatFinanceMoney } from "@/components/finance/finance-money";
+import { TransactionDeleteDialog } from "@/components/finance/transaction-detail";
 import {
   buildFinanceSearch,
   type FinanceRouteState,
@@ -557,7 +558,15 @@ function TransactionSemantics({ transaction }: { transaction: Transaction }) {
   );
 }
 
-function TransactionRow({ transaction }: { transaction: Transaction }) {
+function TransactionRow({
+  href,
+  onDelete,
+  transaction,
+}: {
+  href: string;
+  onDelete: () => void;
+  transaction: Transaction;
+}) {
   const date = formatTransactionDate(transaction.transactionDate);
   const kind = transactionKindLabels[transaction.kind];
 
@@ -578,19 +587,20 @@ function TransactionRow({ transaction }: { transaction: Transaction }) {
             : "Uncategorized"
           : "Not applicable"}
       </p>
-      <p className="line-clamp-2 text-sm text-muted-foreground">
-        {transaction.note ?? "No note"}
-      </p>
+      <div className="min-w-0 text-sm text-muted-foreground">
+        <p className="line-clamp-2">{transaction.note ?? "No note"}</p>
+        <p className="text-xs [overflow-wrap:anywhere]">
+          Transaction ID {transaction.id}
+        </p>
+      </div>
       <div className="flex flex-wrap gap-1 xl:justify-end">
-        <Button
-          aria-label={`View details for ${kind} on ${date}`}
-          disabled
-          size="xs"
-          type="button"
-          variant="ghost"
+        <Link
+          aria-label={`View details for ${kind} on ${date}, Transaction ID ${transaction.id}`}
+          className="inline-flex h-6 items-center justify-center rounded px-2 text-xs font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          to={href}
         >
           View
-        </Button>
+        </Link>
         <Button
           aria-label={`Edit ${kind} on ${date}`}
           disabled
@@ -601,8 +611,8 @@ function TransactionRow({ transaction }: { transaction: Transaction }) {
           Edit
         </Button>
         <Button
-          aria-label={`Delete ${kind} on ${date}`}
-          disabled
+          aria-label={`Delete ${kind} on ${date}, Transaction ID ${transaction.id}`}
+          onClick={onDelete}
           size="xs"
           type="button"
           variant="ghost"
@@ -628,6 +638,7 @@ export function TransactionsDestination({
   const [dialogKind, setDialogKind] = useState<RecordTransactionKind | null>(
     null,
   );
+  const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
   const dialogInvoker = useRef<HTMLButtonElement | null>(null);
   const focusRestorePending = useRef(false);
   const appliedFilters = useMemo<AppliedFilters>(
@@ -1019,7 +1030,12 @@ export function TransactionsDestination({
           <span>Actions</span>
         </div>
         {transactions.map((transaction) => (
-          <TransactionRow key={transaction.id} transaction={transaction} />
+          <TransactionRow
+            href={`/finance/transactions/${transaction.id}${buildFinanceSearch(ledgerId, appliedFilters.portable, appliedFilters.resource)}`}
+            key={transaction.id}
+            onDelete={() => setDeleteTarget(transaction)}
+            transaction={transaction}
+          />
         ))}
       </div>
     );
@@ -1138,6 +1154,23 @@ export function TransactionsDestination({
       <p aria-live="polite" className="sr-only" role="status">
         {announcement}
       </p>
+      {deleteTarget ? (
+        <TransactionDeleteDialog
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => {
+            setAnnouncement(
+              `${transactionKindLabels[deleteTarget.kind]} deleted.`,
+            );
+            setDeleteTarget(null);
+          }}
+          onUnavailable={() => {
+            setAnnouncement("Transaction unavailable. It was already removed.");
+            setDeleteTarget(null);
+          }}
+          open
+          transaction={deleteTarget}
+        />
+      ) : null}
       {dialogKind === "balanceAdjustment" ? (
         <BalanceAdjustmentFormDialog
           accounts={accountsQuery.data ?? []}

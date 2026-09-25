@@ -22,6 +22,8 @@ export default defineConfig({
   },
   test: {
     exclude: [...configDefaults.exclude, "e2e/**"],
+    // Limit simultaneous jsdom route suites so short interaction waits remain reliable.
+    maxWorkers: 2,
     env: {
       VITE_API_BASE_URL: "http://localhost/api",
     },
