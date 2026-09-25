@@ -3242,9 +3242,10 @@ describe("Finance Transactions destination", () => {
         "href",
         `/finance/transactions/${history.items[index]!.id}?ledger=${ledger.id}`,
       );
-      expect(
-        within(transaction).getByRole("button", { name: /^edit/i }),
-      ).toBeDisabled();
+      const edit = within(transaction).getByRole("button", { name: /^edit/i });
+      expect(edit).toHaveAccessibleName(new RegExp(history.items[index]!.id));
+      if (index === 3) expect(edit).toBeDisabled();
+      else expect(edit).toBeEnabled();
       expect(
         within(transaction).getByRole("button", { name: /^delete/i }),
       ).toBeEnabled();

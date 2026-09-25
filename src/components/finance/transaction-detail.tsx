@@ -16,6 +16,7 @@ import type {
   TransactionHistoryPageResponseOutput,
 } from "@/api/generated/schemas";
 import { formatFinanceMoney } from "@/components/finance/finance-money";
+import { TransactionEditDialog } from "@/components/finance/transaction-edit-dialog";
 import {
   buildFinanceSearch,
   type FinanceRouteState,
@@ -335,9 +336,12 @@ export function TransactionDetail({
 }) {
   const navigate = useNavigate();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   const unavailableHeading = useRef<HTMLHeadingElement>(null);
+  const editButton = useRef<HTMLButtonElement>(null);
+  const restoreEditFocus = useRef(false);
   const historyHref = `/finance/transactions${buildFinanceSearch(ledgerId, routeState.portable, resource)}`;
   const returnHref =
     returnToOverview && routeState.portable.month && routeState.portable.date
@@ -360,6 +364,14 @@ export function TransactionDetail({
   useEffect(() => {
     if (notAvailable) unavailableHeading.current?.focus();
   }, [notAvailable]);
+  useEffect(() => {
+    if (editOpen || !restoreEditFocus.current) return;
+    const target = editButton.current?.isConnected
+      ? editButton.current
+      : document.getElementById("finance-title");
+    target?.focus();
+    restoreEditFocus.current = false;
+  }, [editOpen]);
 
   if (notAvailable) {
     return (
@@ -408,6 +420,9 @@ export function TransactionDetail({
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      <p aria-live="polite" className="sr-only" role="status">
+        {announcement}
+      </p>
       <Link className="text-sm underline" to={returnHref}>
         Back to {returnToOverview ? "Overview" : "Transactions"}
       </Link>
@@ -424,9 +439,20 @@ export function TransactionDetail({
               {transactionKindLabels[transaction.kind]}
             </p>
           </div>
-          <Button onClick={() => setDeleteOpen(true)} variant="destructive">
-            Delete transaction
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {transaction.kind !== "balanceAdjustment" ? (
+              <Button
+                ref={editButton}
+                onClick={() => setEditOpen(true)}
+                variant="outline"
+              >
+                Edit {transactionKindLabels[transaction.kind]}
+              </Button>
+            ) : null}
+            <Button onClick={() => setDeleteOpen(true)} variant="destructive">
+              Delete transaction
+            </Button>
+          </div>
         </div>
         <dl className="min-w-0 divide-y divide-border">
           <DetailField label="Transaction Date">
@@ -450,6 +476,26 @@ export function TransactionDetail({
           onDeleted={() => navigate(returnHref, { replace: true })}
           onUnavailable={() => {
             setDeleteOpen(false);
+            setUnavailable(true);
+            setAnnouncement("Transaction unavailable. It was already removed.");
+          }}
+        />
+      ) : null}
+      {editOpen ? (
+        <TransactionEditDialog
+          ledgerId={ledgerId}
+          transactionId={transactionId}
+          onClose={() => {
+            restoreEditFocus.current = true;
+            setEditOpen(false);
+          }}
+          onSaved={(kind) => {
+            restoreEditFocus.current = true;
+            setEditOpen(false);
+            setAnnouncement(`${transactionKindLabels[kind]} updated.`);
+          }}
+          onUnavailable={() => {
+            setEditOpen(false);
             setUnavailable(true);
             setAnnouncement("Transaction unavailable. It was already removed.");
           }}

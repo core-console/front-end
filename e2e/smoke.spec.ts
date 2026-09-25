@@ -596,6 +596,13 @@ test("renders accessible responsive Finance Transactions with opaque pagination"
           : financeTransactionPages[0],
     });
   });
+  await page.route("**/api/finance/ledgers/*/transactions/*", async (route) => {
+    const id = route.request().url().split("/").at(-1);
+    const transaction = financeTransactionPages[0]!.items.find(
+      (item) => item.id === id,
+    );
+    await route.fulfill({ json: transaction, status: transaction ? 200 : 404 });
+  });
   const transactions = page.getByRole("region", {
     exact: true,
     name: "Transactions",
@@ -621,6 +628,32 @@ test("renders accessible responsive Finance Transactions with opaque pagination"
     ),
   ).toBe(true);
   await expectNoAccessibilityViolations(page, transactions, testInfo);
+
+  const editExpense = transactions.getByRole("button", {
+    name: /Edit Expense.*Transaction ID/,
+  });
+  await editExpense.click();
+  const editDialog = page.getByRole("dialog", { name: "Edit Expense" });
+  await expect(editDialog.getByLabel("Account")).toHaveValue(
+    financeAccounts[1]!.id,
+  );
+  await expect(
+    editDialog.getByRole("option", { name: /Travel card.*archived/ }),
+  ).toHaveCount(1);
+  await expect(editDialog.getByLabel("Amount")).toBeEditable();
+  for (const width of [1024, 1280]) {
+    await page.setViewportSize({ height: 900, width });
+    expect(
+      await editDialog.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
+  }
+  await expectNoAccessibilityViolations(page, editDialog, testInfo);
+  await editDialog.press("Escape");
+  await expect(editDialog).not.toBeVisible();
+  await expect(editExpense).toBeFocused();
+  await page.setViewportSize({ height: 900, width: 1024 });
 
   const recordTransaction = transactions.getByRole("button", {
     name: "Record transaction",

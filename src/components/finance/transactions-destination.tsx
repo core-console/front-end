@@ -34,6 +34,7 @@ import type {
 import { BalanceAdjustmentFormDialog } from "@/components/finance/balance-adjustment-form-dialog";
 import { formatFinanceMoney } from "@/components/finance/finance-money";
 import { TransactionDeleteDialog } from "@/components/finance/transaction-detail";
+import { TransactionEditDialog } from "@/components/finance/transaction-edit-dialog";
 import {
   buildFinanceSearch,
   type FinanceRouteState,
@@ -561,10 +562,12 @@ function TransactionSemantics({ transaction }: { transaction: Transaction }) {
 function TransactionRow({
   href,
   onDelete,
+  onEdit,
   transaction,
 }: {
   href: string;
   onDelete: () => void;
+  onEdit: (invoker: HTMLButtonElement) => void;
   transaction: Transaction;
 }) {
   const date = formatTransactionDate(transaction.transactionDate);
@@ -602,8 +605,9 @@ function TransactionRow({
           View
         </Link>
         <Button
-          aria-label={`Edit ${kind} on ${date}`}
-          disabled
+          aria-label={`Edit ${kind} on ${date}, Transaction ID ${transaction.id}`}
+          disabled={transaction.kind === "balanceAdjustment"}
+          onClick={(event) => onEdit(event.currentTarget)}
           size="xs"
           type="button"
           variant="ghost"
@@ -639,6 +643,9 @@ export function TransactionsDestination({
     null,
   );
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
+  const [editTarget, setEditTarget] = useState<Transaction | null>(null);
+  const editInvoker = useRef<HTMLButtonElement | null>(null);
+  const restoreEditFocus = useRef(false);
   const dialogInvoker = useRef<HTMLButtonElement | null>(null);
   const focusRestorePending = useRef(false);
   const appliedFilters = useMemo<AppliedFilters>(
@@ -760,6 +767,16 @@ export function TransactionsDestination({
     target.focus();
     focusRestorePending.current = false;
   }, [dialogKind, recordAvailable, workflowPending]);
+  useEffect(() => {
+    if (editTarget || !restoreEditFocus.current) return;
+    const invoker = editInvoker.current;
+    const target =
+      invoker?.isConnected && !invoker.disabled
+        ? invoker
+        : document.getElementById("finance-title");
+    target?.focus();
+    restoreEditFocus.current = false;
+  }, [editTarget]);
   const [announcement, setAnnouncement] = useState("");
   const paginationSnapshot = useRef({ count: 0, key: "", pages: 0 });
   const transactionsQueryKey = useMemo(
@@ -1034,6 +1051,10 @@ export function TransactionsDestination({
             href={`/finance/transactions/${transaction.id}${buildFinanceSearch(ledgerId, appliedFilters.portable, appliedFilters.resource)}`}
             key={transaction.id}
             onDelete={() => setDeleteTarget(transaction)}
+            onEdit={(invoker) => {
+              editInvoker.current = invoker;
+              setEditTarget(transaction);
+            }}
             transaction={transaction}
           />
         ))}
@@ -1169,6 +1190,26 @@ export function TransactionsDestination({
           }}
           open
           transaction={deleteTarget}
+        />
+      ) : null}
+      {editTarget ? (
+        <TransactionEditDialog
+          ledgerId={ledgerId}
+          transactionId={editTarget.id}
+          onClose={() => {
+            restoreEditFocus.current = true;
+            setEditTarget(null);
+          }}
+          onSaved={(kind) => {
+            restoreEditFocus.current = true;
+            setAnnouncement(`${transactionKindLabels[kind]} updated.`);
+            setEditTarget(null);
+          }}
+          onUnavailable={() => {
+            restoreEditFocus.current = true;
+            setAnnouncement("Transaction unavailable. It was already removed.");
+            setEditTarget(null);
+          }}
         />
       ) : null}
       {dialogKind === "balanceAdjustment" ? (
