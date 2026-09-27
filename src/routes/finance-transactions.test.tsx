@@ -3244,8 +3244,7 @@ describe("Finance Transactions destination", () => {
       );
       const edit = within(transaction).getByRole("button", { name: /^edit/i });
       expect(edit).toHaveAccessibleName(new RegExp(history.items[index]!.id));
-      if (index === 3) expect(edit).toBeDisabled();
-      else expect(edit).toBeEnabled();
+      expect(edit).toBeEnabled();
       expect(
         within(transaction).getByRole("button", { name: /^delete/i }),
       ).toBeEnabled();

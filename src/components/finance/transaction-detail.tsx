@@ -1,5 +1,12 @@
 import { type InfiniteData, useQueryClient } from "@tanstack/react-query";
-import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  Fragment,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Link, useNavigate } from "react-router";
 
 import {
@@ -16,6 +23,16 @@ import type {
   TransactionHistoryPageResponseOutput,
 } from "@/api/generated/schemas";
 import { formatFinanceMoney } from "@/components/finance/finance-money";
+import { BalanceAdjustmentEditDialog } from "@/components/finance/balance-adjustment-edit-dialog";
+import {
+  isMissingAdjustmentTransaction,
+  reconcileMissingAdjustmentTransaction,
+} from "@/components/finance/balance-adjustment-missing-transaction";
+import {
+  balanceAdjustmentReplacementKey,
+  observeBalanceAdjustmentTransactionMissing,
+  useBalanceAdjustmentReplacementPending,
+} from "@/components/finance/balance-adjustment-replacement-lock";
 import { TransactionEditDialog } from "@/components/finance/transaction-edit-dialog";
 import {
   buildFinanceSearch,
@@ -335,10 +352,20 @@ export function TransactionDetail({
   returnToOverview: boolean;
 }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [adjustmentEditOpen, setAdjustmentEditOpen] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
   const [announcement, setAnnouncement] = useState("");
+  const adjustmentCompletion = useRef<
+    "updated" | "removed" | "unavailable" | null
+  >(null);
+  const mounted = useRef(true);
+  const adjustmentReplacementPending = useBalanceAdjustmentReplacementPending(
+    ledgerId,
+    transactionId,
+  );
   const unavailableHeading = useRef<HTMLHeadingElement>(null);
   const editButton = useRef<HTMLButtonElement>(null);
   const restoreEditFocus = useRef(false);
@@ -355,26 +382,69 @@ export function TransactionDetail({
     },
   });
   const transaction = transactionQuery.data;
+  const detailMissing = isMissingAdjustmentTransaction(transactionQuery.error);
+  const detailMismatch =
+    transaction &&
+    (transaction.id !== transactionId ||
+      transaction.ledgerId !== ledgerId ||
+      (adjustmentEditOpen && transaction.kind !== "balanceAdjustment"));
   const notAvailable =
     unavailable ||
-    isNotFound(transactionQuery.error) ||
-    (transaction &&
-      (transaction.id !== transactionId || transaction.ledgerId !== ledgerId));
+    (!adjustmentEditOpen && !adjustmentReplacementPending && detailMissing) ||
+    (!adjustmentReplacementPending && detailMismatch);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const finishAdjustmentUnavailable = useCallback(() => {
+    if (!mounted.current || adjustmentCompletion.current) return;
+    adjustmentCompletion.current = "unavailable";
+    setAdjustmentEditOpen(false);
+    setUnavailable(true);
+    setAnnouncement("Transaction unavailable. It was already removed.");
+  }, []);
+  useEffect(() => {
+    if (!adjustmentEditOpen || !detailMissing || unavailable) return;
+    if (
+      observeBalanceAdjustmentTransactionMissing(
+        balanceAdjustmentReplacementKey(ledgerId, transactionId),
+      )
+    )
+      return;
+    void reconcileMissingAdjustmentTransaction(
+      queryClient,
+      ledgerId,
+      transactionId,
+    ).then(finishAdjustmentUnavailable);
+  }, [
+    adjustmentEditOpen,
+    adjustmentReplacementPending,
+    detailMissing,
+    unavailable,
+    ledgerId,
+    transactionId,
+    queryClient,
+    finishAdjustmentUnavailable,
+  ]);
 
   useEffect(() => {
     if (notAvailable) unavailableHeading.current?.focus();
   }, [notAvailable]);
   useEffect(() => {
-    if (editOpen || !restoreEditFocus.current) return;
+    if (editOpen || adjustmentEditOpen || !restoreEditFocus.current) return;
     const target = editButton.current?.isConnected
       ? editButton.current
       : document.getElementById("finance-title");
     target?.focus();
     restoreEditFocus.current = false;
-  }, [editOpen]);
+  }, [editOpen, adjustmentEditOpen]);
 
+  let content: ReactNode;
   if (notAvailable) {
-    return (
+    content = (
       <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-6">
         {announcement ? <p role="status">{announcement}</p> : null}
         <h2
@@ -392,16 +462,16 @@ export function TransactionDetail({
         </Link>
       </div>
     );
-  }
-  if (transactionQuery.isPending) {
-    return (
+  } else if (adjustmentReplacementPending && detailMismatch) {
+    content = <p role="status">Balance Adjustment replacement in progress…</p>;
+  } else if (transactionQuery.isPending) {
+    content = (
       <p role="status" aria-label="Loading Transaction detail">
         Loading Transaction detail…
       </p>
     );
-  }
-  if (transactionQuery.isError || !transaction) {
-    return (
+  } else if ((transactionQuery.isError && !editOpen) || !transaction) {
+    content = (
       <div className="rounded-lg border border-border bg-card p-6">
         <p role="alert">Transaction detail could not be loaded. Try again.</p>
         <Button
@@ -416,91 +486,131 @@ export function TransactionDetail({
         </Link>
       </div>
     );
-  }
-
-  return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <p aria-live="polite" className="sr-only" role="status">
-        {announcement}
-      </p>
-      <Link className="text-sm underline" to={returnHref}>
-        Back to {returnToOverview ? "Overview" : "Transactions"}
-      </Link>
-      <article
-        className="min-w-0 rounded-lg border border-border bg-card p-4 sm:p-6"
-        aria-labelledby="transaction-detail-title"
-      >
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
-          <div>
-            <h2 className="text-xl font-semibold" id="transaction-detail-title">
-              Transaction detail
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {transactionKindLabels[transaction.kind]}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {transaction.kind !== "balanceAdjustment" ? (
+  } else {
+    content = (
+      <div className="flex min-w-0 flex-col gap-4">
+        <p aria-live="polite" className="sr-only" role="status">
+          {announcement}
+        </p>
+        <Link className="text-sm underline" to={returnHref}>
+          Back to {returnToOverview ? "Overview" : "Transactions"}
+        </Link>
+        <article
+          className="min-w-0 rounded-lg border border-border bg-card p-4 sm:p-6"
+          aria-labelledby="transaction-detail-title"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
+            <div>
+              <h2
+                className="text-xl font-semibold"
+                id="transaction-detail-title"
+              >
+                Transaction detail
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {transactionKindLabels[transaction.kind]}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
               <Button
                 ref={editButton}
-                onClick={() => setEditOpen(true)}
+                onClick={() => {
+                  if (transaction.kind === "balanceAdjustment") {
+                    adjustmentCompletion.current = null;
+                    setAdjustmentEditOpen(true);
+                  } else setEditOpen(true);
+                }}
                 variant="outline"
               >
                 Edit {transactionKindLabels[transaction.kind]}
               </Button>
-            ) : null}
-            <Button onClick={() => setDeleteOpen(true)} variant="destructive">
-              Delete transaction
-            </Button>
+              <Button onClick={() => setDeleteOpen(true)} variant="destructive">
+                Delete transaction
+              </Button>
+            </div>
           </div>
-        </div>
-        <dl className="min-w-0 divide-y divide-border">
-          <DetailField label="Transaction Date">
-            {formatTransactionDate(transaction.transactionDate)}
-          </DetailField>
-          <DetailField label="Kind">
-            {transactionKindLabels[transaction.kind]}
-          </DetailField>
-          <TransactionProjection transaction={transaction} />
-          <DetailField label="Note">
-            {transaction.note ?? "No note"}
-          </DetailField>
-          <DetailField label="Transaction ID">{transaction.id}</DetailField>
-        </dl>
-      </article>
-      {deleteOpen ? (
-        <TransactionDeleteDialog
-          open
-          transaction={transaction}
-          onClose={() => setDeleteOpen(false)}
-          onDeleted={() => navigate(returnHref, { replace: true })}
-          onUnavailable={() => {
-            setDeleteOpen(false);
-            setUnavailable(true);
-            setAnnouncement("Transaction unavailable. It was already removed.");
-          }}
-        />
-      ) : null}
-      {editOpen ? (
-        <TransactionEditDialog
+          <dl className="min-w-0 divide-y divide-border">
+            <DetailField label="Transaction Date">
+              {formatTransactionDate(transaction.transactionDate)}
+            </DetailField>
+            <DetailField label="Kind">
+              {transactionKindLabels[transaction.kind]}
+            </DetailField>
+            <TransactionProjection transaction={transaction} />
+            <DetailField label="Note">
+              {transaction.note ?? "No note"}
+            </DetailField>
+            <DetailField label="Transaction ID">{transaction.id}</DetailField>
+          </dl>
+        </article>
+        {deleteOpen ? (
+          <TransactionDeleteDialog
+            open
+            transaction={transaction}
+            onClose={() => setDeleteOpen(false)}
+            onDeleted={() => navigate(returnHref, { replace: true })}
+            onUnavailable={() => {
+              setDeleteOpen(false);
+              setUnavailable(true);
+              setAnnouncement(
+                "Transaction unavailable. It was already removed.",
+              );
+            }}
+          />
+        ) : null}
+        {editOpen ? (
+          <TransactionEditDialog
+            ledgerId={ledgerId}
+            transactionId={transactionId}
+            onClose={() => {
+              restoreEditFocus.current = true;
+              setEditOpen(false);
+            }}
+            onSaved={(kind) => {
+              restoreEditFocus.current = true;
+              setEditOpen(false);
+              setAnnouncement(`${transactionKindLabels[kind]} updated.`);
+            }}
+            onUnavailable={() => {
+              setEditOpen(false);
+              setUnavailable(true);
+              setAnnouncement(
+                "Transaction unavailable. It was already removed.",
+              );
+            }}
+          />
+        ) : null}
+      </div>
+    );
+  }
+  return (
+    <>
+      {content}
+      {adjustmentEditOpen ? (
+        <BalanceAdjustmentEditDialog
           ledgerId={ledgerId}
           transactionId={transactionId}
           onClose={() => {
             restoreEditFocus.current = true;
-            setEditOpen(false);
+            setAdjustmentEditOpen(false);
           }}
-          onSaved={(kind) => {
+          onSaved={() => {
+            if (adjustmentCompletion.current) return;
+            adjustmentCompletion.current = "updated";
             restoreEditFocus.current = true;
-            setEditOpen(false);
-            setAnnouncement(`${transactionKindLabels[kind]} updated.`);
+            setAdjustmentEditOpen(false);
+            setAnnouncement("Balance Adjustment updated.");
           }}
-          onUnavailable={() => {
-            setEditOpen(false);
+          onRemoved={() => {
+            if (adjustmentCompletion.current) return;
+            adjustmentCompletion.current = "removed";
+            setAdjustmentEditOpen(false);
             setUnavailable(true);
-            setAnnouncement("Transaction unavailable. It was already removed.");
+            setAnnouncement("Balance Adjustment removed.");
           }}
+          onUnavailable={finishAdjustmentUnavailable}
         />
       ) : null}
-    </div>
+    </>
   );
 }

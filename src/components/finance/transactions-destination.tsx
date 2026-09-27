@@ -35,6 +35,7 @@ import { BalanceAdjustmentFormDialog } from "@/components/finance/balance-adjust
 import { formatFinanceMoney } from "@/components/finance/finance-money";
 import { TransactionDeleteDialog } from "@/components/finance/transaction-detail";
 import { TransactionEditDialog } from "@/components/finance/transaction-edit-dialog";
+import { BalanceAdjustmentEditDialog } from "@/components/finance/balance-adjustment-edit-dialog";
 import {
   buildFinanceSearch,
   type FinanceRouteState,
@@ -606,7 +607,6 @@ function TransactionRow({
         </Link>
         <Button
           aria-label={`Edit ${kind} on ${date}, Transaction ID ${transaction.id}`}
-          disabled={transaction.kind === "balanceAdjustment"}
           onClick={(event) => onEdit(event.currentTarget)}
           size="xs"
           type="button"
@@ -1192,7 +1192,31 @@ export function TransactionsDestination({
           transaction={deleteTarget}
         />
       ) : null}
-      {editTarget ? (
+      {editTarget?.kind === "balanceAdjustment" ? (
+        <BalanceAdjustmentEditDialog
+          ledgerId={ledgerId}
+          transactionId={editTarget.id}
+          onClose={() => {
+            restoreEditFocus.current = true;
+            setEditTarget(null);
+          }}
+          onSaved={() => {
+            restoreEditFocus.current = true;
+            setAnnouncement("Balance Adjustment updated.");
+            setEditTarget(null);
+          }}
+          onRemoved={() => {
+            restoreEditFocus.current = true;
+            setAnnouncement("Balance Adjustment removed.");
+            setEditTarget(null);
+          }}
+          onUnavailable={() => {
+            restoreEditFocus.current = true;
+            setAnnouncement("Transaction unavailable. It was already removed.");
+            setEditTarget(null);
+          }}
+        />
+      ) : editTarget ? (
         <TransactionEditDialog
           ledgerId={ledgerId}
           transactionId={editTarget.id}

@@ -12,6 +12,7 @@ import {
   BalanceAdjustmentContextResponse,
   CategoryResponse,
   CurrencyResponse,
+  FinanceTransactionResponse,
   LedgerResponse,
   MeResponse,
   TransactionHistoryPageResponse,
@@ -899,6 +900,127 @@ for (const viewportWidth of [1024, 1280]) {
     expectNoBrowserErrors(errors);
   });
 }
+
+test("replaces an archived Account Adjustment in an accessible narrow dialog", async ({
+  page,
+}, testInfo) => {
+  const errors = collectBrowserErrors(page);
+  const original = financeTransactionPages[1]!.items[1]!;
+  if (original.kind !== "balanceAdjustment")
+    throw new Error("Expected an Adjustment fixture");
+  const archivedAccount = AccountResponse.parse({
+    ...financeAccounts[1]!,
+    name: longTransactionAccountName,
+  });
+  const adjustment = FinanceTransactionResponse.parse({
+    ...original,
+    account: {
+      id: archivedAccount.id,
+      name: archivedAccount.name,
+      status: "archived",
+    },
+    correctionDelta: { amount: "-27.00", currency: "USD" },
+  });
+  if (adjustment.kind !== "balanceAdjustment")
+    throw new Error("Expected an Adjustment");
+  const updated = FinanceTransactionResponse.parse({
+    ...adjustment,
+    correctionDelta: { amount: "1.00", currency: "USD" },
+  });
+  if (updated.kind !== "balanceAdjustment")
+    throw new Error("Expected an updated Adjustment");
+  let current = adjustment;
+  await page.setViewportSize({ height: 812, width: 375 });
+  await page.route("**/api/finance/ledgers", async (route) => {
+    await route.fulfill({ json: financeLedgers });
+  });
+  await page.route("**/api/finance/ledgers/*/accounts", async (route) => {
+    await route.fulfill({ json: [archivedAccount, financeAccounts[0]!] });
+  });
+  await page.route("**/api/finance/currencies", async (route) => {
+    await route.fulfill({ json: financeCurrencies });
+  });
+  await page.route("**/api/finance/ledgers/*/transactions/*", async (route) => {
+    await route.fulfill({ json: current });
+  });
+  await page.route(
+    "**/api/finance/ledgers/*/accounts/*/balance-adjustment-context**",
+    async (route) => {
+      const url = new URL(route.request().url());
+      expect(url.searchParams.get("replacingTransactionId")).toBe(
+        adjustment.id,
+      );
+      expect(url.searchParams.get("transactionDate")).toBe(
+        adjustment.transactionDate,
+      );
+      await route.fulfill({
+        json: BalanceAdjustmentContextResponse.parse({
+          account: adjustment.account,
+          accountNature: "liability",
+          derivedComparisonBalance: {
+            amount: "9007199254740993.25",
+            currency: "USD",
+          },
+          transactionDate: adjustment.transactionDate,
+        }),
+      });
+    },
+  );
+  await page.route(
+    "**/api/finance/ledgers/*/balance-adjustments/*",
+    async (route) => {
+      const body = route.request().postDataJSON();
+      expect(body).toMatchObject({
+        accountId: archivedAccount.id,
+        expectedAccountNature: "liability",
+        expectedDerivedBalance: {
+          amount: "9007199254740993.25",
+          currency: "USD",
+        },
+        targetBalance: { amount: "9007199254740994.25", currency: "USD" },
+      });
+      current = updated;
+      await route.fulfill({
+        json: { outcome: "updated", transaction: updated },
+      });
+    },
+  );
+
+  await page.goto(
+    `/finance/transactions/${adjustment.id}?ledger=${financeLedgers[0]!.id}`,
+  );
+  await page.getByRole("button", { name: "Edit Balance Adjustment" }).click();
+  const dialog = page.getByRole("dialog", { name: "Edit Balance Adjustment" });
+  await expect(dialog.getByRole("combobox", { name: "Account" })).toHaveValue(
+    archivedAccount.id,
+  );
+  await expect(dialog.getByRole("option", { name: /archived/ })).toBeAttached();
+  await expect(dialog.getByText("9,007,199,254,740,993.25 USD")).toBeVisible();
+  await dialog
+    .getByRole("textbox", { name: "Target balance" })
+    .fill("9007199254740994.25");
+  await expect(dialog.getByText("+1.00 USD")).toBeVisible();
+  expect(
+    await dialog.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  expect(
+    await dialog.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return (
+        bounds.left >= 0 &&
+        bounds.right <= element.ownerDocument.documentElement.clientWidth
+      );
+    }),
+  ).toBe(true);
+  await expectNoAccessibilityViolations(page, dialog, testInfo);
+  await dialog.getByRole("button", { name: "Save adjustment" }).click();
+  await expect(
+    page.getByRole("region", { name: "Transactions" }).getByRole("status"),
+  ).toContainText("Balance Adjustment updated.");
+  expectNoBrowserErrors(errors);
+});
 
 test("keeps long Account names and Transaction identity inside a narrow delete confirmation", async ({
   page,
