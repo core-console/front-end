@@ -1,20 +1,34 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { notifyManager, useQueryClient } from "@tanstack/react-query";
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type KeyboardEvent,
   type ReactNode,
 } from "react";
 import { Link, useNavigate } from "react-router";
 
-import { useGetFinanceOverview } from "@/api/generated/core-console";
+import {
+  getGetBalanceAdjustmentContextQueryKey,
+  getGetFinanceOverviewQueryKey,
+  getListFinanceAccountsQueryKey,
+  getListFinanceTransactionsQueryKey,
+  useGetFinanceOverview,
+} from "@/api/generated/core-console";
 import {
   FinanceOverviewResponse,
+  type BalanceAdjustmentResultResponseOutput,
   type FinanceOverviewDayResponse,
   type FinanceOverviewResponse as Overview,
+  type FinanceTransactionResponseOutput,
 } from "@/api/generated/schemas";
 import { formatFinanceMoney } from "@/components/finance/finance-money";
+import { OverviewEntry } from "@/components/finance/overview-entry";
+import { OverviewSelectedDay } from "@/components/finance/overview-selected-day";
+import { reconcileLedgerTransactionHistories } from "@/components/finance/transaction-history-cache";
 import { buildFinanceSearch } from "@/components/finance/finance-route-state";
 import {
   adjacentMonth,
@@ -240,6 +254,7 @@ function AccountSummary({ data }: { data: Overview }) {
 }
 
 function Calendar({
+  countStatus,
   data,
   date,
   focusAfterMonthChange,
@@ -247,7 +262,8 @@ function Calendar({
   onMonthFocusRestored,
   onSelect,
 }: {
-  data: Overview;
+  countStatus: "ready" | "updating" | "unavailable";
+  data: Overview | undefined;
   date: string;
   focusAfterMonthChange: boolean;
   month: string;
@@ -271,7 +287,7 @@ function Calendar({
     }
   }, [date, focusAfterMonthChange, onMonthFocusRestored]);
 
-  const activity = new Map(data.days.map((day) => [day.date, day]));
+  const activity = new Map(data?.days.map((day) => [day.date, day]) ?? []);
   const firstDay = weekday(`${month}-01`);
   const count = daysInMonth(month);
   const cells = Array.from(
@@ -302,6 +318,13 @@ function Calendar({
         <p className="text-sm text-muted-foreground">
           {formatOverviewMonth(month)} · Selected {formatOverviewDate(date)}
         </p>
+        {countStatus !== "ready" ? (
+          <p className="text-sm text-muted-foreground">
+            {countStatus === "updating"
+              ? "Updating Calendar activity."
+              : "Calendar activity counts unavailable. Retry Overview."}
+          </p>
+        ) : null}
       </div>
       <div aria-label={`${month} Finance calendar`} ref={gridRef} role="grid">
         <div
@@ -322,7 +345,10 @@ function Calendar({
         {Array.from({ length: cells.length / 7 }, (_, week) => (
           <div className="grid grid-cols-7" key={week} role="row">
             {cells.slice(week * 7, week * 7 + 7).map((cell, column) => {
-              const day = cell ? activity.get(cell) : undefined;
+              const day =
+                cell && countStatus === "ready"
+                  ? activity.get(cell)
+                  : undefined;
               const kinds = day
                 ? kindLabels
                     .filter(([kind]) => day.transactionCountByKind[kind] > 0)
@@ -339,9 +365,13 @@ function Calendar({
                     formatOverviewDate(cell),
                     isToday ? "Today" : null,
                     selected ? "Selected" : null,
-                    day
-                      ? `${day.transactionCount} ${day.transactionCount === 1 ? "transaction" : "transactions"}`
-                      : "No transactions",
+                    countStatus !== "ready"
+                      ? countStatus === "updating"
+                        ? "Updating activity"
+                        : "Activity count unavailable"
+                      : day
+                        ? `${day.transactionCount} ${day.transactionCount === 1 ? "transaction" : "transactions"}`
+                        : "No transactions",
                     ...kinds,
                     currencies.length > 0 ? currencies.join(" and ") : null,
                   ]
@@ -449,7 +479,6 @@ function OverviewLoading({ navigation }: { navigation: ReactNode }) {
       <Skeleton className="h-40 w-full" />
       {navigation}
       <Skeleton className="h-32 w-full" />
-      <Skeleton className="h-96 w-full" />
       <Skeleton className="h-32 w-full" />
       <span className="sr-only">Loading Finance Overview…</span>
     </div>
@@ -462,7 +491,25 @@ export function OverviewDestination({
   month,
 }: OverviewDestinationProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [focusMonth, setFocusMonth] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  const overviewKey = getGetFinanceOverviewQueryKey(ledgerId, { month });
+  const overviewLifecycle = useSyncExternalStore(
+    useCallback(
+      (notify) =>
+        queryClient.getQueryCache().subscribe(notifyManager.batchCalls(notify)),
+      [queryClient],
+    ),
+    useCallback(() => {
+      const state = queryClient.getQueryState(
+        getGetFinanceOverviewQueryKey(ledgerId, { month }),
+      );
+      return state
+        ? `${state.status}:${state.fetchStatus}:${state.isInvalidated}:${state.dataUpdateCount}`
+        : "missing";
+    }, [ledgerId, month, queryClient]),
+  );
   const query = useGetFinanceOverview(
     ledgerId,
     { month },
@@ -480,6 +527,77 @@ export function OverviewDestination({
       },
     },
   );
+  const overviewState = queryClient.getQueryState(overviewKey);
+  // The exact query's invalidation and fetch lifecycle is the count authority.
+  // Reading the cache without this subscription would leave mounted counts stale.
+  const countStatus =
+    query.isSuccess &&
+    query.data?.ledger.id === ledgerId &&
+    query.data.month === month &&
+    overviewState?.status === "success" &&
+    overviewState.fetchStatus === "idle" &&
+    !overviewState.isInvalidated &&
+    overviewState.dataUpdateCount > 0
+      ? "ready"
+      : query.isError || overviewLifecycle === "missing"
+        ? "unavailable"
+        : "updating";
+
+  const refreshAfterWrite = async (
+    transaction: FinanceTransactionResponseOutput,
+    accountId?: string,
+  ) => {
+    const historyKey = getListFinanceTransactionsQueryKey(ledgerId);
+    const overviewRoot = getGetFinanceOverviewQueryKey(ledgerId);
+    void queryClient.invalidateQueries({
+      queryKey: overviewRoot,
+      refetchType: "none",
+    });
+    await queryClient.cancelQueries({ queryKey: historyKey });
+    reconcileLedgerTransactionHistories(queryClient, ledgerId, transaction);
+    const accountIds =
+      transaction.kind === "internalTransfer"
+        ? [transaction.sourceAccount.id, transaction.destinationAccount.id]
+        : [transaction.account.id];
+    void Promise.allSettled([
+      queryClient.invalidateQueries({ queryKey: historyKey }),
+      queryClient.invalidateQueries({
+        queryKey: getListFinanceAccountsQueryKey(ledgerId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: overviewRoot,
+      }),
+      ...[...new Set([...accountIds, ...(accountId ? [accountId] : [])])].map(
+        (id) =>
+          queryClient.invalidateQueries({
+            queryKey: getGetBalanceAdjustmentContextQueryKey(ledgerId, id),
+          }),
+      ),
+    ]);
+  };
+
+  const recordTransaction = async (
+    transaction: FinanceTransactionResponseOutput,
+  ) => {
+    await refreshAfterWrite(transaction);
+    setAnnouncement(
+      `${transaction.kind === "internalTransfer" ? "Internal Transfer" : transaction.kind === "income" ? "Income" : "Expense"} recorded.`,
+    );
+  };
+
+  const recordAdjustment = async (
+    result: BalanceAdjustmentResultResponseOutput,
+    accountId: string,
+  ) => {
+    if (result.outcome === "created") {
+      await refreshAfterWrite(result.transaction, accountId);
+      setAnnouncement("Balance Adjustment recorded.");
+    } else {
+      setAnnouncement(
+        "Balance already matched the target. No Balance Adjustment was created.",
+      );
+    }
+  };
 
   const navigateTo = (nextMonth: string, nextDate: string) => {
     navigate(
@@ -534,30 +652,33 @@ export function OverviewDestination({
 
   return (
     <div className="@container/overview flex min-w-0 flex-col gap-5">
+      <p aria-live="polite" className="sr-only">
+        {announcement}
+      </p>
+      {!query.data && query.isError ? navigation : null}
       {query.isError ? (
-        <>
-          {navigation}
-          <div
-            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-5"
-            role="alert"
+        <div
+          aria-label="Finance Overview error"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-5"
+          role="alert"
+        >
+          <p>
+            Finance Overview could not load for {formatOverviewMonth(month)}.
+            {query.data ? " Showing the last loaded Overview." : ""} Try again.
+          </p>
+          <Button
+            disabled={query.isFetching}
+            onClick={() => void query.refetch()}
+            size="sm"
+            variant="outline"
           >
-            <p>
-              Finance Overview could not load for {formatOverviewMonth(month)}.
-              Try again.
-            </p>
-            <Button
-              disabled={query.isFetching}
-              onClick={() => void query.refetch()}
-              size="sm"
-              variant="outline"
-            >
-              Retry Overview
-            </Button>
-          </div>
-        </>
-      ) : query.isPending ? (
+            Retry Overview
+          </Button>
+        </div>
+      ) : null}
+      {query.isPending && !query.data ? (
         <OverviewLoading navigation={navigation} />
-      ) : (
+      ) : query.data ? (
         <>
           {query.isFetching ? (
             <p className="text-sm text-muted-foreground" role="status">
@@ -572,17 +693,48 @@ export function OverviewDestination({
               navigation={navigation}
             />
           </div>
-          <Calendar
-            data={query.data}
-            date={date}
-            focusAfterMonthChange={focusMonth === month}
-            month={month}
-            onMonthFocusRestored={() => setFocusMonth(null)}
-            onSelect={(selectedDate) => navigateTo(month, selectedDate)}
-          />
-          <AccountSummary data={query.data} />
         </>
-      )}
+      ) : null}
+      <div
+        className={cn(
+          "grid min-w-0 gap-5",
+          query.data &&
+            "@5xl/overview:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]",
+        )}
+      >
+        <Calendar
+          countStatus={countStatus}
+          data={query.data}
+          date={date}
+          focusAfterMonthChange={focusMonth === month}
+          month={month}
+          onMonthFocusRestored={() => setFocusMonth(null)}
+          onSelect={(selectedDate) => navigateTo(month, selectedDate)}
+        />
+        <div className="flex min-w-0 flex-col gap-5">
+          <OverviewEntry
+            date={date}
+            ledgerId={ledgerId}
+            onAdjusted={recordAdjustment}
+            onRecorded={recordTransaction}
+          />
+          <OverviewSelectedDay
+            countStatus={countStatus}
+            count={
+              query.data?.days.find((day) => day.date === date)
+                ?.transactionCount
+            }
+            date={date}
+            key={`${ledgerId}:${date}`}
+            ledgerId={ledgerId}
+            onAnnounce={setAnnouncement}
+            onRecord={() =>
+              document.getElementById("quick-entry-amount")?.focus()
+            }
+          />
+        </div>
+      </div>
+      {query.data ? <AccountSummary data={query.data} /> : null}
     </div>
   );
 }

@@ -77,6 +77,7 @@ type AccountRefreshResult =
 type BalanceAdjustmentFormDialogProps = {
   accounts: AccountResponse[];
   currencies: CurrencyResponse[];
+  initialDate?: string;
   ledgerId: string;
   onAdjusted: (
     result: BalanceAdjustmentResultResponseOutput,
@@ -232,6 +233,7 @@ function ConflictReviewAlert({ review }: { review: ConflictReview }) {
 export function BalanceAdjustmentFormDialog({
   accounts,
   currencies,
+  initialDate,
   ledgerId,
   onAdjusted,
   onOpenChange,
@@ -255,7 +257,9 @@ export function BalanceAdjustmentFormDialog({
           }
         : null,
     );
-  const [transactionDate, setTransactionDate] = useState(localDateValue);
+  const [transactionDate, setTransactionDate] = useState(
+    initialDate ?? localDateValue,
+  );
   const [targetBalance, setTargetBalance] = useState("");
   const [note, setNote] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});

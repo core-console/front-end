@@ -48,6 +48,10 @@ export function reconcileMissingAdjustmentTransaction(
   const run = (async () => {
     const detailKey = getGetFinanceTransactionQueryKey(ledgerId, transactionId);
     const historyKey = getListFinanceTransactionsQueryKey(ledgerId);
+    void queryClient.invalidateQueries({
+      queryKey: getGetFinanceOverviewQueryKey(ledgerId),
+      refetchType: "none",
+    });
     await Promise.all([
       queryClient.cancelQueries({ queryKey: detailKey }),
       queryClient.cancelQueries({ queryKey: historyKey }),
@@ -68,10 +72,10 @@ export function reconcileMissingAdjustmentTransaction(
     );
     void Promise.allSettled([
       queryClient.invalidateQueries({ queryKey: historyKey }),
-      queryClient.resetQueries({
+      queryClient.invalidateQueries({
         queryKey: getListFinanceAccountsQueryKey(ledgerId),
       }),
-      queryClient.resetQueries({
+      queryClient.invalidateQueries({
         queryKey: getGetFinanceOverviewQueryKey(ledgerId),
       }),
       queryClient.resetQueries({

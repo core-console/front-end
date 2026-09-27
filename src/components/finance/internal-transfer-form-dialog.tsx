@@ -53,6 +53,7 @@ type AccountRefreshResult =
 type InternalTransferFormDialogProps = {
   accounts: AccountResponse[];
   currencies: CurrencyResponse[];
+  initialDate?: string;
   ledgerId: string;
   onOpenChange: (open: boolean) => void;
   onRecorded: (transaction: FinanceTransactionResponseOutput) => Promise<void>;
@@ -133,6 +134,7 @@ function serverMessage(error: unknown) {
 export function InternalTransferFormDialog({
   accounts,
   currencies,
+  initialDate,
   ledgerId,
   onOpenChange,
   onRecorded,
@@ -162,7 +164,9 @@ export function InternalTransferFormDialog({
   const [destinationIdentity, setDestinationIdentity] =
     useState<SelectedAccountIdentity | null>(null);
   const [amount, setAmount] = useState("");
-  const [transactionDate, setTransactionDate] = useState(localDateValue);
+  const [transactionDate, setTransactionDate] = useState(
+    initialDate ?? localDateValue,
+  );
   const [note, setNote] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
   const [serverError, setServerError] = useState("");

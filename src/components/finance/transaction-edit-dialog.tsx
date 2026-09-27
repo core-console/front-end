@@ -177,6 +177,10 @@ export function TransactionEditDialog({
   const unavailable = useCallback(async () => {
     const historyKey = getListFinanceTransactionsQueryKey(ledgerId);
     const detailKey = getGetFinanceTransactionQueryKey(ledgerId, transactionId);
+    void queryClient.invalidateQueries({
+      queryKey: getGetFinanceOverviewQueryKey(ledgerId),
+      refetchType: "none",
+    });
     await Promise.all([
       queryClient.cancelQueries({ queryKey: historyKey }),
       queryClient.cancelQueries({ queryKey: detailKey }),
@@ -197,10 +201,10 @@ export function TransactionEditDialog({
     );
     void Promise.allSettled([
       queryClient.invalidateQueries({ queryKey: historyKey }),
-      queryClient.resetQueries({
+      queryClient.invalidateQueries({
         queryKey: getListFinanceAccountsQueryKey(ledgerId),
       }),
-      queryClient.resetQueries({
+      queryClient.invalidateQueries({
         queryKey: getGetFinanceOverviewQueryKey(ledgerId),
       }),
       queryClient.resetQueries({
@@ -549,6 +553,10 @@ function EditForm({
       ledgerId,
       transaction.id,
     );
+    void queryClient.invalidateQueries({
+      queryKey: getGetFinanceOverviewQueryKey(ledgerId),
+      refetchType: "none",
+    });
     await Promise.all([
       queryClient.cancelQueries({ queryKey: historyKey }),
       queryClient.cancelQueries({ queryKey: detailKey }),
@@ -597,10 +605,10 @@ function EditForm({
         : [confirmed.account.id];
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: historyKey }),
-      queryClient.resetQueries({
+      queryClient.invalidateQueries({
         queryKey: getListFinanceAccountsQueryKey(ledgerId),
       }),
-      queryClient.resetQueries({
+      queryClient.invalidateQueries({
         queryKey: getGetFinanceOverviewQueryKey(ledgerId),
       }),
       ...[...new Set([...ids, ...nextIds])].map((id) =>

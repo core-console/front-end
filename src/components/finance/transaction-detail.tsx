@@ -236,6 +236,10 @@ export function TransactionDeleteDialog({
   const reconcile = async () => {
     const historyKey = getListFinanceTransactionsQueryKey(ledgerId);
     const detailKey = getGetFinanceTransactionQueryKey(ledgerId, transactionId);
+    void queryClient.invalidateQueries({
+      queryKey: getGetFinanceOverviewQueryKey(ledgerId),
+      refetchType: "none",
+    });
     await Promise.all([
       queryClient.cancelQueries({ queryKey: historyKey }),
       queryClient.cancelQueries({ queryKey: detailKey }),

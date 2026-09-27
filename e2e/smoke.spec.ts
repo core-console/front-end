@@ -276,6 +276,29 @@ const financeTransactionPages = [
   }),
 ] as const;
 
+const mockOverviewDetails = async (page: Page) => {
+  await page.route("**/api/finance/currencies", async (route) => {
+    await route.fulfill({ json: financeCurrencies });
+  });
+  await page.route("**/api/finance/ledgers/*/accounts", async (route) => {
+    await route.fulfill({ json: financeAccounts });
+  });
+  await page.route("**/api/finance/ledgers/*/categories", async (route) => {
+    await route.fulfill({ json: financeCategories });
+  });
+  await page.route("**/api/finance/ledgers/*/transactions?*", async (route) => {
+    const url = new URL(route.request().url());
+    const date = url.searchParams.get("fromDate");
+    const items = date?.endsWith("-16")
+      ? financeTransactionPages[1]!.items.map((item) => ({
+          ...item,
+          transactionDate: date,
+        }))
+      : [];
+    await route.fulfill({ json: { items, nextCursor: null } });
+  });
+};
+
 const longTransactionAccountName = "A".repeat(100);
 const longTransactionCategoryName = "C".repeat(100);
 const longTransactionAccount = AccountResponse.parse({
@@ -451,6 +474,7 @@ test("opens Users management in the production shell", async ({
 
 test("opens Finance with shared Ledger context", async ({ page }, testInfo) => {
   const errors = collectBrowserErrors(page);
+  await mockOverviewDetails(page);
   await page.route("**/api/finance/ledgers", async (route) => {
     await route.fulfill({ json: financeLedgers });
   });
@@ -485,6 +509,7 @@ test("keeps the seven-day Finance Calendar usable in the expanded 1024px shell",
   page,
 }, testInfo) => {
   const errors = collectBrowserErrors(page);
+  await mockOverviewDetails(page);
   await page.setViewportSize({ height: 900, width: 1024 });
   await page.route("**/api/finance/ledgers", async (route) => {
     await route.fulfill({ json: financeLedgers });
@@ -504,6 +529,14 @@ test("keeps the seven-day Finance Calendar usable in the expanded 1024px shell",
     name: "2026-08 Finance calendar",
   });
   await expect(calendar).toBeVisible();
+  await expect(
+    overview.getByRole("form", { name: "Quick Entry" }),
+  ).toBeVisible();
+  await expect(
+    overview
+      .getByRole("region", { name: "Selected-day activity" })
+      .getByRole("listitem"),
+  ).toHaveCount(2);
   await expect(calendar.getByRole("button")).toHaveCount(31);
   await expect(
     calendar.getByRole("button", {
@@ -535,6 +568,133 @@ test("keeps the seven-day Finance Calendar usable in the expanded 1024px shell",
   expectNoBrowserErrors(errors);
 });
 
+test("records Quick Entry with keyboard order and refreshes the selected day", async ({
+  page,
+}) => {
+  const errors = collectBrowserErrors(page);
+  await page.setViewportSize({ height: 900, width: 1024 });
+  await mockOverviewDetails(page);
+  let created = false;
+  let submissions = 0;
+  let submittedBody: unknown;
+  const transaction = FinanceTransactionResponse.parse({
+    account: {
+      id: financeAccounts[0]!.id,
+      name: financeAccounts[0]!.name,
+      status: "active",
+    },
+    categoryAllocations: [
+      {
+        amount: { amount: "12.34", currency: "CNY" },
+        category: {
+          id: financeCategories[0]!.id,
+          name: financeCategories[0]!.name,
+          status: "active",
+        },
+      },
+    ],
+    economicAmount: { amount: "12.34", currency: "CNY" },
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    kind: "expense",
+    ledgerId: financeLedgers[0]!.id,
+    note: "Cafe",
+    transactionDate: "2026-08-17",
+  });
+  await page.route("**/api/finance/ledgers", async (route) => {
+    await route.fulfill({ json: financeLedgers });
+  });
+  await page.route(
+    "**/api/finance/ledgers/*/overview?month=*",
+    async (route) => {
+      const summary = financeOverviewForMonth("2026-08");
+      await route.fulfill({
+        json: created
+          ? {
+              ...summary,
+              days: [
+                ...summary.days,
+                {
+                  ...summary.days[0],
+                  date: "2026-08-17",
+                  transactionCount: 1,
+                  transactionCountByKind: {
+                    balanceAdjustment: 0,
+                    expense: 1,
+                    income: 0,
+                    internalTransfer: 0,
+                  },
+                },
+              ],
+            }
+          : summary,
+      });
+    },
+  );
+  await page.route("**/api/finance/ledgers/*/transactions?*", async (route) => {
+    const date = new URL(route.request().url()).searchParams.get("fromDate");
+    if (date !== "2026-08-17") return route.fallback();
+    await route.fulfill({
+      json: { items: created ? [transaction] : [], nextCursor: null },
+    });
+  });
+  await page.route("**/api/finance/ledgers/*/transactions", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    submissions += 1;
+    submittedBody = route.request().postDataJSON();
+    created = true;
+    await route.fulfill({ json: transaction, status: 201 });
+  });
+  await page.goto(
+    `/finance/overview?ledger=${financeLedgers[0]!.id}&month=2026-08&date=2026-08-17`,
+  );
+  const form = page.getByRole("form", { name: "Quick Entry" });
+  const amount = form.getByRole("textbox", { name: "Amount" });
+  const account = form.getByRole("combobox", { name: "Account" });
+  const category = form.getByRole("combobox", { name: "Category" });
+  const note = form.getByRole("textbox", { name: "Note" });
+  await expect(form).toBeVisible();
+  await expect(amount).not.toBeFocused();
+  await amount.focus();
+  await page.keyboard.type("12.34");
+  await page.keyboard.press("Tab");
+  await expect(account).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(category).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(category).toHaveValue(financeCategories[0]!.id);
+  await page.keyboard.press("Tab");
+  await expect(note).toBeFocused();
+  await page.keyboard.type("Cafe");
+  await page.keyboard.press("Enter");
+  await expect.poll(() => submissions).toBe(1);
+  expect(submittedBody).toEqual({
+    accountId: financeAccounts[0]!.id,
+    categoryAllocations: [
+      {
+        amount: { amount: "12.34", currency: "CNY" },
+        categoryId: financeCategories[0]!.id,
+      },
+    ],
+    economicAmount: { amount: "12.34", currency: "CNY" },
+    kind: "expense",
+    note: "Cafe",
+    transactionDate: "2026-08-17",
+  });
+  await expect(amount).toHaveValue("");
+  await expect(amount).toBeFocused();
+  await expect(note).toHaveValue("");
+  await expect(category).toHaveValue(financeCategories[0]!.id);
+  await expect(
+    page.getByRole("button", { name: /2026-08-17.*1 transaction.*Expense/ }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Selected-day activity" })
+      .getByText(/12.34 CNY from Operating cash/),
+  ).toBeVisible();
+  expectNoBrowserErrors(errors);
+});
+
 test.describe("Finance Overview civil dates in Pacific/Apia", () => {
   test.use({ timezoneId: "Pacific/Apia" });
 
@@ -542,6 +702,7 @@ test.describe("Finance Overview civil dates in Pacific/Apia", () => {
     page,
   }) => {
     const errors = collectBrowserErrors(page);
+    await mockOverviewDetails(page);
     await page.route("**/api/finance/ledgers", async (route) => {
       await route.fulfill({ json: financeLedgers });
     });

@@ -1,7 +1,4 @@
 import {
-  type InfiniteData,
-  type QueryClient,
-  type QueryKey,
   useInfiniteQuery,
   useMutationState,
   useQueryClient,
@@ -43,6 +40,7 @@ import {
 } from "@/components/finance/finance-route-state";
 import { InternalTransferFormDialog } from "@/components/finance/internal-transfer-form-dialog";
 import { TransactionFormDialog } from "@/components/finance/transaction-form-dialog";
+import { reconcileLedgerTransactionHistories } from "@/components/finance/transaction-history-cache";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -138,102 +136,6 @@ function appliedFilterKey(filters: AppliedFilters) {
     filters.resource.accountId,
     filters.resource.categoryId,
   ].join("|");
-}
-
-function transactionMatchesParams(
-  transaction: FinanceTransactionResponseOutput,
-  params: ListFinanceTransactionsParams,
-) {
-  if (params.fromDate && transaction.transactionDate < params.fromDate) {
-    return false;
-  }
-  if (params.toDate && transaction.transactionDate > params.toDate) {
-    return false;
-  }
-  if (params.kind && transaction.kind !== params.kind) return false;
-  if (
-    params.accountId &&
-    (transaction.kind === "income" || transaction.kind === "expense") &&
-    transaction.account.id !== params.accountId
-  ) {
-    return false;
-  }
-  if (params.accountId && transaction.kind === "internalTransfer") {
-    if (
-      transaction.sourceAccount.id !== params.accountId &&
-      transaction.destinationAccount.id !== params.accountId
-    ) {
-      return false;
-    }
-  }
-  if (
-    params.accountId &&
-    transaction.kind === "balanceAdjustment" &&
-    transaction.account.id !== params.accountId
-  ) {
-    return false;
-  }
-  if (params.categoryId) {
-    if (
-      (transaction.kind !== "income" && transaction.kind !== "expense") ||
-      transaction.categoryAllocations[0]?.category?.id !== params.categoryId
-    ) {
-      return false;
-    }
-  }
-  if (params.uncategorized) {
-    if (
-      (transaction.kind !== "income" && transaction.kind !== "expense") ||
-      transaction.categoryAllocations[0]?.category !== null
-    ) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function compareTransactionsByBackendOrder(
-  left: FinanceTransactionResponseOutput,
-  right: FinanceTransactionResponseOutput,
-) {
-  if (left.transactionDate !== right.transactionDate) {
-    return left.transactionDate < right.transactionDate ? 1 : -1;
-  }
-  return left.id < right.id ? 1 : left.id > right.id ? -1 : 0;
-}
-
-function reconcileTransactionHistory(
-  queryClient: QueryClient,
-  queryKey: QueryKey,
-  params: ListFinanceTransactionsParams,
-  confirmed: FinanceTransactionResponseOutput,
-) {
-  queryClient.setQueryData<
-    InfiniteData<TransactionHistoryPageResponseOutput, string | undefined>
-  >(queryKey, (current) => {
-    if (!current || !transactionMatchesParams(confirmed, params)) {
-      return current;
-    }
-
-    const items = current.pages
-      .flatMap((page) => page.items)
-      .filter((transaction) => transaction.id !== confirmed.id);
-    items.push(confirmed);
-    items.sort(compareTransactionsByBackendOrder);
-    let offset = 0;
-    const pages = current.pages.map((page, index) => {
-      const isLastPage = index === current.pages.length - 1;
-      const pageSize = isLastPage ? items.length - offset : page.items.length;
-      const nextPage = {
-        ...page,
-        items: items.slice(offset, offset + pageSize),
-      };
-      offset += pageSize;
-      return nextPage;
-    });
-
-    return { ...current, pages };
-  });
 }
 
 function transactionMutationLedgerId(variables: unknown) {
@@ -895,12 +797,7 @@ export function TransactionsDestination({
   const recordTransaction = async (
     transaction: FinanceTransactionResponseOutput,
   ) => {
-    reconcileTransactionHistory(
-      queryClient,
-      transactionsQueryKey,
-      params,
-      transaction,
-    );
+    reconcileLedgerTransactionHistories(queryClient, ledgerId, transaction);
     setAnnouncement(
       `${
         transaction.kind === "expense"
@@ -927,10 +824,9 @@ export function TransactionsDestination({
     accountId: string,
   ) => {
     if (result.outcome === "created") {
-      reconcileTransactionHistory(
+      reconcileLedgerTransactionHistories(
         queryClient,
-        transactionsQueryKey,
-        params,
+        ledgerId,
         result.transaction,
       );
       await Promise.all([

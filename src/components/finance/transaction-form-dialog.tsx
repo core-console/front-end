@@ -19,7 +19,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -36,6 +35,7 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import { formatOverviewDate } from "@/components/finance/overview-date";
 
 type OrdinaryTransactionKind = "expense" | "income";
 type FormErrors = Partial<
@@ -59,6 +59,8 @@ type TransactionFormDialogProps = {
   onRecorded: (transaction: FinanceTransactionResponseOutput) => Promise<void>;
   open: boolean;
   refreshReferences: () => Promise<unknown>;
+  inlineDate?: string;
+  submitBlocked?: boolean;
 };
 
 const positivePlainDecimalPattern = /^\d+(?:\.\d+)?$/;
@@ -98,7 +100,10 @@ export function TransactionFormDialog({
   onRecorded,
   open,
   refreshReferences,
+  inlineDate,
+  submitBlocked = false,
 }: TransactionFormDialogProps) {
+  const inline = inlineDate !== undefined;
   const accountLabels = buildAccountWorkflowLabels(accounts);
   const initialAccount = accounts.find(
     (account) => account.status === "active",
@@ -135,6 +140,10 @@ export function TransactionFormDialog({
   const categoryRef = useRef<HTMLSelectElement>(null);
   const transactionDateRef = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
+  const inlineNoteRef = useRef<HTMLInputElement>(null);
+  const submittingRef = useRef(false);
+  const focusAfterSuccessRef = useRef(false);
+  const effectiveDate = inlineDate ?? transactionDate;
   const selectedAccount = accounts.find((account) => account.id === accountId);
   const selectedCategory = categories.find(
     (category) => category.id === categoryId,
@@ -162,9 +171,17 @@ export function TransactionFormDialog({
       kind === "expense"
         ? ExpenseTransactionResponse.parse(response.data)
         : IncomeTransactionResponse.parse(response.data);
-    const refresh = onRecorded(transaction);
-    onOpenChange(false);
-    await refresh;
+    if (inline) {
+      await onRecorded(transaction);
+      setAmount("");
+      setNote("");
+      setErrors({});
+      focusAfterSuccessRef.current = true;
+    } else {
+      const refresh = onRecorded(transaction);
+      onOpenChange(false);
+      await refresh;
+    }
   };
   const mutation = useCreateFinanceTransaction({
     mutation: {
@@ -216,8 +233,18 @@ export function TransactionFormDialog({
         setFocusField(feedback.field);
       },
       onSuccess: finish,
+      onSettled: () => {
+        submittingRef.current = false;
+      },
     },
   });
+
+  useEffect(() => {
+    if (!mutation.isPending && focusAfterSuccessRef.current) {
+      focusAfterSuccessRef.current = false;
+      amountRef.current?.focus();
+    }
+  }, [mutation.isPending]);
 
   useEffect(() => {
     if (!focusField) return;
@@ -250,7 +277,7 @@ export function TransactionFormDialog({
       category.status === "active" &&
       !unavailableCategoryLabels.has(category.id),
   );
-  const formId = `record-${kind}`;
+  const formId = inline ? "quick-entry" : `record-${kind}`;
   const kindLabel = kind === "expense" ? "Expense" : "Income";
 
   const clearFieldError = (key: keyof FormErrors) => {
@@ -260,7 +287,7 @@ export function TransactionFormDialog({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (mutation.isPending) return;
+    if (mutation.isPending || submittingRef.current || submitBlocked) return;
 
     const nextErrors: FormErrors = {};
     const trimmedNote = note.trim();
@@ -288,11 +315,11 @@ export function TransactionFormDialog({
       nextErrors.categoryId =
         "Choose an active Category or explicit Uncategorized.";
     }
-    if (!FinanceRequestDate.safeParse(transactionDate).success) {
+    if (!FinanceRequestDate.safeParse(effectiveDate).success) {
       nextErrors.transactionDate = "Enter a valid Transaction Date.";
     } else if (
       selectedAccount &&
-      transactionDate < selectedAccount.trackingStartDate
+      effectiveDate < selectedAccount.trackingStartDate
     ) {
       nextErrors.transactionDate =
         "Choose a Transaction Date on or after the Account's Tracking Start Date.";
@@ -315,11 +342,11 @@ export function TransactionFormDialog({
       return;
     }
     if (nextErrors.transactionDate) {
-      transactionDateRef.current?.focus();
+      (inline ? accountRef : transactionDateRef).current?.focus();
       return;
     }
     if (nextErrors.note) {
-      noteRef.current?.focus();
+      (inline ? inlineNoteRef : noteRef).current?.focus();
       return;
     }
     if (!selectedAccount || !selectedCurrency) return;
@@ -339,10 +366,282 @@ export function TransactionFormDialog({
       economicAmount: money,
       kind,
       note: trimmedNote || null,
-      transactionDate,
+      transactionDate: effectiveDate,
     });
+    submittingRef.current = true;
     mutation.mutate({ data, ledgerId });
   };
+
+  const form = (
+    <form
+      aria-busy={mutation.isPending}
+      aria-describedby={inline ? "quick-entry-effective-date" : undefined}
+      aria-label={inline ? "Quick Entry" : `Record ${kind}`}
+      className="flex flex-col gap-4"
+      noValidate
+      onSubmit={handleSubmit}
+    >
+      {inline ? (
+        <>
+          <div
+            aria-label="Quick Entry kind"
+            className="flex gap-2"
+            role="group"
+          >
+            <Button
+              aria-pressed={kind === "expense"}
+              disabled={mutation.isPending}
+              onClick={() => onOpenChange(false)}
+              type="button"
+              variant={kind === "expense" ? "default" : "outline"}
+            >
+              Expense
+            </Button>
+            <Button
+              aria-pressed={kind === "income"}
+              disabled={mutation.isPending}
+              onClick={() => onOpenChange(true)}
+              type="button"
+              variant={kind === "income" ? "default" : "outline"}
+            >
+              Income
+            </Button>
+          </div>
+          <p
+            className="text-sm text-muted-foreground"
+            id="quick-entry-effective-date"
+          >
+            Effective Transaction Date:{" "}
+            <time dateTime={effectiveDate}>
+              {formatOverviewDate(effectiveDate)}
+            </time>
+          </p>
+        </>
+      ) : null}
+      <FieldGroup>
+        <Field data-invalid={Boolean(errors.amount)}>
+          <FieldLabel htmlFor={`${formId}-amount`}>Amount</FieldLabel>
+          <Input
+            aria-describedby={`${formId}-amount-description${inline ? " quick-entry-effective-date" : ""}`}
+            aria-errormessage={
+              errors.amount ? `${formId}-amount-error` : undefined
+            }
+            aria-invalid={Boolean(errors.amount)}
+            autoFocus={!inline}
+            disabled={mutation.isPending}
+            id={`${formId}-amount`}
+            inputMode="decimal"
+            onChange={(event) => {
+              setAmount(event.target.value);
+              clearFieldError("amount");
+            }}
+            ref={amountRef}
+            value={amount}
+          />
+          {selectedAccount ? (
+            <FieldDescription id={`${formId}-amount-description`}>
+              Amount currency: <span>{selectedAccount.currency}</span> from the
+              selected Account.
+            </FieldDescription>
+          ) : (
+            <FieldDescription id={`${formId}-amount-description`}>
+              Select an Account to establish currency.
+            </FieldDescription>
+          )}
+          <FieldError id={`${formId}-amount-error`}>{errors.amount}</FieldError>
+        </Field>
+        <Field data-invalid={Boolean(errors.accountId)}>
+          <FieldLabel htmlFor={`${formId}-account`}>Account</FieldLabel>
+          <NativeSelect
+            aria-describedby={`${formId}-account-description`}
+            aria-errormessage={
+              errors.accountId ? `${formId}-account-error` : undefined
+            }
+            aria-invalid={Boolean(errors.accountId)}
+            disabled={mutation.isPending}
+            id={`${formId}-account`}
+            onChange={(event) => {
+              const nextAccountId = event.target.value;
+              const nextAccount = activeAccounts.find(
+                (account) => account.id === nextAccountId,
+              );
+              setAccountId(nextAccountId);
+              setSelectedAccountIdentity(
+                nextAccount
+                  ? {
+                      id: nextAccount.id,
+                      label:
+                        accountLabels.get(nextAccount.id) ?? nextAccount.name,
+                    }
+                  : null,
+              );
+              clearFieldError("accountId");
+              clearFieldError("amount");
+              clearFieldError("transactionDate");
+            }}
+            ref={accountRef}
+            value={accountId}
+          >
+            <NativeSelectOption value="">Select an Account</NativeSelectOption>
+            {accountId &&
+            !activeAccounts.some((account) => account.id === accountId) ? (
+              <NativeSelectOption disabled value={accountId}>
+                {selectedAccountLabel ?? "Selected Account"} (unavailable)
+              </NativeSelectOption>
+            ) : null}
+            {activeAccounts.map((account) => (
+              <NativeSelectOption key={account.id} value={account.id}>
+                {accountLabels.get(account.id)} · {account.currency}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+          <FieldDescription id={`${formId}-account-description`}>
+            Only active Accounts can be selected. The selected Account supplies
+            currency.
+          </FieldDescription>
+          <FieldError id={`${formId}-account-error`}>
+            {errors.accountId}
+          </FieldError>
+        </Field>
+        <Field data-invalid={Boolean(errors.categoryId)}>
+          <FieldLabel htmlFor={`${formId}-category`}>Category</FieldLabel>
+          <NativeSelect
+            aria-describedby={`${formId}-category-description`}
+            aria-errormessage={
+              errors.categoryId ? `${formId}-category-error` : undefined
+            }
+            aria-invalid={Boolean(errors.categoryId)}
+            disabled={mutation.isPending}
+            id={`${formId}-category`}
+            onChange={(event) => {
+              const nextCategoryId = event.target.value;
+              const nextCategory = activeCategories.find(
+                (category) => category.id === nextCategoryId,
+              );
+              setCategoryId(nextCategoryId);
+              setSelectedCategoryIdentity(
+                nextCategory
+                  ? {
+                      id: nextCategory.id,
+                      label: categoryWorkflowLabel(nextCategory, categories),
+                    }
+                  : null,
+              );
+              clearFieldError("categoryId");
+            }}
+            ref={categoryRef}
+            value={categoryId}
+          >
+            <NativeSelectOption value="">Uncategorized</NativeSelectOption>
+            {categoryId &&
+            !activeCategories.some((category) => category.id === categoryId) ? (
+              <NativeSelectOption disabled value={categoryId}>
+                {selectedCategoryLabel ?? "Selected Category"} (unavailable)
+              </NativeSelectOption>
+            ) : null}
+            {activeCategories.map((category) => (
+              <NativeSelectOption key={category.id} value={category.id}>
+                {categoryWorkflowLabel(category, categories)}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+          <FieldDescription id={`${formId}-category-description`}>
+            Categories are optional; Uncategorized is a complete allocation.
+          </FieldDescription>
+          <FieldError id={`${formId}-category-error`}>
+            {errors.categoryId}
+          </FieldError>
+        </Field>
+        {!inline ? (
+          <Field data-invalid={Boolean(errors.transactionDate)}>
+            <FieldLabel htmlFor={`${formId}-date`}>Transaction date</FieldLabel>
+            <Input
+              aria-errormessage={
+                errors.transactionDate ? `${formId}-date-error` : undefined
+              }
+              aria-invalid={Boolean(errors.transactionDate)}
+              disabled={mutation.isPending}
+              id={`${formId}-date`}
+              onChange={(event) => {
+                setTransactionDate(event.target.value);
+                clearFieldError("transactionDate");
+              }}
+              ref={transactionDateRef}
+              type="date"
+              value={transactionDate}
+            />
+            <FieldError id={`${formId}-date-error`}>
+              {errors.transactionDate}
+            </FieldError>
+          </Field>
+        ) : errors.transactionDate ? (
+          <p className="text-sm text-destructive" role="alert">
+            {errors.transactionDate}
+          </p>
+        ) : null}
+        <Field data-invalid={Boolean(errors.note)}>
+          <FieldLabel htmlFor={`${formId}-note`}>Note</FieldLabel>
+          {inline ? (
+            <Input
+              aria-errormessage={
+                errors.note ? `${formId}-note-error` : undefined
+              }
+              aria-invalid={Boolean(errors.note)}
+              disabled={mutation.isPending}
+              id={`${formId}-note`}
+              onChange={(event) => {
+                setNote(event.target.value);
+                clearFieldError("note");
+              }}
+              placeholder="Optional"
+              ref={inlineNoteRef}
+              value={note}
+            />
+          ) : (
+            <Textarea
+              aria-errormessage={
+                errors.note ? `${formId}-note-error` : undefined
+              }
+              aria-invalid={Boolean(errors.note)}
+              disabled={mutation.isPending}
+              id={`${formId}-note`}
+              onChange={(event) => {
+                setNote(event.target.value);
+                clearFieldError("note");
+              }}
+              placeholder="Optional"
+              ref={noteRef}
+              rows={3}
+              value={note}
+            />
+          )}
+          <FieldError id={`${formId}-note-error`}>{errors.note}</FieldError>
+        </Field>
+      </FieldGroup>
+      {serverError ? (
+        <p className="text-sm text-destructive" role="alert">
+          {serverError}
+        </p>
+      ) : null}
+      <div className="flex justify-end gap-2">
+        {!inline ? (
+          <Button
+            disabled={mutation.isPending}
+            onClick={() => onOpenChange(false)}
+            type="button"
+            variant="ghost"
+          >
+            Cancel
+          </Button>
+        ) : null}
+        <Button disabled={mutation.isPending || submitBlocked} type="submit">
+          {mutation.isPending ? `Recording ${kind}…` : `Record ${kind}`}
+        </Button>
+      </div>
+    </form>
+  );
+
+  if (inline) return form;
 
   return (
     <Dialog
@@ -365,219 +664,7 @@ export function TransactionFormDialog({
             supplies currency, and the Transaction Date may be in the future.
           </DialogDescription>
         </DialogHeader>
-        <form
-          aria-label={`Record ${kind}`}
-          className="flex flex-col gap-4"
-          noValidate
-          onSubmit={handleSubmit}
-        >
-          <FieldGroup>
-            <Field data-invalid={Boolean(errors.amount)}>
-              <FieldLabel htmlFor={`${formId}-amount`}>Amount</FieldLabel>
-              <Input
-                aria-describedby={`${formId}-amount-description`}
-                aria-errormessage={
-                  errors.amount ? `${formId}-amount-error` : undefined
-                }
-                aria-invalid={Boolean(errors.amount)}
-                autoFocus
-                disabled={mutation.isPending}
-                id={`${formId}-amount`}
-                inputMode="decimal"
-                onChange={(event) => {
-                  setAmount(event.target.value);
-                  clearFieldError("amount");
-                }}
-                ref={amountRef}
-                value={amount}
-              />
-              {selectedAccount ? (
-                <FieldDescription id={`${formId}-amount-description`}>
-                  Amount currency: <span>{selectedAccount.currency}</span> from
-                  the selected Account.
-                </FieldDescription>
-              ) : (
-                <FieldDescription id={`${formId}-amount-description`}>
-                  Select an Account to establish currency.
-                </FieldDescription>
-              )}
-              <FieldError id={`${formId}-amount-error`}>
-                {errors.amount}
-              </FieldError>
-            </Field>
-            <Field data-invalid={Boolean(errors.accountId)}>
-              <FieldLabel htmlFor={`${formId}-account`}>Account</FieldLabel>
-              <NativeSelect
-                aria-describedby={`${formId}-account-description`}
-                aria-errormessage={
-                  errors.accountId ? `${formId}-account-error` : undefined
-                }
-                aria-invalid={Boolean(errors.accountId)}
-                disabled={mutation.isPending}
-                id={`${formId}-account`}
-                onChange={(event) => {
-                  const nextAccountId = event.target.value;
-                  const nextAccount = activeAccounts.find(
-                    (account) => account.id === nextAccountId,
-                  );
-                  setAccountId(nextAccountId);
-                  setSelectedAccountIdentity(
-                    nextAccount
-                      ? {
-                          id: nextAccount.id,
-                          label:
-                            accountLabels.get(nextAccount.id) ??
-                            nextAccount.name,
-                        }
-                      : null,
-                  );
-                  clearFieldError("accountId");
-                  clearFieldError("amount");
-                  clearFieldError("transactionDate");
-                }}
-                ref={accountRef}
-                value={accountId}
-              >
-                <NativeSelectOption value="">
-                  Select an Account
-                </NativeSelectOption>
-                {accountId &&
-                !activeAccounts.some((account) => account.id === accountId) ? (
-                  <NativeSelectOption disabled value={accountId}>
-                    {selectedAccountLabel ?? "Selected Account"} (unavailable)
-                  </NativeSelectOption>
-                ) : null}
-                {activeAccounts.map((account) => (
-                  <NativeSelectOption key={account.id} value={account.id}>
-                    {accountLabels.get(account.id)} · {account.currency}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-              <FieldDescription id={`${formId}-account-description`}>
-                Only active Accounts can be selected. The selected Account
-                supplies currency.
-              </FieldDescription>
-              <FieldError id={`${formId}-account-error`}>
-                {errors.accountId}
-              </FieldError>
-            </Field>
-            <Field data-invalid={Boolean(errors.categoryId)}>
-              <FieldLabel htmlFor={`${formId}-category`}>Category</FieldLabel>
-              <NativeSelect
-                aria-describedby={`${formId}-category-description`}
-                aria-errormessage={
-                  errors.categoryId ? `${formId}-category-error` : undefined
-                }
-                aria-invalid={Boolean(errors.categoryId)}
-                disabled={mutation.isPending}
-                id={`${formId}-category`}
-                onChange={(event) => {
-                  const nextCategoryId = event.target.value;
-                  const nextCategory = activeCategories.find(
-                    (category) => category.id === nextCategoryId,
-                  );
-                  setCategoryId(nextCategoryId);
-                  setSelectedCategoryIdentity(
-                    nextCategory
-                      ? {
-                          id: nextCategory.id,
-                          label: categoryWorkflowLabel(
-                            nextCategory,
-                            categories,
-                          ),
-                        }
-                      : null,
-                  );
-                  clearFieldError("categoryId");
-                }}
-                ref={categoryRef}
-                value={categoryId}
-              >
-                <NativeSelectOption value="">Uncategorized</NativeSelectOption>
-                {categoryId &&
-                !activeCategories.some(
-                  (category) => category.id === categoryId,
-                ) ? (
-                  <NativeSelectOption disabled value={categoryId}>
-                    {selectedCategoryLabel ?? "Selected Category"} (unavailable)
-                  </NativeSelectOption>
-                ) : null}
-                {activeCategories.map((category) => (
-                  <NativeSelectOption key={category.id} value={category.id}>
-                    {categoryWorkflowLabel(category, categories)}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-              <FieldDescription id={`${formId}-category-description`}>
-                Categories are optional; Uncategorized is a complete allocation.
-              </FieldDescription>
-              <FieldError id={`${formId}-category-error`}>
-                {errors.categoryId}
-              </FieldError>
-            </Field>
-            <Field data-invalid={Boolean(errors.transactionDate)}>
-              <FieldLabel htmlFor={`${formId}-date`}>
-                Transaction date
-              </FieldLabel>
-              <Input
-                aria-errormessage={
-                  errors.transactionDate ? `${formId}-date-error` : undefined
-                }
-                aria-invalid={Boolean(errors.transactionDate)}
-                disabled={mutation.isPending}
-                id={`${formId}-date`}
-                onChange={(event) => {
-                  setTransactionDate(event.target.value);
-                  clearFieldError("transactionDate");
-                }}
-                ref={transactionDateRef}
-                type="date"
-                value={transactionDate}
-              />
-              <FieldError id={`${formId}-date-error`}>
-                {errors.transactionDate}
-              </FieldError>
-            </Field>
-            <Field data-invalid={Boolean(errors.note)}>
-              <FieldLabel htmlFor={`${formId}-note`}>Note</FieldLabel>
-              <Textarea
-                aria-errormessage={
-                  errors.note ? `${formId}-note-error` : undefined
-                }
-                aria-invalid={Boolean(errors.note)}
-                disabled={mutation.isPending}
-                id={`${formId}-note`}
-                onChange={(event) => {
-                  setNote(event.target.value);
-                  clearFieldError("note");
-                }}
-                placeholder="Optional"
-                ref={noteRef}
-                rows={3}
-                value={note}
-              />
-              <FieldError id={`${formId}-note-error`}>{errors.note}</FieldError>
-            </Field>
-          </FieldGroup>
-          {serverError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {serverError}
-            </p>
-          ) : null}
-          <DialogFooter>
-            <Button
-              disabled={mutation.isPending}
-              onClick={() => onOpenChange(false)}
-              type="button"
-              variant="ghost"
-            >
-              Cancel
-            </Button>
-            <Button disabled={mutation.isPending} type="submit">
-              {mutation.isPending ? `Recording ${kind}…` : `Record ${kind}`}
-            </Button>
-          </DialogFooter>
-        </form>
+        {form}
       </DialogContent>
     </Dialog>
   );

@@ -601,6 +601,10 @@ function EditForm({
         result.transaction.ledgerId !== ledgerId)
     )
       throw new Error("Replacement response identity mismatch");
+    void queryClient.invalidateQueries({
+      queryKey: getGetFinanceOverviewQueryKey(ledgerId),
+      refetchType: "none",
+    });
     const originallyPresent = new Set(
       queryClient
         .getQueriesData<InfiniteData<TransactionHistoryPageResponseOutput>>({
@@ -675,10 +679,10 @@ function EditForm({
     applyOutcome();
     await Promise.allSettled([
       queryClient.invalidateQueries({ queryKey: historyKey }),
-      queryClient.resetQueries({
+      queryClient.invalidateQueries({
         queryKey: getListFinanceAccountsQueryKey(ledgerId),
       }),
-      queryClient.resetQueries({
+      queryClient.invalidateQueries({
         queryKey: getGetFinanceOverviewQueryKey(ledgerId),
       }),
       ...[...new Set([original.id, accountId])].map((id) =>
