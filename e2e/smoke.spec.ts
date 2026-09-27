@@ -13,6 +13,7 @@ import {
   CategoryResponse,
   CurrencyResponse,
   FinanceTransactionResponse,
+  FinanceOverviewResponse,
   LedgerResponse,
   MeResponse,
   TransactionHistoryPageResponse,
@@ -111,6 +112,69 @@ const financeAccounts = AccountResponse.array().parse([
     trackingStartDate: "2026-01-01",
   },
 ]);
+
+const financeOverviewForMonth = (month: string) =>
+  FinanceOverviewResponse.parse({
+    accounts: financeAccounts,
+    days: [
+      {
+        activityByCurrency: [
+          {
+            currency: "CNY",
+            expense: { amount: "0.00", currency: "CNY" },
+            income: { amount: "0.00", currency: "CNY" },
+            net: { amount: "0.00", currency: "CNY" },
+            transactionCount: 1,
+          },
+          {
+            currency: "USD",
+            expense: { amount: "0.00", currency: "USD" },
+            income: { amount: "0.00", currency: "USD" },
+            net: { amount: "0.00", currency: "USD" },
+            transactionCount: 1,
+          },
+        ],
+        date: `${month}-16`,
+        transactionCount: 2,
+        transactionCountByKind: {
+          balanceAdjustment: 1,
+          expense: 0,
+          income: 0,
+          internalTransfer: 1,
+        },
+      },
+    ],
+    financialPositionByCurrency: [
+      {
+        assetTotal: { amount: "21620.35", currency: "CNY" },
+        currency: "CNY",
+        liabilityTotal: { amount: "0.00", currency: "CNY" },
+        netPosition: { amount: "21620.35", currency: "CNY" },
+      },
+      {
+        assetTotal: { amount: "0.00", currency: "USD" },
+        currency: "USD",
+        liabilityTotal: { amount: "842.10", currency: "USD" },
+        netPosition: { amount: "-842.10", currency: "USD" },
+      },
+    ],
+    ledger: financeLedgers[0],
+    month,
+    monthSummaryByCurrency: [
+      {
+        currency: "CNY",
+        expense: { amount: "0.00", currency: "CNY" },
+        income: { amount: "0.00", currency: "CNY" },
+        net: { amount: "0.00", currency: "CNY" },
+      },
+      {
+        currency: "USD",
+        expense: { amount: "0.00", currency: "USD" },
+        income: { amount: "0.00", currency: "USD" },
+        net: { amount: "0.00", currency: "USD" },
+      },
+    ],
+  });
 
 const financeCategories = CategoryResponse.array().parse([
   {
@@ -296,7 +360,8 @@ const expectNoAccessibilityViolations = async (
   surface: Locator,
   testInfo: TestInfo,
 ) => {
-  await surface.evaluate(async (element) => {
+  await surface.waitFor({ state: "visible" });
+  await page.locator("body").evaluate(async (element) => {
     await Promise.all(
       element
         .getAnimations({ subtree: true })
@@ -389,12 +454,21 @@ test("opens Finance with shared Ledger context", async ({ page }, testInfo) => {
   await page.route("**/api/finance/ledgers", async (route) => {
     await route.fulfill({ json: financeLedgers });
   });
+  await page.route(
+    "**/api/finance/ledgers/*/overview?month=*",
+    async (route) => {
+      const month = new URL(route.request().url()).searchParams.get("month")!;
+      await route.fulfill({ json: financeOverviewForMonth(month) });
+    },
+  );
   const finance = page.getByRole("region", { name: "Overview" });
 
   await page.goto("/finance/overview");
 
   await expect(page).toHaveURL(
-    new RegExp(`/finance/overview\\?ledger=${financeLedgers[0]!.id}$`),
+    new RegExp(
+      `/finance/overview\\?ledger=${financeLedgers[0]!.id}&month=\\d{4}-\\d{2}&date=\\d{4}-\\d{2}-\\d{2}$`,
+    ),
   );
   await expect(page.getByRole("button", { name: "Personal" })).toBeVisible();
   await expect(
@@ -405,6 +479,97 @@ test("opens Finance with shared Ledger context", async ({ page }, testInfo) => {
   ).toBeVisible();
   await expectNoAccessibilityViolations(page, finance, testInfo);
   expectNoBrowserErrors(errors);
+});
+
+test("keeps the seven-day Finance Calendar usable in the expanded 1024px shell", async ({
+  page,
+}, testInfo) => {
+  const errors = collectBrowserErrors(page);
+  await page.setViewportSize({ height: 900, width: 1024 });
+  await page.route("**/api/finance/ledgers", async (route) => {
+    await route.fulfill({ json: financeLedgers });
+  });
+  await page.route(
+    "**/api/finance/ledgers/*/overview?month=*",
+    async (route) => {
+      const month = new URL(route.request().url()).searchParams.get("month")!;
+      await route.fulfill({ json: financeOverviewForMonth(month) });
+    },
+  );
+  const overview = page.getByRole("region", { exact: true, name: "Overview" });
+  await page.goto(
+    `/finance/overview?ledger=${financeLedgers[0]!.id}&month=2026-08&date=2026-08-16`,
+  );
+  const calendar = overview.getByRole("grid", {
+    name: "2026-08 Finance calendar",
+  });
+  await expect(calendar).toBeVisible();
+  await expect(calendar.getByRole("button")).toHaveCount(31);
+  await expect(
+    calendar.getByRole("button", {
+      name: /2026-08-16.*Selected.*2 transactions.*Internal Transfer.*Balance Adjustment.*CNY and USD/,
+    }),
+  ).toBeVisible();
+  await expect(
+    overview
+      .getByRole("region", { name: "Current financial position" })
+      .getByText("21,620.35 CNY")
+      .first(),
+  ).toBeVisible();
+  await expect(
+    overview
+      .getByRole("region", { name: "Current financial position" })
+      .getByText("-842.10 USD"),
+  ).toBeVisible();
+  for (const width of [1024, 1280, 1440]) {
+    await page.setViewportSize({ height: 900, width });
+    await expect(calendar).toBeVisible();
+    expect(
+      await page.evaluate<boolean>(
+        "document.documentElement.scrollWidth <= document.documentElement.clientWidth",
+      ),
+    ).toBe(true);
+  }
+  await page.setViewportSize({ height: 900, width: 1024 });
+  await expectNoAccessibilityViolations(page, overview, testInfo);
+  expectNoBrowserErrors(errors);
+});
+
+test.describe("Finance Overview civil dates in Pacific/Apia", () => {
+  test.use({ timezoneId: "Pacific/Apia" });
+
+  test("speaks the skipped 2011-12-30 date and weekday without shifting it", async ({
+    page,
+  }) => {
+    const errors = collectBrowserErrors(page);
+    await page.route("**/api/finance/ledgers", async (route) => {
+      await route.fulfill({ json: financeLedgers });
+    });
+    await page.route(
+      "**/api/finance/ledgers/*/overview?month=*",
+      async (route) => {
+        await route.fulfill({ json: financeOverviewForMonth("2011-12") });
+      },
+    );
+
+    await page.goto(
+      `/finance/overview?ledger=${financeLedgers[0]!.id}&month=2011-12&date=2011-12-30`,
+    );
+    const calendar = page.getByRole("grid", {
+      name: "2011-12 Finance calendar",
+    });
+    await expect(
+      calendar.getByRole("button", {
+        name: /2011-12-30, Friday, December 30, 2011.*Selected/,
+      }),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByRole("region", { name: "Calendar" })
+        .getByText("December 2011 · Selected Friday, December 30, 2011"),
+    ).toBeVisible();
+    expectNoBrowserErrors(errors);
+  });
 });
 
 test("renders accessible responsive Finance Accounts", async ({

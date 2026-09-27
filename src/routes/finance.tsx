@@ -12,6 +12,7 @@ import { useListFinanceLedgers } from "@/api/generated/core-console";
 import { LedgerResponse } from "@/api/generated/schemas";
 import { LedgerNameDialog } from "@/components/finance/ledger-name-dialog";
 import { LedgerOnboarding } from "@/components/finance/ledger-onboarding";
+import { resolveOverviewDate } from "@/components/finance/overview-date";
 import {
   addressedLedgerValue,
   buildFinanceSearch,
@@ -54,6 +55,11 @@ const CategoriesDestination = lazy(() =>
 const TransactionsDestination = lazy(() =>
   import("@/components/finance/transactions-destination").then((module) => ({
     default: module.TransactionsDestination,
+  })),
+);
+const OverviewDestination = lazy(() =>
+  import("@/components/finance/overview-destination").then((module) => ({
+    default: module.OverviewDestination,
   })),
 );
 const TransactionDetail = lazy(() =>
@@ -171,6 +177,10 @@ export function Component() {
             rememberedLedgerId !== undefined &&
             ledger.id === rememberedLedgerId,
         ) ?? ledgersQuery.data?.[0]);
+  const overviewDate = resolveOverviewDate(
+    routeState.portable.month,
+    routeState.portable.date,
+  );
 
   const switchLedger = (ledger: LedgerResponse) => {
     if (selectedLedger?.id === ledger.id) return;
@@ -279,6 +289,23 @@ export function Component() {
     );
   }
 
+  if (
+    destination.slug === "overview" &&
+    selectedLedger &&
+    (routeState.portable.month !== overviewDate.month ||
+      routeState.portable.date !== overviewDate.date)
+  ) {
+    return (
+      <Navigate
+        replace
+        to={`/finance/overview${buildFinanceSearch(selectedLedger.id, {
+          date: overviewDate.date,
+          month: overviewDate.month,
+        })}`}
+      />
+    );
+  }
+
   return (
     <section
       aria-labelledby="finance-title"
@@ -378,9 +405,18 @@ export function Component() {
           }
         />
       ) : null}
-      {selectedLedger &&
-      destination.slug === "transactions" &&
-      routeState.transaction.status === "absent" ? (
+      {selectedLedger && destination.slug === "overview" ? (
+        <Suspense fallback={<p role="status">Loading Finance Overview…</p>}>
+          <OverviewDestination
+            date={overviewDate.date}
+            key={selectedLedger.id}
+            ledgerId={selectedLedger.id}
+            month={overviewDate.month}
+          />
+        </Suspense>
+      ) : selectedLedger &&
+        destination.slug === "transactions" &&
+        routeState.transaction.status === "absent" ? (
         <Suspense
           fallback={
             <p className="text-sm text-muted-foreground" role="status">

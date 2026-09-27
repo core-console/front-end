@@ -351,7 +351,7 @@ describe("Finance Accounts destination", () => {
     );
     expect(confirmation).not.toHaveTextContent(/must be zero|insufficient/i);
     const cancel = within(confirmation).getByRole("button", { name: "Cancel" });
-    expect(cancel).toHaveFocus();
+    await waitFor(() => expect(cancel).toHaveFocus());
 
     await user.click(cancel);
     expect(archiveRequests).toBe(0);
