@@ -1,5 +1,5 @@
 import { useMutationState } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 
 import {
@@ -57,6 +57,8 @@ export function OverviewEntry({
     null,
   );
   const hadActiveAccount = useRef(false);
+  const secondaryInvoker = useRef<HTMLButtonElement>(null);
+  const restoreSecondaryFocus = useRef(false);
   const accountsQuery = useListFinanceAccounts(ledgerId, {
     query: {
       placeholderData: (previousData) => previousData,
@@ -126,6 +128,23 @@ export function OverviewEntry({
     categoriesQuery.isRefetchError ||
     currenciesQuery.isRefetchError;
 
+  useEffect(() => {
+    if (secondaryKind || !restoreSecondaryFocus.current) return;
+    const target =
+      secondaryInvoker.current?.isConnected &&
+      !secondaryInvoker.current.disabled
+        ? secondaryInvoker.current
+        : document.getElementById("finance-title");
+    target?.focus();
+    restoreSecondaryFocus.current = false;
+  }, [secondaryKind]);
+
+  const closeSecondaryDialog = (open: boolean) => {
+    if (open) return;
+    restoreSecondaryFocus.current = true;
+    setSecondaryKind(null);
+  };
+
   return (
     <section
       aria-labelledby="quick-entry-title"
@@ -138,7 +157,12 @@ export function OverviewEntry({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button disabled={!canCreate} size="sm" variant="outline" />
+              <Button
+                disabled={!canCreate}
+                ref={secondaryInvoker}
+                size="sm"
+                variant="outline"
+              />
             }
           >
             Other transaction actions
@@ -290,9 +314,7 @@ export function OverviewEntry({
           currencies={currenciesQuery.data ?? []}
           initialDate={date}
           ledgerId={ledgerId}
-          onOpenChange={(open) => {
-            if (!open) setSecondaryKind(null);
-          }}
+          onOpenChange={closeSecondaryDialog}
           onRecorded={onRecorded}
           open
           refreshAccounts={async () => {
@@ -309,9 +331,7 @@ export function OverviewEntry({
           initialDate={date}
           ledgerId={ledgerId}
           onAdjusted={onAdjusted}
-          onOpenChange={(open) => {
-            if (!open) setSecondaryKind(null);
-          }}
+          onOpenChange={closeSecondaryDialog}
           open
           refreshAccounts={async () => {
             const result = await accountsQuery.refetch();

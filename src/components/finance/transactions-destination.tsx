@@ -545,6 +545,7 @@ export function TransactionsDestination({
     null,
   );
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
+  const restoreDeleteFocus = useRef(false);
   const [editTarget, setEditTarget] = useState<Transaction | null>(null);
   const editInvoker = useRef<HTMLButtonElement | null>(null);
   const restoreEditFocus = useRef(false);
@@ -679,6 +680,11 @@ export function TransactionsDestination({
     target?.focus();
     restoreEditFocus.current = false;
   }, [editTarget]);
+  useEffect(() => {
+    if (deleteTarget || !restoreDeleteFocus.current) return;
+    document.getElementById("finance-title")?.focus();
+    restoreDeleteFocus.current = false;
+  }, [deleteTarget]);
   const [announcement, setAnnouncement] = useState("");
   const paginationSnapshot = useRef({ count: 0, key: "", pages: 0 });
   const transactionsQueryKey = useMemo(
@@ -960,7 +966,11 @@ export function TransactionsDestination({
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div
+        aria-label="Transaction history actions"
+        className="flex flex-wrap items-center justify-between gap-3"
+        role="group"
+      >
         <p className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere] text-muted-foreground">
           {hasAppliedFilters
             ? `Applied filters: ${appliedFilterDescriptions.join(" · ")}`
@@ -1075,12 +1085,14 @@ export function TransactionsDestination({
         <TransactionDeleteDialog
           onClose={() => setDeleteTarget(null)}
           onDeleted={() => {
+            restoreDeleteFocus.current = true;
             setAnnouncement(
               `${transactionKindLabels[deleteTarget.kind]} deleted.`,
             );
             setDeleteTarget(null);
           }}
           onUnavailable={() => {
+            restoreDeleteFocus.current = true;
             setAnnouncement("Transaction unavailable. It was already removed.");
             setDeleteTarget(null);
           }}
@@ -1107,6 +1119,7 @@ export function TransactionsDestination({
             setEditTarget(null);
           }}
           onUnavailable={() => {
+            editInvoker.current = null;
             restoreEditFocus.current = true;
             setAnnouncement("Transaction unavailable. It was already removed.");
             setEditTarget(null);
@@ -1126,6 +1139,7 @@ export function TransactionsDestination({
             setEditTarget(null);
           }}
           onUnavailable={() => {
+            editInvoker.current = null;
             restoreEditFocus.current = true;
             setAnnouncement("Transaction unavailable. It was already removed.");
             setEditTarget(null);

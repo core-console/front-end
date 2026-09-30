@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import {
   Link,
   Navigate,
+  useLocation,
   useNavigate,
   useParams,
   useSearchParams,
@@ -17,6 +18,7 @@ import {
   addressedLedgerValue,
   buildFinanceSearch,
   normalizeTransactionFilterState,
+  parseDeletedTransactionLedgerId,
   parseFinanceRouteState,
   parseRememberedLedgerId,
 } from "@/components/finance/finance-route-state";
@@ -112,16 +114,29 @@ function LedgerMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button className="mb-3" size="sm" variant="outline" />}
+        render={
+          <Button
+            className="mb-3 h-auto min-h-7 max-w-full py-1 whitespace-normal"
+            size="sm"
+            variant="outline"
+          />
+        }
       >
-        {selectedLedger?.name ?? "Choose a Ledger"}
+        <span className="min-w-0 text-left [overflow-wrap:anywhere]">
+          {selectedLedger?.name ?? "Choose a Ledger"}
+        </span>
         <ChevronDownIcon data-icon="inline-end" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-48">
+      <DropdownMenuContent
+        align="end"
+        className="max-w-(--available-width) min-w-48"
+      >
         <DropdownMenuGroup>
           {ledgers.map((ledger) => (
             <DropdownMenuItem key={ledger.id} onClick={() => onSwitch(ledger)}>
-              {ledger.name}
+              <span className="min-w-0 [overflow-wrap:anywhere]">
+                {ledger.name}
+              </span>
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
@@ -144,6 +159,7 @@ export function Component() {
   const { section, transactionId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [dialog, setDialog] = useState<LedgerDialogState>(null);
   const destination = transactionId
     ? destinations[1]
@@ -181,6 +197,16 @@ export function Component() {
     routeState.portable.month,
     routeState.portable.date,
   );
+  const deletionCompleted =
+    selectedLedger !== undefined &&
+    !transactionId &&
+    (destination?.slug === "overview" ||
+      destination?.slug === "transactions") &&
+    parseDeletedTransactionLedgerId(location.state) === selectedLedger.id;
+
+  useEffect(() => {
+    if (deletionCompleted) document.getElementById("finance-title")?.focus();
+  }, [deletionCompleted, location.key]);
 
   const switchLedger = (ledger: LedgerResponse) => {
     if (selectedLedger?.id === ledger.id) return;
@@ -309,11 +335,14 @@ export function Component() {
   return (
     <section
       aria-labelledby="finance-title"
-      className="flex flex-col gap-6 pb-8"
+      className="flex min-w-0 flex-col gap-6 pb-8"
     >
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border">
         <div className="flex flex-col gap-3">
           <h1
+            aria-describedby={
+              deletionCompleted ? "finance-completion" : undefined
+            }
             className="text-2xl leading-8 font-semibold tracking-tight"
             id="finance-title"
             tabIndex={-1}
@@ -359,6 +388,17 @@ export function Component() {
           />
         ) : null}
       </div>
+
+      <p
+        aria-label={deletionCompleted ? "Transaction completion" : undefined}
+        aria-live="polite"
+        role={deletionCompleted ? "status" : undefined}
+        className="sr-only"
+      >
+        <span id="finance-completion">
+          {deletionCompleted ? "Transaction deleted." : ""}
+        </span>
+      </p>
 
       {ledgersQuery.isPending ? (
         <p

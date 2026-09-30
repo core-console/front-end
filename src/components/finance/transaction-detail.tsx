@@ -1,4 +1,4 @@
-import { type InfiniteData, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Fragment,
   type ReactNode,
@@ -7,21 +7,15 @@ import {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import { Link, useNavigate } from "react-router";
 
 import {
-  getGetFinanceOverviewQueryKey,
-  getGetFinanceTransactionQueryKey,
-  getListFinanceAccountsQueryKey,
-  getListFinanceTransactionsQueryKey,
   useDeleteFinanceTransaction,
   useGetFinanceTransaction,
 } from "@/api/generated/core-console";
 import { FinanceTransactionResponse } from "@/api/generated/schemas";
-import type {
-  FinanceTransactionResponseOutput,
-  TransactionHistoryPageResponseOutput,
-} from "@/api/generated/schemas";
+import type { FinanceTransactionResponseOutput } from "@/api/generated/schemas";
 import { formatFinanceMoney } from "@/components/finance/finance-money";
 import { BalanceAdjustmentEditDialog } from "@/components/finance/balance-adjustment-edit-dialog";
 import {
@@ -34,6 +28,11 @@ import {
   useBalanceAdjustmentReplacementPending,
 } from "@/components/finance/balance-adjustment-replacement-lock";
 import { TransactionEditDialog } from "@/components/finance/transaction-edit-dialog";
+import {
+  getTransactionDeletion,
+  settleTransactionDeletion,
+  useTransactionDeletion,
+} from "@/components/finance/transaction-deletion";
 import {
   buildFinanceSearch,
   type FinanceRouteState,
@@ -76,12 +75,6 @@ function formatSignedCorrection(money: {
 }) {
   const formatted = formatFinanceMoney(money);
   return money.amount.startsWith("-") ? formatted : `+${formatted}`;
-}
-
-function accountIds(transaction: Transaction) {
-  return transaction.kind === "internalTransfer"
-    ? [transaction.sourceAccount.id, transaction.destinationAccount.id]
-    : [transaction.account.id];
 }
 
 function Reference({
@@ -225,6 +218,7 @@ export function TransactionDeleteDialog({
   const mutation = useDeleteFinanceTransaction();
   const ledgerId = transaction.ledgerId;
   const transactionId = transaction.id;
+  const terminalDeletion = useTransactionDeletion(ledgerId, transactionId);
 
   useEffect(() => {
     mounted.current = true;
@@ -233,51 +227,8 @@ export function TransactionDeleteDialog({
     };
   }, []);
 
-  const reconcile = async () => {
-    const historyKey = getListFinanceTransactionsQueryKey(ledgerId);
-    const detailKey = getGetFinanceTransactionQueryKey(ledgerId, transactionId);
-    void queryClient.invalidateQueries({
-      queryKey: getGetFinanceOverviewQueryKey(ledgerId),
-      refetchType: "none",
-    });
-    await Promise.all([
-      queryClient.cancelQueries({ queryKey: historyKey }),
-      queryClient.cancelQueries({ queryKey: detailKey }),
-    ]);
-    queryClient.setQueriesData<
-      InfiniteData<TransactionHistoryPageResponseOutput>
-    >({ queryKey: historyKey }, (current) =>
-      current?.pages
-        ? {
-            ...current,
-            pages: current.pages.map((page) => ({
-              ...page,
-              items: page.items.filter((item) => item.id !== transactionId),
-            })),
-          }
-        : current,
-    );
-    queryClient.removeQueries({ queryKey: detailKey, exact: true });
-    void Promise.allSettled([
-      queryClient.invalidateQueries({ queryKey: historyKey }),
-      queryClient.invalidateQueries({
-        queryKey: getListFinanceAccountsQueryKey(ledgerId),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: getGetFinanceOverviewQueryKey(ledgerId),
-      }),
-      ...accountIds(transaction).map((accountId) =>
-        queryClient.invalidateQueries({
-          predicate: (query) =>
-            String(query.queryKey[0]).includes(
-              `/finance/ledgers/${ledgerId}/accounts/${accountId}/balance-adjustment-context`,
-            ),
-        }),
-      ),
-    ]);
-  };
-
   const confirm = async () => {
+    if (getTransactionDeletion(queryClient, ledgerId, transactionId)) return;
     setError("");
     let stale = false;
     try {
@@ -291,11 +242,18 @@ export function TransactionDeleteDialog({
         return;
       }
     }
-    await reconcile();
-    if (!mounted.current) return;
-    if (stale) onUnavailable();
-    else onDeleted();
+    await settleTransactionDeletion(
+      queryClient,
+      transaction,
+      stale ? "unavailable" : "deleted",
+    );
+    if (mounted.current) {
+      if (stale) onUnavailable();
+      else onDeleted();
+    }
   };
+
+  if (terminalDeletion) return null;
 
   return (
     <AlertDialog
@@ -357,7 +315,8 @@ export function TransactionDetail({
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
+  const terminalDeletion = useTransactionDeletion(ledgerId, transactionId);
   const [editOpen, setEditOpen] = useState(false);
   const [adjustmentEditOpen, setAdjustmentEditOpen] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
@@ -380,7 +339,9 @@ export function TransactionDetail({
       : historyHref;
   const transactionQuery = useGetFinanceTransaction(ledgerId, transactionId, {
     query: {
-      enabled: !unavailable,
+      enabled: () =>
+        !unavailable &&
+        !getTransactionDeletion(queryClient, ledgerId, transactionId),
       retry: (count, error) => !isNotFound(error) && count < 3,
       select: (response) => FinanceTransactionResponse.parse(response.data),
     },
@@ -393,6 +354,7 @@ export function TransactionDetail({
       transaction.ledgerId !== ledgerId ||
       (adjustmentEditOpen && transaction.kind !== "balanceAdjustment"));
   const notAvailable =
+    Boolean(terminalDeletion) ||
     unavailable ||
     (!adjustmentEditOpen && !adjustmentReplacementPending && detailMissing) ||
     (!adjustmentReplacementPending && detailMismatch);
@@ -450,8 +412,21 @@ export function TransactionDetail({
   if (notAvailable) {
     content = (
       <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-6">
-        {announcement ? <p role="status">{announcement}</p> : null}
+        {terminalDeletion || announcement ? (
+          <p role="status">
+            <span id="transaction-unavailable-message">
+              {terminalDeletion === "deleted"
+                ? "Transaction deleted."
+                : terminalDeletion === "unavailable"
+                  ? "Transaction unavailable. It was already removed."
+                  : announcement}
+            </span>
+          </p>
+        ) : null}
         <h2
+          aria-describedby={
+            terminalDeletion ? "transaction-unavailable-message" : undefined
+          }
           className="text-lg font-semibold"
           ref={unavailableHeading}
           tabIndex={-1}
@@ -528,7 +503,10 @@ export function TransactionDetail({
               >
                 Edit {transactionKindLabels[transaction.kind]}
               </Button>
-              <Button onClick={() => setDeleteOpen(true)} variant="destructive">
+              <Button
+                onClick={() => setDeleteTarget(transaction)}
+                variant="destructive"
+              >
                 Delete transaction
               </Button>
             </div>
@@ -547,21 +525,6 @@ export function TransactionDetail({
             <DetailField label="Transaction ID">{transaction.id}</DetailField>
           </dl>
         </article>
-        {deleteOpen ? (
-          <TransactionDeleteDialog
-            open
-            transaction={transaction}
-            onClose={() => setDeleteOpen(false)}
-            onDeleted={() => navigate(returnHref, { replace: true })}
-            onUnavailable={() => {
-              setDeleteOpen(false);
-              setUnavailable(true);
-              setAnnouncement(
-                "Transaction unavailable. It was already removed.",
-              );
-            }}
-          />
-        ) : null}
         {editOpen ? (
           <TransactionEditDialog
             ledgerId={ledgerId}
@@ -590,7 +553,34 @@ export function TransactionDetail({
   return (
     <>
       {content}
-      {adjustmentEditOpen ? (
+      {deleteTarget ? (
+        <TransactionDeleteDialog
+          open
+          transaction={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => {
+            flushSync(() => {
+              setDeleteTarget(null);
+              setUnavailable(true);
+            });
+            navigate(returnHref, {
+              flushSync: true,
+              replace: true,
+              state: { deletedTransactionLedgerId: ledgerId },
+            });
+          }}
+          onUnavailable={() => {
+            flushSync(() => {
+              setDeleteTarget(null);
+              setUnavailable(true);
+              setAnnouncement(
+                "Transaction unavailable. It was already removed.",
+              );
+            });
+          }}
+        />
+      ) : null}
+      {adjustmentEditOpen && !terminalDeletion ? (
         <BalanceAdjustmentEditDialog
           ledgerId={ledgerId}
           transactionId={transactionId}

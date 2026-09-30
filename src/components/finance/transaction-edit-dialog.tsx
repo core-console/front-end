@@ -33,6 +33,10 @@ import {
 } from "@/api/generated/schemas";
 import { buildAccountWorkflowLabels } from "@/components/finance/account-identity";
 import { categoryWorkflowLabel } from "@/components/finance/category-identity";
+import {
+  getTransactionDeletion,
+  useTransactionDeletion,
+} from "@/components/finance/transaction-deletion";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -167,6 +171,7 @@ export function TransactionEditDialog({
   const unavailableCalled = useRef(false);
   const [busy, setBusy] = useState(false);
   const queryClient = useQueryClient();
+  const terminalDeletion = useTransactionDeletion(ledgerId, transactionId);
   const [editTransaction, setEditTransaction] = useState<Ordinary | null>(null);
   const lockKey = replacementKey(ledgerId, transactionId);
   const replacementPending = useSyncExternalStore(subscribeReplacement, () =>
@@ -219,6 +224,8 @@ export function TransactionEditDialog({
   }, [ledgerId, transactionId, queryClient, onUnavailable]);
   const query = useGetFinanceTransaction(ledgerId, transactionId, {
     query: {
+      enabled: () =>
+        !getTransactionDeletion(queryClient, ledgerId, transactionId),
       refetchOnMount: "always",
       retry: (count, error) => status(error) !== 404 && count < 3,
       select: (response) => FinanceTransactionResponse.parse(response.data),
@@ -238,7 +245,13 @@ export function TransactionEditDialog({
     }
   }, [replacementPending]);
   useEffect(() => {
-    if (replacementPending || !needsFreshDetail || refreshFailed) return;
+    if (
+      replacementPending ||
+      !needsFreshDetail ||
+      refreshFailed ||
+      getTransactionDeletion(queryClient, ledgerId, transactionId)
+    )
+      return;
     let active = true;
     void refetchDetail().then((result) => {
       if (!active) return;
@@ -267,6 +280,7 @@ export function TransactionEditDialog({
     refetchDetail,
     ledgerId,
     transactionId,
+    queryClient,
   ]);
   useEffect(() => {
     if (
@@ -299,6 +313,14 @@ export function TransactionEditDialog({
       void unavailable();
     }
   }, [query.isFetchedAfterMount, query.isError, query.error, unavailable]);
+
+  useEffect(() => {
+    if (terminalDeletion && !unavailableCalled.current) {
+      unavailableCalled.current = true;
+      onUnavailable();
+    }
+  }, [terminalDeletion, onUnavailable]);
+  if (terminalDeletion) return null;
 
   return (
     <Dialog

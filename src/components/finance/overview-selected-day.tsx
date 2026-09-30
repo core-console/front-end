@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 
 import {
@@ -67,6 +67,12 @@ export function OverviewSelectedDay({
 }) {
   const [editTarget, setEditTarget] = useState<Transaction | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
+  const restoreDeleteFocus = useRef(false);
+  useEffect(() => {
+    if (deleteTarget || !restoreDeleteFocus.current) return;
+    document.getElementById("finance-title")?.focus();
+    restoreDeleteFocus.current = false;
+  }, [deleteTarget]);
   const accountsQuery = useListFinanceAccounts(ledgerId, {
     query: {
       select: (response) => AccountResponse.array().parse(response.data),
@@ -285,10 +291,12 @@ export function OverviewSelectedDay({
         <TransactionDeleteDialog
           onClose={() => setDeleteTarget(null)}
           onDeleted={() => {
+            restoreDeleteFocus.current = true;
             onAnnounce("Transaction deleted.");
             setDeleteTarget(null);
           }}
           onUnavailable={() => {
+            restoreDeleteFocus.current = true;
             onAnnounce("Transaction unavailable. It was already removed.");
             setDeleteTarget(null);
           }}

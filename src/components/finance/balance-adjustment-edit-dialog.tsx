@@ -47,6 +47,10 @@ import {
 } from "@/components/finance/balance-adjustment-replacement-lock";
 import { subtractExactDecimals } from "@/components/finance/finance-decimal";
 import { formatFinanceMoney } from "@/components/finance/finance-money";
+import {
+  getTransactionDeletion,
+  useTransactionDeletion,
+} from "@/components/finance/transaction-deletion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -134,8 +138,11 @@ export function BalanceAdjustmentEditDialog({
     transaction: Adjustment;
   } | null>(null);
   const queryClient = useQueryClient();
+  const terminalDeletion = useTransactionDeletion(ledgerId, transactionId);
   const detail = useGetFinanceTransaction(ledgerId, transactionId, {
     query: {
+      enabled: () =>
+        !getTransactionDeletion(queryClient, ledgerId, transactionId),
       refetchOnMount: "always",
       retry: (count, error) => status(error) !== 404 && count < 3,
       select: (response) => FinanceTransactionResponse.parse(response.data),
@@ -209,7 +216,13 @@ export function BalanceAdjustmentEditDialog({
     if (pending && !busy) setNeedsFreshDetail(true);
   }, [pending, busy]);
   useEffect(() => {
-    if (pending || !needsFreshDetail || refreshFailed) return;
+    if (
+      pending ||
+      !needsFreshDetail ||
+      refreshFailed ||
+      getTransactionDeletion(queryClient, ledgerId, transactionId)
+    )
+      return;
     let active = true;
     void refetchDetail().then((result) => {
       if (!active) return;
@@ -235,6 +248,7 @@ export function BalanceAdjustmentEditDialog({
     refetchDetail,
     ledgerId,
     transactionId,
+    queryClient,
   ]);
   useEffect(() => {
     if (
@@ -267,6 +281,11 @@ export function BalanceAdjustmentEditDialog({
     queryClient,
     finish,
   ]);
+
+  useEffect(() => {
+    if (terminalDeletion) finish("unavailable");
+  }, [terminalDeletion, finish]);
+  if (terminalDeletion) return null;
 
   return (
     <Dialog

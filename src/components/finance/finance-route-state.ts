@@ -15,6 +15,9 @@ const transactionKindSchema = z.enum([
   "balanceAdjustment",
 ]);
 const uncategorizedSchema = z.literal("true");
+const deletionFeedbackSchema = z.object({
+  deletedTransactionLedgerId: ledgerIdSchema,
+});
 
 type AddressedValue =
   | { status: "absent" }
@@ -108,6 +111,11 @@ export function parseFinanceRouteState(
 export function parseRememberedLedgerId(value: string | null) {
   const result = ledgerIdSchema.safeParse(value);
   return result.success ? result.data : undefined;
+}
+
+export function parseDeletedTransactionLedgerId(state: unknown) {
+  const result = deletionFeedbackSchema.safeParse(state);
+  return result.success ? result.data.deletedTransactionLedgerId : undefined;
 }
 
 export function addressedLedgerValue(ledger: AddressedValue) {

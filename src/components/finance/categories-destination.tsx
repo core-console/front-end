@@ -404,9 +404,9 @@ export function CategoriesDestination({
   }
 
   return (
-    <div className="flex flex-col gap-7" key={ledgerId}>
+    <div className="flex min-w-0 flex-col gap-7" key={ledgerId}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
+        <p className="min-w-0 text-sm [overflow-wrap:anywhere] text-muted-foreground">
           Categories in {ledgerName}
         </p>
         <Button

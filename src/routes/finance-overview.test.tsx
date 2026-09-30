@@ -376,6 +376,91 @@ describe("Finance Overview", () => {
     );
   });
 
+  it.each(["mouse", "keyboard"] as const)(
+    "deletes selected-day activity with %s activation and restores stable destination focus",
+    async (activation) => {
+      const user = userEvent.setup();
+      let deleted = false;
+      let deletes = 0;
+      let releaseDelete!: () => void;
+      const deleteResponse = new Promise<void>((resolve) => {
+        releaseDelete = resolve;
+      });
+      server.use(
+        getGetFinanceOverviewMockHandler(() => ({
+          ...overview,
+          days: deleted ? [] : overview.days,
+        })),
+        getListFinanceTransactionsMockHandler(() => ({
+          items: deleted ? [] : [dayTransactions[0]],
+          nextCursor: null,
+        })),
+        http.delete(
+          "*/api/finance/ledgers/:ledgerId/transactions/:transactionId",
+          async () => {
+            deletes += 1;
+            await deleteResponse;
+            deleted = true;
+            return new HttpResponse(null, { status: 204 });
+          },
+        ),
+      );
+      const { router } = renderRoute(
+        `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-16`,
+      );
+      const action = await screen.findByRole(
+        "button",
+        { name: /Delete Income.*aaaaaaa1/ },
+        { timeout: 5_000 },
+      );
+      const heading = screen.getByRole("heading", {
+        level: 1,
+        name: "Overview",
+      });
+      if (activation === "keyboard") {
+        action.focus();
+        await user.keyboard("{Enter}");
+      } else await user.click(action);
+      const dialog = screen.getByRole("alertdialog", {
+        name: "Delete transaction?",
+      });
+      await waitFor(() =>
+        expect(
+          within(dialog).getByRole("button", { name: "Cancel" }),
+        ).toHaveFocus(),
+      );
+      const confirm = within(dialog).getByRole("button", {
+        name: "Delete transaction",
+      });
+      if (activation === "keyboard") {
+        await user.tab();
+        expect(confirm).toHaveFocus();
+        await user.keyboard("{Enter}");
+      } else await user.click(confirm);
+      await waitFor(() => expect(deletes).toBe(1));
+      expect(action).toBeInTheDocument();
+      expect(heading).not.toHaveFocus();
+      releaseDelete();
+      const announcement = await screen.findByText("Transaction deleted.");
+      expect(announcement).toHaveAttribute("aria-live", "polite");
+      expect(
+        await screen.findByText("No transactions for this date"),
+      ).toBeVisible();
+      expect(action).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /Delete Income.*aaaaaaa1/ }),
+      ).not.toBeInTheDocument();
+      await waitFor(() => expect(heading).toHaveFocus());
+      expect(heading.isConnected).toBe(true);
+      expect(heading).not.toHaveAttribute("aria-disabled", "true");
+      expect(document.body).not.toHaveFocus();
+      expect(router.state.location.pathname).toBe("/finance/overview");
+      expect(router.state.location.search).toBe(
+        `?ledger=${ledger.id}&month=2026-08&date=2026-08-16`,
+      );
+    },
+  );
+
   it("suppresses cached Calendar counts after direct Delete until Overview confirms the removal", async () => {
     const user = userEvent.setup();
     let deleted = false;
@@ -1100,7 +1185,7 @@ describe("Finance Overview", () => {
     expect(amount).toHaveValue("12.34");
   });
 
-  it("starts secondary transaction dialogs on the selected Calendar date", async () => {
+  it("starts secondary dialogs on the selected date and restores their menu invoker on cancellation", async () => {
     const user = userEvent.setup();
     const first = { ...overview.accounts[0]!, status: "active" as const };
     const second = {
@@ -1131,6 +1216,7 @@ describe("Finance Overview", () => {
       "2026-08-17",
     );
     await user.click(within(transfer).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(menu).toHaveFocus());
     await user.click(
       await screen.findByRole("button", { name: "Other transaction actions" }),
     );
@@ -1143,6 +1229,10 @@ describe("Finance Overview", () => {
     expect(within(adjustment).getByLabelText("Transaction date")).toHaveValue(
       "2026-08-17",
     );
+    await user.click(
+      within(adjustment).getByRole("button", { name: "Cancel" }),
+    );
+    await waitFor(() => expect(menu).toHaveFocus());
   });
 
   it("keeps counts authoritative for no-change Adjustment and suppresses them for a created Adjustment", async () => {

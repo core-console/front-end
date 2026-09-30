@@ -9,7 +9,6 @@ import {
   getListFinanceTransactionsQueryKey,
 } from "@/api/generated/core-console";
 import {
-  getDeleteFinanceTransactionMockHandler404,
   getGetFinanceTransactionMockHandler,
   getGetFinanceTransactionMockHandler404,
   getListFinanceAccountsMockHandler,
@@ -3296,11 +3295,18 @@ describe("Finance Transaction detail", () => {
     await waitFor(() => expect(deletedId).toBe(duplicateTransactionId));
   });
 
-  it("requires a separate confirmation with Cancel focused and removes stale detail after deletion", async () => {
+  it("announces detail deletion and focuses the destination after confirmation", async () => {
     const user = userEvent.setup();
+    let detailReads = 0;
     mockLedger();
     server.use(
-      getGetFinanceTransactionMockHandler(transactions[0]!),
+      http.get(
+        "*/api/finance/ledgers/:ledgerId/transactions/:transactionId",
+        () => {
+          detailReads += 1;
+          return HttpResponse.json(transactions[0]!);
+        },
+      ),
       http.delete(
         "*/api/finance/ledgers/:ledgerId/transactions/:transactionId",
         () => new HttpResponse(null, { status: 204 }),
@@ -3310,7 +3316,11 @@ describe("Finance Transaction detail", () => {
       `/finance/transactions/${transactionId}?ledger=${ledgerId}`,
     );
 
-    await screen.findByRole("button", { name: "Delete transaction" });
+    await screen.findByRole(
+      "button",
+      { name: "Delete transaction" },
+      { timeout: 5_000 },
+    );
     expect(
       queryClient.getQueryData(
         getGetFinanceTransactionQueryKey(ledgerId, transactionId),
@@ -3340,51 +3350,456 @@ describe("Finance Transaction detail", () => {
         getGetFinanceTransactionQueryKey(ledgerId, transactionId),
       ),
     ).toBeUndefined();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("status", { name: "Transaction completion" }),
+      ).toHaveTextContent("Transaction deleted."),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { level: 1, name: "Transactions" }),
+      ).toHaveFocus(),
+    );
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Transactions" }),
+    ).toHaveAccessibleDescription("Transaction deleted.");
+    expect(detailReads).toBe(1);
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(router.state.location.search).toBe(`?ledger=${ledgerId}`);
   });
 
-  it("deletes directly from history and announces the reconciled result", async () => {
+  it("reconciles deletion after Back while pending before Forward can show detail", async () => {
     const user = userEvent.setup();
     let deleted = false;
+    let deleteRequests = 0;
+    let detailReads = 0;
+    let historyReads = 0;
+    let historyAborted = false;
+    let releaseDelete!: () => void;
+    let releaseHistory!: () => void;
+    const deleteResponse = new Promise<void>((resolve) => {
+      releaseDelete = resolve;
+    });
+    const historyResponse = new Promise<void>((resolve) => {
+      releaseHistory = resolve;
+    });
     mockLedger();
+    mockEditReferences();
     server.use(
-      getListFinanceTransactionsMockHandler(() => ({
-        items: deleted ? [] : [transactions[0]!],
-        nextCursor: null,
-      })),
+      http.get(
+        "*/api/finance/ledgers/:ledgerId/transactions",
+        async ({ request }) => {
+          historyReads += 1;
+          const items = deleted ? [] : [transactions[0]!];
+          if (historyReads === 2) {
+            request.signal.addEventListener("abort", () => {
+              historyAborted = true;
+            });
+            await historyResponse;
+          }
+          return HttpResponse.json({ items, nextCursor: null });
+        },
+      ),
+      http.get(
+        "*/api/finance/ledgers/:ledgerId/transactions/:transactionId",
+        async () => {
+          detailReads += 1;
+          if (!deleted) return HttpResponse.json(transactions[0]!);
+          return HttpResponse.json({ detail: "Not found" }, { status: 404 });
+        },
+      ),
       http.delete(
         "*/api/finance/ledgers/:ledgerId/transactions/:transactionId",
-        () => {
+        async () => {
+          deleteRequests += 1;
+          await deleteResponse;
           deleted = true;
           return new HttpResponse(null, { status: 204 });
         },
       ),
     );
-    renderRoute(`/finance/transactions?ledger=${ledgerId}`);
-
+    const { router, queryClient } = renderRoute(
+      `/finance/transactions?ledger=${ledgerId}`,
+    );
     await user.click(
       await screen.findByRole(
-        "button",
-        { name: /Delete Income on/ },
+        "link",
+        { name: /View details for Income/ },
         { timeout: 5_000 },
       ),
     );
-    const dialog = screen.getByRole("alertdialog", {
-      name: "Delete transaction?",
-    });
-    await waitFor(() =>
-      expect(
-        within(dialog).getByRole("button", { name: "Cancel" }),
-      ).toHaveFocus(),
+    await user.click(
+      await screen.findByRole("button", { name: "Delete transaction" }),
     );
     await user.click(
-      within(dialog).getByRole("button", { name: "Delete transaction" }),
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Delete transaction",
+      }),
     );
-    expect(await screen.findByText("Income deleted.")).toBeInTheDocument();
+    await waitFor(() => expect(deleteRequests).toBe(1));
+    await act(() => router.navigate(-1));
+    await screen.findByRole("article", { name: /Income on/ });
+    await waitFor(() => expect(historyReads).toBe(2));
+    releaseDelete();
+    await screen.findByRole("heading", { name: "No transactions yet" });
+    expect(historyAborted).toBe(true);
+    await act(async () => {
+      releaseHistory();
+      await historyResponse;
+    });
+    await waitFor(() => expect(historyReads).toBe(3));
+    expect(
+      screen.queryByRole("article", { name: /Income on/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      queryClient.getQueryData(
+        getGetFinanceTransactionQueryKey(ledgerId, transactionId),
+      ),
+    ).toBeUndefined();
+    expect(detailReads).toBe(1);
+    expect(deleteRequests).toBe(1);
+
+    await act(() => router.navigate(1));
+    const unavailable = await screen.findByRole("heading", {
+      name: "Transaction unavailable",
+    });
+    expect(
+      screen.queryByRole("button", { name: "Delete transaction" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Edit Income" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Exact note")).not.toBeInTheDocument();
+    expect(unavailable).toHaveFocus();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Transaction deleted.",
+    );
+    expect(router.state.location.pathname).toBe(
+      `/finance/transactions/${transactionId}`,
+    );
+    expect(router.state.location.search).toBe(`?ledger=${ledgerId}`);
+    expect(detailReads).toBe(1);
+  });
+
+  it.each(["mouse", "keyboard"] as const)(
+    "deletes directly from history with %s activation and restores stable destination focus",
+    async (activation) => {
+      const user = userEvent.setup();
+      let deleted = false;
+      let deletes = 0;
+      let releaseDelete!: () => void;
+      const deleteResponse = new Promise<void>((resolve) => {
+        releaseDelete = resolve;
+      });
+      mockLedger();
+      server.use(
+        getListFinanceTransactionsMockHandler(() => ({
+          items: deleted ? [] : [transactions[0]!],
+          nextCursor: null,
+        })),
+        http.delete(
+          "*/api/finance/ledgers/:ledgerId/transactions/:transactionId",
+          async () => {
+            deletes += 1;
+            await deleteResponse;
+            deleted = true;
+            return new HttpResponse(null, { status: 204 });
+          },
+        ),
+      );
+      const { router } = renderRoute(
+        `/finance/transactions?ledger=${ledgerId}`,
+      );
+
+      const action = await screen.findByRole(
+        "button",
+        { name: /Delete Income on/ },
+        { timeout: 5_000 },
+      );
+      const heading = screen.getByRole("heading", {
+        level: 1,
+        name: "Transactions",
+      });
+      if (activation === "keyboard") {
+        action.focus();
+        await user.keyboard("{Enter}");
+      } else await user.click(action);
+      const dialog = screen.getByRole("alertdialog", {
+        name: "Delete transaction?",
+      });
+      await waitFor(() =>
+        expect(
+          within(dialog).getByRole("button", { name: "Cancel" }),
+        ).toHaveFocus(),
+      );
+      const confirm = within(dialog).getByRole("button", {
+        name: "Delete transaction",
+      });
+      if (activation === "keyboard") {
+        await user.tab();
+        expect(confirm).toHaveFocus();
+        await user.keyboard("{Enter}");
+      } else await user.click(confirm);
+      await waitFor(() => expect(deletes).toBe(1));
+      expect(action).toBeInTheDocument();
+      expect(heading).not.toHaveFocus();
+      releaseDelete();
+      expect(await screen.findByText("Income deleted.")).toBeInTheDocument();
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("article", { name: /Income on/ }),
+        ).not.toBeInTheDocument(),
+      );
+      expect(action).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /Delete Income on/ }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("Income deleted.");
+      await waitFor(() => expect(heading).toHaveFocus());
+      expect(heading.isConnected).toBe(true);
+      expect(heading).not.toHaveAttribute("aria-disabled", "true");
+      expect(document.body).not.toHaveFocus();
+      expect(router.state.location.pathname).toBe("/finance/transactions");
+      expect(router.state.location.search).toBe(`?ledger=${ledgerId}`);
+    },
+  );
+
+  it.each([
+    { response: "success", dialog: "none" },
+    { response: "pending", dialog: "none" },
+    { response: "success", dialog: "edit" },
+    { response: "success", dialog: "delete" },
+  ] as const)(
+    "makes deletion terminal after Forward with a $response GET and $dialog dialog",
+    async ({ response, dialog }) => {
+      const user = userEvent.setup();
+      let deleted = false;
+      let deletes = 0;
+      let reads = 0;
+      let aborted = false;
+      let releaseDelete!: () => void;
+      let releaseRead!: () => void;
+      let readReturned!: () => void;
+      const deleteResponse = new Promise<void>((resolve) => {
+        releaseDelete = resolve;
+      });
+      const readResponse = new Promise<void>((resolve) => {
+        releaseRead = resolve;
+      });
+      const lateRead = new Promise<void>((resolve) => {
+        readReturned = resolve;
+      });
+      mockLedger();
+      mockEditReferences();
+      server.use(
+        getListFinanceTransactionsMockHandler(() => ({
+          items: deleted ? [] : [transactions[0]!],
+          nextCursor: null,
+        })),
+        http.get(
+          "*/api/finance/ledgers/:ledgerId/transactions/:transactionId",
+          async ({ request }) => {
+            reads += 1;
+            if (reads === 2 && response === "pending") {
+              request.signal.addEventListener("abort", () => {
+                aborted = true;
+              });
+              await readResponse;
+              readReturned();
+            }
+            return HttpResponse.json({
+              ...transactions[0]!,
+              note:
+                reads === 1 ? "Original projection" : "Remounted projection",
+            });
+          },
+        ),
+        http.delete(
+          "*/api/finance/ledgers/:ledgerId/transactions/:transactionId",
+          async () => {
+            deletes += 1;
+            await deleteResponse;
+            deleted = true;
+            return new HttpResponse(null, { status: 204 });
+          },
+        ),
+      );
+      const detailHref = `/finance/transactions/${transactionId}?ledger=${ledgerId}`;
+      const { router, queryClient } = renderRoute(
+        `/finance/transactions?ledger=${ledgerId}`,
+      );
+      await user.click(
+        await screen.findByRole(
+          "link",
+          { name: /View details for Income/ },
+          { timeout: 5_000 },
+        ),
+      );
+      await user.click(
+        await screen.findByRole("button", { name: "Delete transaction" }),
+      );
+      await user.click(
+        within(screen.getByRole("alertdialog")).getByRole("button", {
+          name: "Delete transaction",
+        }),
+      );
+      await waitFor(() => expect(deletes).toBe(1));
+      await act(() => router.navigate(-1));
+      await screen.findByRole("article", { name: /Income on/ });
+      await act(() => router.navigate(1));
+      await waitFor(() => expect(reads).toBe(2));
+      if (response === "success")
+        await screen.findByText("Remounted projection");
+      else expect(screen.getByText("Original projection")).toBeVisible();
+      if (dialog === "edit") {
+        await user.click(screen.getByRole("button", { name: "Edit Income" }));
+        const editDialog = await screen.findByRole("dialog", {
+          name: "Edit Income",
+        });
+        await waitFor(() =>
+          expect(
+            within(editDialog).getByRole("button", { name: "Save changes" }),
+          ).toBeEnabled(),
+        );
+        expect(reads).toBe(3);
+      } else if (dialog === "delete") {
+        await user.click(
+          screen.getByRole("button", { name: "Delete transaction" }),
+        );
+        await screen.findByRole("alertdialog", { name: "Delete transaction?" });
+      }
+      releaseDelete();
+      const unavailable = await screen.findByRole("heading", {
+        name: "Transaction unavailable",
+      });
+      await waitFor(() => expect(unavailable).toHaveFocus());
+      expect(unavailable).toHaveAccessibleDescription("Transaction deleted.");
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Transaction deleted.",
+      );
+      expect(
+        screen.queryByRole("button", { name: "Edit Income" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Delete transaction" }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+      if (response === "pending") {
+        expect(aborted).toBe(true);
+        await act(async () => {
+          releaseRead();
+          await lateRead;
+        });
+      }
+      await waitFor(() =>
+        expect(
+          queryClient.getQueryData(
+            getGetFinanceTransactionQueryKey(ledgerId, transactionId),
+          ),
+        ).toBeUndefined(),
+      );
+      expect(
+        `${router.state.location.pathname}${router.state.location.search}`,
+      ).toBe(detailHref);
+      for (let visit = 0; visit < 2; visit += 1) {
+        await act(() => router.navigate(-1));
+        await screen.findByRole("heading", { name: "No transactions yet" });
+        await act(() => router.navigate(1));
+        expect(
+          await screen.findByRole("heading", {
+            name: "Transaction unavailable",
+          }),
+        ).toHaveFocus();
+        expect(
+          screen.queryByRole("button", { name: "Delete transaction" }),
+        ).not.toBeInTheDocument();
+      }
+      expect(reads).toBe(dialog === "edit" ? 3 : 2);
+      expect(deletes).toBe(1);
+    },
+  );
+
+  it("preserves recoverable detail after a non-404 deletion failure and allows retry", async () => {
+    const user = userEvent.setup();
+    let deletes = 0;
+    let reads = 0;
+    mockLedger();
+    server.use(
+      http.get(
+        "*/api/finance/ledgers/:ledgerId/transactions/:transactionId",
+        () => {
+          reads += 1;
+          return HttpResponse.json(transactions[0]!);
+        },
+      ),
+      http.delete(
+        "*/api/finance/ledgers/:ledgerId/transactions/:transactionId",
+        () => {
+          deletes += 1;
+          return new HttpResponse(null, { status: deletes === 1 ? 503 : 204 });
+        },
+      ),
+    );
+    const detailHref = `/finance/transactions/${transactionId}?ledger=${ledgerId}`;
+    const { router, queryClient } = renderRoute(detailHref);
+    await user.click(
+      await screen.findByRole(
+        "button",
+        { name: "Delete transaction" },
+        { timeout: 5_000 },
+      ),
+    );
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Delete transaction",
+      }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Transaction could not be deleted. Try again.",
+    );
+    expect(
+      queryClient.getQueryData(
+        getGetFinanceTransactionQueryKey(ledgerId, transactionId),
+      ),
+    ).toBeDefined();
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Cancel",
+      }),
+    );
     await waitFor(() =>
       expect(
-        screen.queryByRole("article", { name: /Income on/ }),
-      ).not.toBeInTheDocument(),
+        screen.getByRole("button", { name: "Delete transaction" }),
+      ).toHaveFocus(),
     );
+    await act(() =>
+      router.navigate(`/finance/transactions?ledger=${ledgerId}`),
+    );
+    await act(() => router.navigate(-1));
+    expect(
+      await screen.findByRole("button", { name: "Edit Income" }),
+    ).toBeVisible();
+    await waitFor(() => expect(reads).toBe(2));
+    expect(screen.getByText("Exact note")).toBeVisible();
+    expect(
+      `${router.state.location.pathname}${router.state.location.search}`,
+    ).toBe(detailHref);
+    await user.click(
+      screen.getByRole("button", { name: "Delete transaction" }),
+    );
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Delete transaction",
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("status", { name: "Transaction completion" }),
+      ).toHaveTextContent("Transaction deleted."),
+    );
+    expect(deletes).toBe(2);
+    expect(reads).toBe(2);
   });
 
   it("shows an unavailable detail for an absent Transaction without exposing another Ledger", async () => {
@@ -3407,12 +3822,48 @@ describe("Finance Transaction detail", () => {
 
   it("stops stale deletion and removes the obsolete detail presentation", async () => {
     const user = userEvent.setup();
+    let missing = false;
+    let reads = 0;
+    let deletes = 0;
     mockLedger();
     server.use(
-      getGetFinanceTransactionMockHandler(transactions[0]!),
-      getDeleteFinanceTransactionMockHandler404(),
+      getListFinanceTransactionsMockHandler(() => ({
+        items: missing ? [] : [transactions[0]!],
+        nextCursor: null,
+      })),
+      http.get(
+        "*/api/finance/ledgers/:ledgerId/transactions/:transactionId",
+        () => {
+          reads += 1;
+          return HttpResponse.json(transactions[0]!);
+        },
+      ),
+      http.delete(
+        "*/api/finance/ledgers/:ledgerId/transactions/:transactionId",
+        () => {
+          missing = true;
+          deletes += 1;
+          return HttpResponse.json(
+            {
+              code: "finance_transaction_not_found",
+              detail: "Missing",
+              status: 404,
+              title: "Not found",
+              type: "about:blank",
+            },
+            { status: 404 },
+          );
+        },
+      ),
     );
-    renderRoute(`/finance/transactions/${transactionId}?ledger=${ledgerId}`);
+    const { router } = renderRoute(`/finance/transactions?ledger=${ledgerId}`);
+    await user.click(
+      await screen.findByRole(
+        "link",
+        { name: /View details for Income/ },
+        { timeout: 5_000 },
+      ),
+    );
 
     await user.click(
       await screen.findByRole(
@@ -3437,7 +3888,225 @@ describe("Finance Transaction detail", () => {
       screen.getByText("Transaction unavailable. It was already removed."),
     ).toBeVisible();
     expect(screen.queryByText("Exact note")).not.toBeInTheDocument();
+    for (let visit = 0; visit < 2; visit += 1) {
+      await act(() => router.navigate(-1));
+      await screen.findByRole("heading", { name: "No transactions yet" });
+      await act(() => router.navigate(1));
+      expect(
+        await screen.findByRole("heading", { name: "Transaction unavailable" }),
+      ).toHaveFocus();
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Transaction unavailable. It was already removed.",
+      );
+      expect(
+        screen.queryByRole("button", { name: "Delete transaction" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Edit Income" }),
+      ).not.toBeInTheDocument();
+      expect(router.state.location.pathname).toBe(
+        `/finance/transactions/${transactionId}`,
+      );
+      expect(router.state.location.search).toBe(`?ledger=${ledgerId}`);
+    }
+    expect(reads).toBe(1);
+    expect(deletes).toBe(1);
   });
+
+  it("isolates terminal deletion by both Ledger and Transaction identity", async () => {
+    const user = userEvent.setup();
+    const reads: string[] = [];
+    mockEditReferences();
+    server.use(
+      getListFinanceLedgersMockHandler([
+        { id: ledgerId, name: "Personal" },
+        { id: otherLedgerId, name: "Team" },
+      ]),
+      http.get(
+        "*/api/finance/ledgers/:ledgerId/transactions/:transactionId",
+        ({ params }) => {
+          reads.push(`${params.ledgerId}:${params.transactionId}`);
+          return HttpResponse.json({
+            ...transactions[0]!,
+            ledgerId: params.ledgerId,
+            id: params.transactionId,
+            note: `Identity ${params.ledgerId}:${params.transactionId}`,
+          });
+        },
+      ),
+      http.delete(
+        "*/api/finance/ledgers/:ledgerId/transactions/:transactionId",
+        () => new HttpResponse(null, { status: 204 }),
+      ),
+      getListFinanceTransactionsMockHandler({ items: [], nextCursor: null }),
+    );
+    const originalHref = `/finance/transactions/${transactionId}?ledger=${ledgerId}`;
+    const { router, queryClient } = renderRoute(originalHref);
+    await user.click(
+      await screen.findByRole(
+        "button",
+        { name: "Delete transaction" },
+        { timeout: 5_000 },
+      ),
+    );
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Delete transaction",
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("status", { name: "Transaction completion" }),
+      ).toHaveTextContent("Transaction deleted."),
+    );
+    for (const [ledger, transaction] of [
+      [otherLedgerId, transactionId],
+      [ledgerId, duplicateTransactionId],
+    ] as const) {
+      await act(() =>
+        router.navigate(
+          `/finance/transactions/${transaction}?ledger=${ledger}`,
+        ),
+      );
+      expect(
+        await screen.findByText(`Identity ${ledger}:${transaction}`),
+      ).toBeVisible();
+      expect(screen.getByRole("button", { name: "Edit Income" })).toBeVisible();
+      expect(
+        screen.getByRole("button", { name: "Delete transaction" }),
+      ).toBeVisible();
+    }
+    // Even a subsequently written cached projection cannot override the terminal identity.
+    queryClient.setQueryData(
+      getGetFinanceTransactionQueryKey(ledgerId, transactionId),
+      { data: transactions[0]!, status: 200, headers: new Headers() },
+    );
+    await act(() => router.navigate(originalHref));
+    expect(
+      await screen.findByRole("heading", { name: "Transaction unavailable" }),
+    ).toHaveFocus();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Transaction deleted.",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Delete transaction" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Exact note")).not.toBeInTheDocument();
+    expect(reads).toEqual([
+      `${ledgerId}:${transactionId}`,
+      `${otherLedgerId}:${transactionId}`,
+      `${ledgerId}:${duplicateTransactionId}`,
+    ]);
+  });
+
+  it.each(["income", "balanceAdjustment"] as const)(
+    "closes an obsolete %s Edit opened from history during pending deletion",
+    async (kind) => {
+      const user = userEvent.setup();
+      const transaction =
+        kind === "income" ? transactions[0]! : transactions[3]!;
+      let deleted = false;
+      let deletes = 0;
+      let reads = 0;
+      let releaseDelete!: () => void;
+      const deleteResponse = new Promise<void>((resolve) => {
+        releaseDelete = resolve;
+      });
+      mockLedger();
+      mockEditReferences();
+      server.use(
+        getListFinanceTransactionsMockHandler(() => ({
+          items: deleted ? [] : [transaction],
+          nextCursor: null,
+        })),
+        http.get(
+          "*/api/finance/ledgers/:ledgerId/transactions/:transactionId",
+          () => {
+            reads += 1;
+            return HttpResponse.json(transaction);
+          },
+        ),
+        http.get(
+          "*/api/finance/ledgers/:ledgerId/accounts/:accountId/balance-adjustment-context",
+          () =>
+            HttpResponse.json({
+              account,
+              accountNature: "asset",
+              derivedComparisonBalance: { amount: "0.00", currency: "USD" },
+              transactionDate: transaction.transactionDate,
+            }),
+        ),
+        http.delete(
+          "*/api/finance/ledgers/:ledgerId/transactions/:transactionId",
+          async () => {
+            deletes += 1;
+            await deleteResponse;
+            deleted = true;
+            return new HttpResponse(null, { status: 204 });
+          },
+        ),
+      );
+      const { router } = renderRoute(
+        `/finance/transactions?ledger=${ledgerId}`,
+      );
+      await user.click(
+        await screen.findByRole(
+          "link",
+          { name: /View details for/ },
+          { timeout: 5_000 },
+        ),
+      );
+      await user.click(
+        await screen.findByRole("button", { name: "Delete transaction" }),
+      );
+      await user.click(
+        within(screen.getByRole("alertdialog")).getByRole("button", {
+          name: "Delete transaction",
+        }),
+      );
+      await waitFor(() => expect(deletes).toBe(1));
+      await act(() => router.navigate(-1));
+      await user.click(
+        await screen.findByRole("button", { name: /^Edit .* on/ }),
+      );
+      const dialog = await screen.findByRole("dialog");
+      if (kind === "balanceAdjustment") {
+        const target = await within(dialog).findByRole("textbox", {
+          name: "Target balance",
+        });
+        await waitFor(() => expect(target).toBeEnabled());
+        await user.type(target, "1.00");
+      }
+      await waitFor(() =>
+        expect(
+          within(dialog).getByRole("button", {
+            name: kind === "income" ? "Save changes" : "Save adjustment",
+          }),
+        ).toBeEnabled(),
+      );
+      expect(reads).toBe(2);
+      releaseDelete();
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+      );
+      await screen.findByRole("heading", { name: "No transactions yet" });
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Transaction unavailable. It was already removed.",
+      );
+      expect(
+        screen.getByRole("heading", { level: 1, name: "Transactions" }),
+      ).toHaveFocus();
+      expect(
+        screen.queryByRole("button", { name: /^Edit .* on/ }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /^Delete .* on/ }),
+      ).not.toBeInTheDocument();
+      expect(reads).toBe(2);
+      expect(deletes).toBe(1);
+      expect(router.state.location.pathname).toBe("/finance/transactions");
+    },
+  );
 
   it("clears Transaction identity when switching Ledgers", async () => {
     const user = userEvent.setup();
