@@ -2,6 +2,10 @@ allowBuilds:
   esbuild: true
   msw: false
 
+minimumReleaseAgeExclude:
+  # Issue #25 targets this reviewed release; keep the age exception version-specific.
+  - lucide-react@1.49.0
+
 overrides:
   # Orval 8.23.0 pins vulnerable js-yaml 4.3.0; retain the compatible v4 API.
   # Remove when Orval accepts js-yaml >=4.3.2 without this override.
