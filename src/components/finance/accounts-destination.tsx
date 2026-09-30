@@ -387,6 +387,7 @@ export function AccountsDestination({
   const [actionError, setActionError] = useState("");
   const [focusAccountActionId, setFocusAccountActionId] = useState("");
   const dialogInvoker = useRef<HTMLButtonElement | null>(null);
+  const restoreDialogFocus = useRef(false);
   const archiveCancelRef = useRef<HTMLButtonElement | null>(null);
   const archiveAccountIdRef = useRef("");
   const accountsQuery = useListFinanceAccounts(ledgerId, {
@@ -494,10 +495,21 @@ export function AccountsDestination({
     },
   });
 
+  useEffect(() => {
+    if (createOpen || editingAccount || !restoreDialogFocus.current) return;
+    const invoker = dialogInvoker.current;
+    const target =
+      invoker?.isConnected && !invoker.disabled
+        ? invoker
+        : document.getElementById("finance-title");
+    target?.focus();
+    restoreDialogFocus.current = false;
+  }, [createOpen, editingAccount]);
+
   const closeDialog = () => {
+    restoreDialogFocus.current = true;
     setCreateOpen(false);
     setEditingAccount(null);
-    queueMicrotask(() => dialogInvoker.current?.focus());
   };
 
   if (accountsQuery.isPending || currenciesQuery.isPending) {

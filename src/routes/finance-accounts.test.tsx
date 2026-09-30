@@ -1318,7 +1318,41 @@ describe("Finance Accounts destination", () => {
     ).toBeVisible();
   });
 
-  it("reconciles an ordinary edit in backend order before refresh completes", async () => {
+  it.each(["Cancel", "Escape"])(
+    "restores focus to the enabled Account edit invoker after %s",
+    async (dismissal) => {
+      const user = userEvent.setup();
+      server.use(
+        getListFinanceLedgersMockHandler([ledger]),
+        getListFinanceCurrenciesMockHandler([{ code: "CNY", minorUnit: 2 }]),
+        getListFinanceAccountsMockHandler([accounts[2]!]),
+      );
+      renderRoute(`/finance/accounts?ledger=${ledger.id}`);
+
+      const editButton = await screen.findByRole(
+        "button",
+        { name: "Edit Operating cash" },
+        { timeout: 5_000 },
+      );
+      await user.click(editButton);
+      const dialog = screen.getByRole("dialog", {
+        name: "Edit Operating cash",
+      });
+      if (dismissal === "Cancel") {
+        await user.click(
+          within(dialog).getByRole("button", { name: "Cancel" }),
+        );
+      } else {
+        await user.keyboard("{Escape}");
+      }
+
+      expect(dialog).not.toBeInTheDocument();
+      expect(editButton).toBeEnabled();
+      expect(editButton).toHaveFocus();
+    },
+  );
+
+  it("reconciles an ordinary edit and focuses the heading while refresh keeps the row disabled", async () => {
     const user = userEvent.setup();
     let listRequests = 0;
     let releaseRefresh!: () => void;
@@ -1403,11 +1437,15 @@ describe("Finance Accounts destination", () => {
         .map((row) => row.getAttribute("aria-label")),
     ).toEqual(["Reserve", "Zebra cash"]);
     expect(screen.getByRole("status")).toHaveTextContent("Zebra cash updated.");
-    expect(editButton).toHaveFocus();
+    expect(editButton).toBeDisabled();
+    const heading = screen.getByRole("heading", { level: 1, name: "Accounts" });
+    expect(heading).toHaveFocus();
     expect(
       screen.queryByRole("dialog", { name: "Edit Operating cash" }),
     ).not.toBeInTheDocument();
     releaseRefresh();
+    await waitFor(() => expect(editButton).toBeEnabled());
+    expect(heading).toHaveFocus();
   });
 
   it("recovers Tracking Start Date when associated history rejects an edit", async () => {
