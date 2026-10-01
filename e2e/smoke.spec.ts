@@ -505,6 +505,73 @@ test("opens Finance with shared Ledger context", async ({ page }, testInfo) => {
   expectNoBrowserErrors(errors);
 });
 
+test("enables Other transaction actions at full contrast and preserves keyboard dismissal", async ({
+  page,
+}, testInfo) => {
+  const errors = collectBrowserErrors(page);
+  await mockOverviewDetails(page);
+  let releaseAccounts!: () => void;
+  const accountsReady = new Promise<void>((resolve) => {
+    releaseAccounts = resolve;
+  });
+  await page.route("**/api/finance/ledgers", async (route) => {
+    await route.fulfill({ json: financeLedgers });
+  });
+  await page.route("**/api/finance/ledgers/*/accounts", async (route) => {
+    await accountsReady;
+    await route.fulfill({ json: financeAccounts });
+  });
+  await page.route(
+    "**/api/finance/ledgers/*/overview?month=*",
+    async (route) => {
+      const month = new URL(route.request().url()).searchParams.get("month")!;
+      await route.fulfill({ json: financeOverviewForMonth(month) });
+    },
+  );
+  await page.goto("/finance/overview");
+  const trigger = page.getByRole("button", {
+    name: "Other transaction actions",
+    exact: true,
+  });
+  await expect(trigger).toBeDisabled();
+  await expect(trigger).toHaveCSS("opacity", "0.5");
+  // Observe the actual enabled frame; eventual opacity assertions miss the fade.
+  const triggerId = await trigger.getAttribute("id");
+  await page.evaluate(`(() => {
+    const element = document.getElementById(${JSON.stringify(triggerId)});
+    window.firstEnabledOpacity = new Promise((resolve) => {
+      const observer = new MutationObserver(() => {
+        if (!element.disabled) {
+          observer.disconnect();
+          resolve(getComputedStyle(element).opacity);
+        }
+      });
+      observer.observe(element, {
+        attributes: true,
+        attributeFilter: ["disabled"],
+      });
+    });
+  })()`);
+  releaseAccounts();
+  const firstEnabledOpacity = await page.evaluate<string>(
+    "window.firstEnabledOpacity",
+  );
+  expect(firstEnabledOpacity).toBe("1");
+  await expect(trigger).toBeEnabled();
+  await expect(trigger).toHaveAttribute("aria-haspopup", "menu");
+  await expectNoAccessibilityViolations(page, trigger, testInfo);
+  await trigger.press("Enter");
+  const menu = page.getByRole("menu");
+  await expect(menu).toBeVisible();
+  await expect(
+    menu.getByRole("menuitem", { name: "Balance Adjustment", exact: true }),
+  ).toBeEnabled();
+  await menu.press("Escape");
+  await expect(menu).not.toBeVisible();
+  await expect(trigger).toBeFocused();
+  expectNoBrowserErrors(errors);
+});
+
 test("keeps the seven-day Finance Calendar usable in the expanded 1024px shell", async ({
   page,
 }, testInfo) => {

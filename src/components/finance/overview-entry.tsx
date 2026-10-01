@@ -155,9 +155,11 @@ export function OverviewEntry({
           Quick Entry
         </h2>
         <DropdownMenu>
+          {/* Enabled text must not fade in from the disabled opacity. */}
           <DropdownMenuTrigger
             render={
               <Button
+                className="transition-colors"
                 disabled={!canCreate}
                 ref={secondaryInvoker}
                 size="sm"
