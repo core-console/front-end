@@ -7,6 +7,11 @@ minimumReleaseAgeExclude:
   - lucide-react@1.49.0
 
 overrides:
-  # Orval 8.23.0 pins vulnerable js-yaml 4.3.0; retain the compatible v4 API.
-  # Remove when Orval accepts js-yaml >=4.3.2 without this override.
-  "orval@8.23.0>js-yaml": 4.3.2
+  # Orval's Scalar parser pins vulnerable undici 7.29.0; preserve the patched v7 API.
+  # Remove when this parent accepts undici >=7.29.1 without the override.
+  "@scalar/json-magic@0.15.3>undici": 7.29.1
+
+patchedDependencies:
+  # Orval 8.38.0 spreads case-sensitive header keys, duplicating Content-Type.
+  # Retire after an upstream generator emits equivalent case-insensitive merging.
+  "@orval/fetch@8.38.0": patches/@orval__fetch@8.38.0.patch

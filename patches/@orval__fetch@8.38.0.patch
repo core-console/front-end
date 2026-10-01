@@ -1,0 +1,41 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 3baa73b2732ddd8fe0587d2c16e73e4a3595d527..6d8f7b45aa5525d689372bbade5921c27cbc733c 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -55,17 +55,16 @@ const generateRequestFunction = ({ queryParams, headers, operationName, typeName
+ 	const isRequestOptions = override.requestOptions !== false;
+ 	const isFormData = !override.formData.disabled;
+ 	const isFormUrlEncoded = override.formUrlEncoded !== false;
+-	const GET_HEADERS_HELPER = `  const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+-    if (!h) return {};
+-    if (h instanceof Headers) return Object.fromEntries(h.entries());
+-    if (Symbol.iterator in h) {
+-      return Object.fromEntries(
+-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+-      );
+-    }
+-    const headers: Record<string, string | readonly string[]> = {};
+-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+-      if (value !== undefined) headers[name] = value;
++	const GET_HEADERS_HELPER = `  const getHeaders = (defaults: HeadersInit, overrides?: HeadersInit): Headers => {
++    const headers = new Headers(defaults);
++    if (overrides instanceof Headers) {
++      overrides.forEach((value, name) => headers.set(name, value));
++    } else {
++      const entries = Array.isArray(overrides) ? overrides : Object.entries(overrides ?? {});
++      for (const entry of entries) {
++        const [name, value] = entry as [string, string];
++        headers.set(name, value);
++      }
+     }
+     return headers;
+   };
+@@ -277,7 +276,7 @@ ${override.fetch.forceSuccessResponse && hasSuccess ? "" : `export type ${respon
+ 		if (shouldMergeFetchOptionHeaders && override.requestOptions.headers) delete globalFetchOptionsObject.headers;
+ 		globalFetchOptions = stringify(globalFetchOptionsObject)?.slice(1, -1).trim();
+ 	} else globalFetchOptions = "";
+-	const fetchHeadersOption = headersToAdd.length > 0 ? `headers: { ${headersToAdd.join(",")}${isRequestOptions ? ", ...getHeaders(options?.headers)" : ""} }` : "";
++	const fetchHeadersOption = headersToAdd.length > 0 ? isRequestOptions ? `headers: getHeaders({ ${headersToAdd.join(",")} }, options?.headers)` : `headers: { ${headersToAdd.join(",")} }` : "";
+ 	const requestBodyParams = generateBodyOptions(requestSerializer ? {
+ 		...body,
+ 		implementation: `${requestSerializer.name}(${body.implementation})`

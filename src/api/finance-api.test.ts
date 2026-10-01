@@ -20,8 +20,11 @@ import {
   AccountResponse,
   BalanceAdjustmentResultResponse,
   CorrectAccountSemanticsRequest,
+  CreateFinanceTransactionBody,
   CreateUserRequest,
   CurrencyResponse,
+  CurrencyCode,
+  FinanceOverviewMonth,
   FinanceOverviewResponse,
   FinanceTransactionResponse,
   MoneyResponse,
@@ -269,6 +272,48 @@ describe("generated Finance API boundary", () => {
       MoneyResponse.safeParse({ amount: 9007199254740994, currency: "CNY" })
         .success,
     ).toBe(false);
+  });
+
+  it("preserves canonical currencies, months, and strict response fields", () => {
+    for (const currency of ["CNY", "JPY", "USD"]) {
+      expect(CurrencyCode.parse(currency)).toBe(currency);
+    }
+    for (const currency of ["cny", "EUR", " CNY"]) {
+      expect(CurrencyCode.safeParse(currency).success).toBe(false);
+    }
+    expect(FinanceOverviewMonth.parse("2026-09")).toBe("2026-09");
+    for (const month of ["2026-9", "2026-00", "2026-13"]) {
+      expect(FinanceOverviewMonth.safeParse(month).success).toBe(false);
+    }
+    expect(
+      MoneyResponse.safeParse({
+        amount: "12.34",
+        currency: "CNY",
+        unexpected: true,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("keeps transaction request unions strict without coercing Money", () => {
+    const request = {
+      kind: "expense",
+      accountId,
+      economicAmount: { amount: "9007199254740993.01", currency: "CNY" },
+      categoryAllocations: [
+        { amount: { amount: "9007199254740993.01", currency: "CNY" } },
+      ],
+      transactionDate: "2026-09-10",
+    };
+    expect(CreateFinanceTransactionBody.parse(request)).toEqual(request);
+    for (const invalid of [
+      { ...request, kind: "balanceAdjustment" },
+      { ...request, unexpected: true },
+      { ...request, economicAmount: { amount: 12.34, currency: "CNY" } },
+    ]) {
+      expect(CreateFinanceTransactionBody.safeParse(invalid).success).toBe(
+        false,
+      );
+    }
   });
 
   it("keeps transaction variants discriminated and archived references valid", () => {
