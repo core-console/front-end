@@ -18,17 +18,21 @@ describe("application foundations", () => {
       await screen.findByRole("heading", { name: "Home" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("complementary", { name: "Core Console sidebar" }),
+      screen.getByRole("complementary", { name: "Core Console 侧边栏" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("navigation", { name: "Primary navigation" }),
+      screen.getByRole("navigation", { name: "主导航" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Welcome to Core Console.")).toBeInTheDocument();
+    expect(screen.getByText("欢迎使用 Core Console。")).toBeInTheDocument();
     expect(screen.getByText("Users")).toBeInTheDocument();
     expect(screen.getByText("Settings")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Users" })).toHaveAttribute(
       "href",
       "/users",
+    );
+    expect(screen.getByRole("link", { name: "Finance" })).toHaveAttribute(
+      "href",
+      "/finance/overview",
     );
     expect(
       screen.queryByRole("link", { name: "Settings" }),
@@ -36,17 +40,28 @@ describe("application foundations", () => {
   });
 
   it("renders the current-user identity in the app shell", async () => {
+    let releaseIdentity!: () => void;
+    const pendingIdentity = new Promise<void>((resolve) => {
+      releaseIdentity = resolve;
+    });
     server.use(
-      getGetCurrentUserMockHandler({
-        displayName: "Ada Lovelace",
-        email: "ada@example.com",
-        id: "77ef6ca4-f45a-4e77-9a29-07c56191fbca",
-        username: "ada",
+      getGetCurrentUserMockHandler(async () => {
+        await pendingIdentity;
+        return {
+          displayName: "Ada Lovelace",
+          email: "ada@example.com",
+          id: "77ef6ca4-f45a-4e77-9a29-07c56191fbca",
+          username: "ada",
+        };
       }),
     );
 
     renderRoute("/");
 
+    expect(await screen.findByText("正在加载用户")).toBeVisible();
+    expect(screen.getByText("请稍候")).toBeVisible();
+    expect(screen.getByRole("group", { name: "当前用户" })).toBeVisible();
+    releaseIdentity();
     expect(await screen.findByText("Ada Lovelace")).toBeInTheDocument();
     expect(screen.getByText("ada")).toBeInTheDocument();
   });
@@ -67,7 +82,7 @@ describe("application foundations", () => {
     expect(
       await screen.findByRole("heading", { name: "Home" }),
     ).toBeInTheDocument();
-    expect(await screen.findByText("Account unavailable")).toBeInTheDocument();
+    expect(await screen.findByText("无法加载用户")).toBeInTheDocument();
   });
 
   it("toggles between expanded and collapsed desktop navigation", async () => {
@@ -75,28 +90,30 @@ describe("application foundations", () => {
     renderRoute("/");
 
     const collapseButton = await screen.findByRole("button", {
-      name: "Collapse sidebar",
+      name: "收起侧边栏",
     });
 
     await user.click(collapseButton);
 
     expect(
-      screen.getByRole("button", { name: "Expand sidebar" }),
+      screen.getByRole("button", { name: "展开侧边栏" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Expand sidebar" }),
-    ).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: "展开侧边栏" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
     expect(screen.queryByText("Core Console")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Home" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Expand sidebar" }));
+    await user.click(screen.getByRole("button", { name: "展开侧边栏" }));
 
     expect(
-      screen.getByRole("button", { name: "Collapse sidebar" }),
+      screen.getByRole("button", { name: "收起侧边栏" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Collapse sidebar" }),
-    ).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "收起侧边栏" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
     expect(screen.getByText("Core Console")).toBeInTheDocument();
   });
 
@@ -104,11 +121,16 @@ describe("application foundations", () => {
     renderRoute("/missing-page");
 
     expect(
-      await screen.findByRole("heading", { name: "Page not found" }),
+      await screen.findByRole("heading", { name: "页面不存在" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Home" })).not.toHaveAttribute(
       "aria-current",
       "page",
+    );
+    expect(screen.getByText("找不到此页面，请检查地址。")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "返回 Home" })).toHaveAttribute(
+      "href",
+      "/",
     );
   });
 

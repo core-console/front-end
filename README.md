@@ -74,6 +74,36 @@ use the TS7 programming API directly.
 See the [modernization compatibility notes](docs/repository-modernization.md)
 for retained compatibility boundaries and their removal criteria.
 
+## Localization
+
+The default UI language is Simplified Chinese (`zh-CN`). The first slice covers
+the shell, navigation affordances, Home, and shared loading/error feedback.
+Users and Finance feature copy will be localized in later slices.
+
+Use the typed `messages` catalog in `src/lib/i18n.ts` for user-facing copy,
+including accessible names and tooltips. Add keys by surface or shared intent;
+keep complete sentences and parameterized messages in the catalog rather than
+assembling translated fragments in components. A single locale needs no
+provider, locale state, or switcher.
+
+Localized surfaces and shell tooltips declare the exported `locale`; fixed
+English labels declare `lang="en"`. The document fallback and shell's route
+content boundary remain English for deferred feature copy and portal content.
+Each newly localized route should declare `lang={locale}` on its surface.
+
+The closed `glossary` in that module preserves these English labels: Core
+Console; Home, Users, Finance, Settings; Overview, Transactions, Accounts,
+Categories; Ledger, Account, Category, Transaction; Balance Adjustment,
+Internal Transfer. Chinese carries descriptions, help, ordinary field labels,
+statuses, filters, validation, empty states, errors, confirmations, and feedback.
+Actions use Chinese verbs with fixed glossary objects, such as 新建 Ledger or
+删除 Transaction. Do not add bilingual labels such as `Ledger / 账本`.
+
+Income, Expense, Asset, and Liability are 收入, 支出, 资产, and 负债. Quick Entry is
+快速记账. Finance uses Account; identity and login copy uses 用户 or 登录账号.
+Ledger and Transaction stay English; 账本 and 记账事件 may clarify explanatory
+copy. These are UI wording rules, not changes to backend-owned domain meanings.
+
 ## Finance v1 integration status
 
 The current backend-owned Finance v1 OpenAPI contract is synchronized into

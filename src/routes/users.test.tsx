@@ -266,7 +266,7 @@ describe("Users", () => {
     renderRoute("/users");
 
     const currentAccount = await screen.findByRole("group", {
-      name: "Current account",
+      name: "当前用户",
     });
     expect(await within(currentAccount).findByText("Developer")).toBeVisible();
 

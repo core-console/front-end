@@ -1,6 +1,7 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { locale, messages } from "@/lib/i18n";
 import {
   Tooltip,
   TooltipContent,
@@ -13,7 +14,9 @@ interface SidebarToggleProps {
 }
 
 export function SidebarToggle({ collapsed, onToggle }: SidebarToggleProps) {
-  const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
+  const label = collapsed
+    ? messages.shell.expandSidebar
+    : messages.shell.collapseSidebar;
 
   return (
     <Tooltip>
@@ -23,7 +26,7 @@ export function SidebarToggle({ collapsed, onToggle }: SidebarToggleProps) {
             aria-controls="app-sidebar"
             aria-expanded={!collapsed}
             aria-label={label}
-            className="rounded-sm text-muted-foreground"
+            className="rounded-sm text-muted-foreground aria-expanded:bg-transparent hover:aria-expanded:bg-muted"
             onClick={onToggle}
             size="icon"
             variant="ghost"
@@ -44,7 +47,9 @@ export function SidebarToggle({ collapsed, onToggle }: SidebarToggleProps) {
           </Button>
         }
       />
-      <TooltipContent side="bottom">{label}</TooltipContent>
+      <TooltipContent lang={locale} side="bottom">
+        {label}
+      </TooltipContent>
     </Tooltip>
   );
 }

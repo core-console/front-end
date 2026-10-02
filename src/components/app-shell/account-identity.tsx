@@ -1,6 +1,7 @@
 import { useGetCurrentUser } from "@/api/generated/core-console";
 import { MeResponse } from "@/api/generated/schemas";
 import { cn } from "@/lib/utils";
+import { messages } from "@/lib/i18n";
 
 import { sidebarLabelClassName } from "@/components/app-shell/sidebar-label";
 
@@ -16,14 +17,14 @@ interface IdentityPresentation {
 
 const loadingIdentity: IdentityPresentation = {
   initial: "…",
-  primary: "Loading account",
-  secondary: "Please wait",
+  primary: messages.shell.loadingUser,
+  secondary: messages.shell.pleaseWait,
 };
 
 const unavailableIdentity: IdentityPresentation = {
   initial: "?",
-  primary: "Account unavailable",
-  secondary: "Unable to load",
+  primary: messages.shell.userUnavailable,
+  secondary: messages.shell.retryLater,
 };
 
 const firstAvailable = (...values: Array<string | null>) =>
@@ -74,7 +75,7 @@ export function AccountIdentity({ collapsed }: AccountIdentityProps) {
 
   return (
     <div
-      aria-label="Current account"
+      aria-label={messages.shell.currentUser}
       className="shrink-0 bg-card px-2 pt-2 pb-4"
       role="group"
     >

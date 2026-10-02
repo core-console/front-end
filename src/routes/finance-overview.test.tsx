@@ -188,6 +188,12 @@ describe("Finance Overview", () => {
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-16`,
     );
 
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Overview" }),
+    ).toBeVisible();
+    expect(
+      await screen.findByRole("button", { name: ledger.name }),
+    ).toBeVisible();
     const position = await screen.findByRole("region", {
       name: "Current financial position",
     });

@@ -367,6 +367,17 @@ const expectNoBrowserErrors = (
   expect(errors.consoleErrors, "unexpected console errors").toEqual([]);
 };
 
+const expectLanguage = async (surface: Locator, language: "en" | "zh-CN") => {
+  await expect(surface).toBeVisible();
+  await expect
+    .poll(() =>
+      surface.evaluate((element) =>
+        element.closest("[lang]")?.getAttribute("lang"),
+      ),
+    )
+    .toBe(language);
+};
+
 const formatAxeViolations = (violations: AxeResults["violations"]) =>
   violations
     .map(({ help, id, impact, nodes }) => {
@@ -415,7 +426,7 @@ const expectNoAccessibilityViolations = async (
 test("opens the home page", async ({ page }, testInfo) => {
   const errors = collectBrowserErrors(page);
   const sidebar = page.getByRole("complementary", {
-    name: "Core Console sidebar",
+    name: "Core Console 侧边栏",
   });
 
   await page.goto("/");
@@ -423,17 +434,101 @@ test("opens the home page", async ({ page }, testInfo) => {
   await expect(
     page.getByRole("heading", { level: 1, name: "Home" }),
   ).toBeVisible();
+  await expect(page.getByText("欢迎使用 Core Console。")).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expectLanguage(page.getByText("欢迎使用 Core Console。"), "zh-CN");
+  await expectLanguage(sidebar, "zh-CN");
+  await expectLanguage(page.getByRole("heading", { name: "Home" }), "en");
   await expect(sidebar).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Collapse sidebar" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Collapse sidebar" }).click();
-  await expect(
-    page.getByRole("button", { name: "Expand sidebar" }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "收起侧边栏" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "收起侧边栏" })).toHaveCSS(
+    "background-color",
+    "rgba(0, 0, 0, 0)",
+  );
+  await expectNoAccessibilityViolations(page, sidebar, testInfo);
+  await page.getByRole("button", { name: "收起侧边栏" }).click();
+  await expect(page.getByRole("button", { name: "展开侧边栏" })).toBeVisible();
   await expectNoAccessibilityViolations(page, sidebar, testInfo);
   expectNoBrowserErrors(errors);
 });
+
+for (const width of [1024, 1280, 1600]) {
+  test(`preserves sidebar hover, keyboard, and layout at ${width}px`, async ({
+    page,
+  }, testInfo) => {
+    const errors = collectBrowserErrors(page);
+    await page.setViewportSize({ width, height: 1024 });
+    await page.goto("/");
+
+    const home = page.getByRole("heading", { level: 1, name: "Home" });
+    const sidebar = page.getByRole("complementary", {
+      name: "Core Console 侧边栏",
+    });
+    const navigation = page.getByRole("navigation", { name: "主导航" });
+    const toggle = page.getByRole("button", { name: "收起侧边栏" });
+
+    await expect(home).toBeVisible();
+    await expect(sidebar).toHaveCSS("width", "240px");
+    await expect(toggle).toHaveAttribute("aria-controls", "app-sidebar");
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(toggle).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await expect(navigation.getByRole("link")).toHaveCount(3);
+    await expect(
+      navigation.getByRole("link", { name: "Home" }),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(navigation.getByText("Settings")).toBeVisible();
+    await expect(
+      navigation.getByRole("link", { name: "Settings" }),
+    ).toHaveCount(0);
+
+    await toggle.hover();
+    await expect(toggle).toHaveCSS("background-color", "rgb(243, 243, 254)");
+    await expect(page.getByText("收起侧边栏", { exact: true })).toBeVisible();
+    await expectLanguage(
+      page.getByText("收起侧边栏", { exact: true }),
+      "zh-CN",
+    );
+    await home.hover();
+    await expect(toggle).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+
+    await navigation.getByRole("link", { name: "Home" }).focus();
+    await page.keyboard.press("Tab");
+    await expect(navigation.getByRole("link", { name: "Users" })).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(
+      navigation.getByRole("link", { name: "Finance" }),
+    ).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(toggle).toBeFocused();
+    await expect(toggle).toHaveCSS("border-color", "rgb(0, 74, 198)");
+    await expect(toggle).not.toHaveCSS("box-shadow", "none");
+    await expect(toggle).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+
+    await page.keyboard.press("Space");
+    const expand = page.getByRole("button", { name: "展开侧边栏" });
+    await expect(expand).toBeFocused();
+    await expect(expand).toHaveAttribute("aria-expanded", "false");
+    await expect(sidebar).toHaveCSS("width", "56px");
+    await expect(expand).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await expand.hover();
+    await expect(expand).toHaveCSS("background-color", "rgb(243, 243, 254)");
+    await home.hover();
+    await expect(expand).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await expectNoAccessibilityViolations(page, sidebar, testInfo);
+
+    await page.keyboard.press("Enter");
+    await expect(toggle).toBeFocused();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(sidebar).toHaveCSS("width", "240px");
+    await expect(page).toHaveURL("/");
+    await expect(page.getByRole("main")).toHaveCSS("min-width", "0px");
+    expect(
+      await page.locator("body").evaluate((body) => body.scrollWidth),
+    ).toBe(width);
+    await expectNoAccessibilityViolations(page, sidebar, testInfo);
+    expectNoBrowserErrors(errors);
+  });
+}
 
 test("opens Users management in the production shell", async ({
   page,
@@ -443,7 +538,7 @@ test("opens Users management in the production shell", async ({
     await route.fulfill({ json: managedUsers });
   });
   const sidebar = page.getByRole("complementary", {
-    name: "Core Console sidebar",
+    name: "Core Console 侧边栏",
   });
 
   await page.goto("/users");
@@ -455,6 +550,7 @@ test("opens Users management in the production shell", async ({
     page.getByRole("cell", { exact: true, name: "Alice Smith" }),
   ).toBeVisible();
   await expect(page.getByRole("cell", { name: "Inactive" })).toBeVisible();
+  await expectLanguage(page.getByRole("cell", { name: "Inactive" }), "en");
   await expect(page.getByRole("link", { name: "Users" })).toHaveAttribute(
     "aria-current",
     "page",
@@ -464,6 +560,7 @@ test("opens Users management in the production shell", async ({
   await page.getByRole("button", { name: "Add user" }).click();
   const dialog = page.getByRole("dialog", { name: "Add user" });
   await expect(dialog).toBeVisible();
+  await expectLanguage(dialog, "en");
   await expect(dialog.getByLabel("Identity issuer *")).toBeEditable();
   await expectNoAccessibilityViolations(page, dialog, testInfo);
   await dialog.press("Escape");
@@ -501,6 +598,7 @@ test("opens Finance with shared Ledger context", async ({ page }, testInfo) => {
   await expect(
     finance.getByRole("navigation", { name: "Finance navigation" }),
   ).toBeVisible();
+  await expectLanguage(finance, "en");
   await expectNoAccessibilityViolations(page, finance, testInfo);
   expectNoBrowserErrors(errors);
 });
@@ -2899,16 +2997,16 @@ test("renders the frontend 404 page for an unknown route", async ({
 }, testInfo) => {
   const errors = collectBrowserErrors(page);
   const sidebar = page.getByRole("complementary", {
-    name: "Core Console sidebar",
+    name: "Core Console 侧边栏",
   });
 
   await page.goto("/missing-page");
 
   await expect(page).toHaveURL(/\/missing-page$/);
   await expect(
-    page.getByRole("heading", { level: 1, name: "Page not found" }),
+    page.getByRole("heading", { level: 1, name: "页面不存在" }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Return home" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "返回 Home" })).toBeVisible();
   await expectNoAccessibilityViolations(page, sidebar, testInfo);
   expectNoBrowserErrors(errors);
 });

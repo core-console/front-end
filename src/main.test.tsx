@@ -13,6 +13,7 @@ it("renders the startup fallback when environment configuration is invalid", asy
   await expect(import("@/main")).resolves.toBeDefined();
 
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "The application could not be started.",
+    "应用无法启动，请刷新页面重试。",
   );
+  expect(screen.getByRole("alert")).toHaveAttribute("lang", "zh-CN");
 });

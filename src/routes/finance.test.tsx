@@ -76,7 +76,7 @@ describe("Finance foundation", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Page not found" }),
+      await screen.findByRole("heading", { level: 1, name: "页面不存在" }),
     ).toBeVisible();
     expect(
       screen.queryByRole("heading", { level: 1, name: "Accounts" }),

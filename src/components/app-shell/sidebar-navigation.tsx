@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import { sidebarLabelClassName } from "@/components/app-shell/sidebar-label";
 import { cn } from "@/lib/utils";
+import { glossary, messages } from "@/lib/i18n";
 
 interface SidebarNavigationProps {
   collapsed: boolean;
@@ -26,10 +27,10 @@ interface NavigationItem {
 }
 
 const navigationItems: NavigationItem[] = [
-  { icon: House, label: "Home", to: "/" },
-  { icon: Users, label: "Users", to: "/users" },
-  { icon: WalletCards, label: "Finance", to: "/finance/overview" },
-  { icon: Settings, label: "Settings" },
+  { icon: House, label: glossary.home, to: "/" },
+  { icon: Users, label: glossary.users, to: "/users" },
+  { icon: WalletCards, label: glossary.finance, to: "/finance/overview" },
+  { icon: Settings, label: glossary.settings },
 ];
 
 function NavigationItemView({
@@ -75,6 +76,7 @@ function NavigationItemView({
           "hover:bg-sidebar-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         )}
         to={item.to}
+        lang="en"
       >
         {content}
       </Link>
@@ -84,7 +86,9 @@ function NavigationItemView({
       return (
         <Tooltip>
           <TooltipTrigger render={link} />
-          <TooltipContent side="right">{item.label}</TooltipContent>
+          <TooltipContent lang="en" side="right">
+            {item.label}
+          </TooltipContent>
         </Tooltip>
       );
     }
@@ -93,7 +97,7 @@ function NavigationItemView({
   }
 
   return (
-    <span aria-disabled="true" className={className}>
+    <span aria-disabled="true" className={className} lang="en">
       {content}
     </span>
   );
@@ -104,7 +108,7 @@ export function SidebarNavigation({ collapsed }: SidebarNavigationProps) {
 
   return (
     <nav
-      aria-label="Primary navigation"
+      aria-label={messages.shell.primaryNavigation}
       className={cn(
         "flex flex-1 flex-col pt-2",
         collapsed ? "items-center gap-1 px-2" : "items-start gap-1 px-2",
