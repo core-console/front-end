@@ -1,5 +1,5 @@
 diff --git a/dist/index.mjs b/dist/index.mjs
-index 3baa73b2732ddd8fe0587d2c16e73e4a3595d527..6d8f7b45aa5525d689372bbade5921c27cbc733c 100644
+index 3baa73b2732ddd8fe0587d2c16e73e4a3595d527..5e264dfea4d05676a9faadfd2cab81dbadf7cb8e 100644
 --- a/dist/index.mjs
 +++ b/dist/index.mjs
 @@ -55,17 +55,16 @@ const generateRequestFunction = ({ queryParams, headers, operationName, typeName

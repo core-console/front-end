@@ -7,6 +7,14 @@ Minimal React application baseline built with Vite, TypeScript, Tailwind CSS, an
 - Use the exact Node.js runtime declared in `.node-version`.
 - Use the pnpm release declared by `packageManager` in `package.json`.
 
+`.node-version` is the exact runtime source for local development and both CI
+jobs; `engines.node` describes the supported LTS range rather than a second
+runtime pin. CI's pnpm setup reads `packageManager` directly. Configure your
+local Node version manager to read `.node-version`, and use a pnpm installation
+that honors the project's `packageManager` field. `pnpm toolchain:check` verifies
+the effective versions and runs first in `pnpm check` so a stale global shim
+cannot silently validate with a different toolchain.
+
 ## Getting Started
 
 ```sh
@@ -31,9 +39,10 @@ Run the complete pre-commit validation pipeline with:
 pnpm check
 ```
 
-It checks the OpenAPI contract and generated client for drift, formatting,
-linting, TypeScript project references, Vitest, the production bundle, and the
-production artifact structure and known development-only markers. Each check
+It checks the effective Node/pnpm versions, OpenAPI contract and generated
+client for drift, formatting, linting, TypeScript project references, Vitest,
+the production bundle, and the production artifact structure and known
+development-only markers. Each check
 remains available as an independent script for focused local work. `pnpm build`
 creates the Vite production bundle and removes the development-only
 `mockServiceWorker.js` without affecting other `public/` assets. Run
@@ -61,6 +70,9 @@ TS6-compatible programming API so tools that cannot yet consume the TS7 API,
 including the current documentation and API-generation toolchain, can continue
 to run. This side-by-side arrangement remains necessary until those tools can
 use the TS7 programming API directly.
+
+See the [modernization compatibility notes](docs/repository-modernization.md)
+for retained compatibility boundaries and their removal criteria.
 
 ## Finance v1 integration status
 
