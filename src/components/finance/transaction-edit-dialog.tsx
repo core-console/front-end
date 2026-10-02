@@ -25,7 +25,6 @@ import {
   CurrencyResponse,
   FinanceRequestDate,
   FinanceTransactionResponse,
-  ListFinanceTransactionsParams,
   ProblemDetails,
   ReplaceFinanceTransactionBody,
   type FinanceTransactionResponseOutput,
@@ -37,6 +36,7 @@ import {
   getTransactionDeletion,
   useTransactionDeletion,
 } from "@/components/finance/transaction-deletion";
+import { reconcileOrdinaryReplacementHistories } from "@/components/finance/transaction-history-cache";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -117,41 +117,6 @@ function problemCode(error: unknown) {
       : undefined,
   );
   return parsed.success ? parsed.data.code : undefined;
-}
-
-function matches(transaction: Ordinary, params: ListFinanceTransactionsParams) {
-  if (params.fromDate && transaction.transactionDate < params.fromDate)
-    return false;
-  if (params.toDate && transaction.transactionDate > params.toDate)
-    return false;
-  if (params.kind && transaction.kind !== params.kind) return false;
-  if (
-    params.accountId &&
-    !(transaction.kind === "internalTransfer"
-      ? [
-          transaction.sourceAccount.id,
-          transaction.destinationAccount.id,
-        ].includes(params.accountId)
-      : transaction.account.id === params.accountId)
-  )
-    return false;
-  if (
-    params.categoryId &&
-    !(
-      transaction.kind !== "internalTransfer" &&
-      transaction.categoryAllocations[0]?.category?.id === params.categoryId
-    )
-  )
-    return false;
-  if (
-    params.uncategorized &&
-    !(
-      transaction.kind !== "internalTransfer" &&
-      transaction.categoryAllocations[0]?.category === null
-    )
-  )
-    return false;
-  return true;
 }
 
 export function TransactionEditDialog({
@@ -584,38 +549,12 @@ function EditForm({
       queryClient.cancelQueries({ queryKey: detailKey }),
     ]);
     queryClient.setQueryData(detailKey, { ...response, data: confirmed });
-    for (const [key, current] of queryClient.getQueriesData<
-      InfiniteData<TransactionHistoryPageResponseOutput>
-    >({ queryKey: historyKey })) {
-      if (!current?.pages) continue;
-      const parsed = ListFinanceTransactionsParams.safeParse(key[1] ?? {});
-      const oldItems = current.pages.flatMap((page) => page.items);
-      const items = oldItems.filter((item) => item.id !== transaction.id);
-      if (
-        oldItems.some((item) => item.id === transaction.id) &&
-        parsed.success &&
-        matches(confirmed, parsed.data)
-      )
-        items.push(confirmed);
-      items.sort((left, right) =>
-        left.transactionDate === right.transactionDate
-          ? right.id.localeCompare(left.id)
-          : right.transactionDate.localeCompare(left.transactionDate),
-      );
-      let offset = 0;
-      queryClient.setQueryData(key, {
-        ...current,
-        pages: current.pages.map((page, index) => {
-          const size =
-            index === current.pages.length - 1
-              ? items.length - offset
-              : page.items.length;
-          const next = { ...page, items: items.slice(offset, offset + size) };
-          offset += size;
-          return next;
-        }),
-      });
-    }
+    reconcileOrdinaryReplacementHistories(
+      queryClient,
+      ledgerId,
+      transaction.id,
+      confirmed,
+    );
     // Refetch histories after removing the obsolete projection; filters, date order, and cursors may change.
     const ids =
       transaction.kind === "internalTransfer"

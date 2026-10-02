@@ -1,4 +1,4 @@
-import { type InfiniteData, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   type FormEvent,
   useCallback,
@@ -25,13 +25,11 @@ import {
   CurrencyResponse,
   FinanceRequestDate,
   FinanceTransactionResponse,
-  ListFinanceTransactionsParams,
   ProblemDetails,
   ReplaceBalanceAdjustmentRequest,
   ReplaceBalanceAdjustmentResultResponse,
   type BalanceAdjustmentContextResponseOutput,
   type FinanceTransactionResponseOutput,
-  type TransactionHistoryPageResponseOutput,
 } from "@/api/generated/schemas";
 import { buildAccountWorkflowLabels } from "@/components/finance/account-identity";
 import {
@@ -51,6 +49,10 @@ import {
   getTransactionDeletion,
   useTransactionDeletion,
 } from "@/components/finance/transaction-deletion";
+import {
+  captureBalanceAdjustmentHistoryMembership,
+  reconcileBalanceAdjustmentReplacementHistories,
+} from "@/components/finance/transaction-history-cache";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -624,17 +626,10 @@ function EditForm({
       queryKey: getGetFinanceOverviewQueryKey(ledgerId),
       refetchType: "none",
     });
-    const originallyPresent = new Set(
-      queryClient
-        .getQueriesData<InfiniteData<TransactionHistoryPageResponseOutput>>({
-          queryKey: historyKey,
-        })
-        .filter(([, current]) =>
-          current?.pages.some((page) =>
-            page.items.some((item) => item.id === transactionId),
-          ),
-        )
-        .map(([queryKey]) => JSON.stringify(queryKey)),
+    const historySnapshot = captureBalanceAdjustmentHistoryMembership(
+      queryClient,
+      ledgerId,
+      transactionId,
     );
     function applyOutcome() {
       if (result.outcome === "updated") {
@@ -645,51 +640,7 @@ function EditForm({
       } else {
         queryClient.removeQueries({ queryKey: detailKey, exact: true });
       }
-      for (const [queryKey, current] of queryClient.getQueriesData<
-        InfiniteData<TransactionHistoryPageResponseOutput>
-      >({ queryKey: historyKey })) {
-        if (!current?.pages) continue;
-        const params = ListFinanceTransactionsParams.safeParse(
-          queryKey[1] ?? {},
-        );
-        const oldItems = current.pages.flatMap((page) => page.items);
-        const items = oldItems.filter((item) => item.id !== transactionId);
-        if (
-          result.outcome === "updated" &&
-          (oldItems.some((item) => item.id === transactionId) ||
-            originallyPresent.has(JSON.stringify(queryKey))) &&
-          params.success &&
-          (!params.data.fromDate ||
-            result.transaction.transactionDate >= params.data.fromDate) &&
-          (!params.data.toDate ||
-            result.transaction.transactionDate <= params.data.toDate) &&
-          (!params.data.kind || params.data.kind === "balanceAdjustment") &&
-          (!params.data.accountId ||
-            params.data.accountId === result.transaction.account.id) &&
-          !params.data.categoryId &&
-          !params.data.uncategorized
-        ) {
-          items.push(result.transaction);
-        }
-        items.sort((left, right) =>
-          left.transactionDate === right.transactionDate
-            ? right.id.localeCompare(left.id)
-            : right.transactionDate.localeCompare(left.transactionDate),
-        );
-        let offset = 0;
-        queryClient.setQueryData(queryKey, {
-          ...current,
-          pages: current.pages.map((page, index) => {
-            const size =
-              index === current.pages.length - 1
-                ? items.length - offset
-                : page.items.length;
-            const next = { ...page, items: items.slice(offset, offset + size) };
-            offset += size;
-            return next;
-          }),
-        });
-      }
+      reconcileBalanceAdjustmentReplacementHistories(historySnapshot, result);
     }
     await Promise.all([
       queryClient.cancelQueries({ queryKey: historyKey }),
