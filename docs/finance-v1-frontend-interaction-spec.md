@@ -2,6 +2,12 @@
 
 Status: approved interaction specification
 
+The approved [Finance create-submission protocol](../../back-end/docs/finance-create-submission-protocol.md)
+is the single backend-owned specification for the planned cross-repository
+create/recovery change. It supersedes create failure/retry behavior and adds
+durable submitted recovery; ordinary drafts remain transient. The protocol is
+specified, not yet implemented; do not duplicate its contract here.
+
 ## 1. Purpose and authority
 
 This document owns Finance v1 frontend workflows, interaction behavior,
