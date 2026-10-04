@@ -13,7 +13,9 @@ export const CreateFinanceLedgerBody = zod
   .strictObject({
     name: zod.string().max(createFinanceLedgerBodyNameMax),
   })
-  .describe("Explicit first or additional Ledger creation.");
+  .describe(
+    "Frozen v1 validity, independent of mutable Finance request schemas.",
+  );
 
 export type CreateFinanceLedgerBody = zod.input<typeof CreateFinanceLedgerBody>;
 export type CreateFinanceLedgerBodyOutput = zod.output<

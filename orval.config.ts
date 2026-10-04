@@ -21,6 +21,7 @@ export default defineConfig({
       },
       client: "react-query",
       httpClient: "fetch",
+      headers: true,
       clean: true,
       formatter: "prettier",
       tsconfig: "./tsconfig.app.json",

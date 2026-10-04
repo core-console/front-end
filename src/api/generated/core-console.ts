@@ -33,17 +33,23 @@ import type {
   CreateBalanceAdjustmentRequest,
   CreateCategoryRequest,
   CreateExpenseTransactionRequest,
+  CreateFinanceLedgerBody,
+  CreateFinanceLedgerHeaders,
   CreateIncomeTransactionRequest,
   CreateInternalTransferTransactionRequest,
-  CreateLedgerRequest,
   CreateUserRequest,
   CurrencyResponse,
   FinanceOverviewResponse,
+  FinanceSubmissionResponse,
   FinanceTransactionResponse,
   GetBalanceAdjustmentContextParams,
   GetFinanceOverviewParams,
+  GetFinanceSubmissionHeaders,
   HelloWorldResponse,
+  LedgerConflictResponse,
+  LedgerCreatedReceipt,
   LedgerResponse,
+  LedgerValidationResponse,
   ListFinanceTransactionsParams,
   MeResponse,
   ProblemDetails,
@@ -507,8 +513,13 @@ export function useListFinanceLedgers<
 }
 
 export type createFinanceLedgerResponse201 = {
-  data: LedgerResponse;
+  data: LedgerCreatedReceipt;
   status: 201;
+};
+
+export type createFinanceLedgerResponse400 = {
+  data: ProblemDetails;
+  status: 400;
 };
 
 export type createFinanceLedgerResponse403 = {
@@ -516,13 +527,18 @@ export type createFinanceLedgerResponse403 = {
   status: 403;
 };
 
-export type createFinanceLedgerResponse409 = {
+export type createFinanceLedgerResponse404 = {
   data: ProblemDetails;
+  status: 404;
+};
+
+export type createFinanceLedgerResponse409 = {
+  data: LedgerConflictResponse;
   status: 409;
 };
 
 export type createFinanceLedgerResponse422 = {
-  data: ProblemDetails;
+  data: LedgerValidationResponse;
   status: 422;
 };
 
@@ -541,7 +557,9 @@ export type createFinanceLedgerResponseSuccess =
     headers: Headers;
   };
 export type createFinanceLedgerResponseError = (
+  | createFinanceLedgerResponse400
   | createFinanceLedgerResponse403
+  | createFinanceLedgerResponse404
   | createFinanceLedgerResponse409
   | createFinanceLedgerResponse422
   | createFinanceLedgerResponse500
@@ -555,11 +573,12 @@ export const getCreateFinanceLedgerUrl = () => {
 };
 
 /**
- * Explicitly creates one personally owned Finance Ledger.
+ * Durably admits a Ledger v1 command, then returns its immutable terminal receipt.
  * @summary Create a Finance Ledger
  */
 export const createFinanceLedger = async (
-  createLedgerRequest: CreateLedgerRequest,
+  createFinanceLedgerBody: CreateFinanceLedgerBody,
+  headers: CreateFinanceLedgerHeaders,
   options?: RequestInit,
 ): Promise<createFinanceLedgerResponseSuccess> => {
   const getHeaders = (
@@ -584,10 +603,10 @@ export const createFinanceLedger = async (
     ...options,
     method: "POST",
     headers: getHeaders(
-      { "Content-Type": "application/json" },
+      { "Content-Type": "application/json", ...headers },
       options?.headers,
     ),
-    body: JSON.stringify(createLedgerRequest),
+    body: JSON.stringify(createFinanceLedgerBody),
   });
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
@@ -617,7 +636,10 @@ export const getCreateFinanceLedgerMutationKey = () =>
   ["createFinanceLedger"] as const;
 
 export const getCreateFinanceLedgerMutationOptions = <
-  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TError = globalThis.Error & {
+    info?: ProblemDetails | LedgerConflictResponse | LedgerValidationResponse;
+    status?: number;
+  },
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -646,9 +668,9 @@ export const getCreateFinanceLedgerMutationOptions = <
     Awaited<ReturnType<typeof createFinanceLedger>>,
     CreateFinanceLedgerMutationVariables
   > = (props) => {
-    const { data } = props ?? {};
+    const { data, headers } = props ?? {};
 
-    return createFinanceLedger(data, fetchOptions);
+    return createFinanceLedger(data, headers, fetchOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -657,20 +679,24 @@ export const getCreateFinanceLedgerMutationOptions = <
 export type CreateFinanceLedgerMutationResult = NonNullable<
   Awaited<ReturnType<typeof createFinanceLedger>>
 >;
-export type CreateFinanceLedgerMutationBody = CreateLedgerRequest;
+export type CreateFinanceLedgerMutationBody = CreateFinanceLedgerBody;
 export type CreateFinanceLedgerMutationError = globalThis.Error & {
-  info?: ProblemDetails;
+  info?: ProblemDetails | LedgerConflictResponse | LedgerValidationResponse;
   status?: number;
 };
 export type CreateFinanceLedgerMutationVariables = {
-  data: CreateLedgerRequest;
+  data: CreateFinanceLedgerBody;
+  headers: CreateFinanceLedgerHeaders;
 };
 
 /**
  * @summary Create a Finance Ledger
  */
 export const useCreateFinanceLedger = <
-  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TError = globalThis.Error & {
+    info?: ProblemDetails | LedgerConflictResponse | LedgerValidationResponse;
+    status?: number;
+  },
   TContext = unknown,
 >(
   options?: {
@@ -4995,6 +5021,285 @@ export const useReplaceFinanceTransaction = <
     queryClient,
   );
 };
+
+export type getFinanceSubmissionResponse200 = {
+  data: FinanceSubmissionResponse;
+  status: 200;
+};
+
+export type getFinanceSubmissionResponse400 = {
+  data: ProblemDetails;
+  status: 400;
+};
+
+export type getFinanceSubmissionResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type getFinanceSubmissionResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type getFinanceSubmissionResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type getFinanceSubmissionResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type getFinanceSubmissionResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type getFinanceSubmissionResponseSuccess =
+  getFinanceSubmissionResponse200 & {
+    headers: Headers;
+  };
+export type getFinanceSubmissionResponseError = (
+  | getFinanceSubmissionResponse400
+  | getFinanceSubmissionResponse403
+  | getFinanceSubmissionResponse404
+  | getFinanceSubmissionResponse422
+  | getFinanceSubmissionResponse500
+  | getFinanceSubmissionResponse503
+) & {
+  headers: Headers;
+};
+
+export const getGetFinanceSubmissionUrl = (submissionId: string) => {
+  return `${env.VITE_API_BASE_URL}/finance/submissions/${submissionId}`;
+};
+
+/**
+ * @summary Look up a known Finance submission
+ */
+export const getFinanceSubmission = async (
+  submissionId: string,
+  headers: GetFinanceSubmissionHeaders,
+  options?: RequestInit,
+): Promise<getFinanceSubmissionResponseSuccess> => {
+  const getHeaders = (
+    defaults: HeadersInit,
+    overrides?: HeadersInit,
+  ): Headers => {
+    const headers = new Headers(defaults);
+    if (overrides instanceof Headers) {
+      overrides.forEach((value, name) => headers.set(name, value));
+    } else {
+      const entries = Array.isArray(overrides)
+        ? overrides
+        : Object.entries(overrides ?? {});
+      for (const entry of entries) {
+        const [name, value] = entry as [string, string];
+        headers.set(name, value);
+      }
+    }
+    return headers;
+  };
+  const res = await fetch(getGetFinanceSubmissionUrl(submissionId), {
+    ...options,
+    method: "GET",
+    headers: getHeaders({ ...headers }, options?.headers),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: getFinanceSubmissionResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: getFinanceSubmissionResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: getFinanceSubmissionResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getFinanceSubmissionResponseSuccess;
+};
+
+export const getGetFinanceSubmissionQueryKey = (submissionId: string) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/submissions/${submissionId}`,
+  ] as const;
+};
+
+export const getGetFinanceSubmissionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFinanceSubmission>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  submissionId: string,
+  headers: GetFinanceSubmissionHeaders,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceSubmission>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetFinanceSubmissionQueryKey(submissionId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getFinanceSubmission>>
+  > = ({ signal }) =>
+    getFinanceSubmission(submissionId, headers, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: submissionId !== null && submissionId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFinanceSubmission>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetFinanceSubmissionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFinanceSubmission>>
+>;
+export type GetFinanceSubmissionQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useGetFinanceSubmission<
+  TData = Awaited<ReturnType<typeof getFinanceSubmission>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  submissionId: string,
+  headers: GetFinanceSubmissionHeaders,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceSubmission>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFinanceSubmission>>,
+          TError,
+          Awaited<ReturnType<typeof getFinanceSubmission>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetFinanceSubmission<
+  TData = Awaited<ReturnType<typeof getFinanceSubmission>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  submissionId: string,
+  headers: GetFinanceSubmissionHeaders,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceSubmission>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFinanceSubmission>>,
+          TError,
+          Awaited<ReturnType<typeof getFinanceSubmission>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetFinanceSubmission<
+  TData = Awaited<ReturnType<typeof getFinanceSubmission>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  submissionId: string,
+  headers: GetFinanceSubmissionHeaders,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceSubmission>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Look up a known Finance submission
+ */
+
+export function useGetFinanceSubmission<
+  TData = Awaited<ReturnType<typeof getFinanceSubmission>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  submissionId: string,
+  headers: GetFinanceSubmissionHeaders,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceSubmission>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetFinanceSubmissionQueryOptions(
+    submissionId,
+    headers,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
 
 export type getHelloWorldResponse200 = {
   data: HelloWorldResponse;

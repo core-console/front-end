@@ -84,6 +84,7 @@ const financeOperationIds = [
   "deleteFinanceTransaction",
   "getBalanceAdjustmentContext",
   "getFinanceOverview",
+  "getFinanceSubmission",
   "getFinanceTransaction",
   "listFinanceAccounts",
   "listFinanceCategories",
@@ -413,8 +414,13 @@ describe("generated Finance API boundary", () => {
       expect(Object.keys(response.content ?? {})).toEqual([
         "application/problem+json",
       ]);
-      expect(response.content?.["application/problem+json"]?.schema?.$ref).toBe(
+      expect([
         "#/components/schemas/ProblemDetails",
+        "#/components/schemas/SubmissionNonterminalProblem",
+        "#/components/schemas/LedgerConflictResponse",
+        "#/components/schemas/LedgerValidationResponse",
+      ]).toContain(
+        response.content?.["application/problem+json"]?.schema?.$ref,
       );
     }
   });

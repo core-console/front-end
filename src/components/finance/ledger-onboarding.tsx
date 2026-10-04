@@ -1,13 +1,7 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
-import {
-  getListFinanceLedgersQueryKey,
-  useCreateFinanceLedger,
-} from "@/api/generated/core-console";
-import { LedgerResponse } from "@/api/generated/schemas";
-import { reconcileLedgerList } from "@/components/finance/ledger-list-cache";
-import { getLedgerProblemMessage } from "@/components/finance/ledger-problem";
+import type { LedgerResponse } from "@/api/generated/schemas";
+import { useLedgerCreate } from "./use-ledger-create";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -23,27 +17,12 @@ interface LedgerOnboardingProps {
 }
 
 export function LedgerOnboarding({ onCreated }: LedgerOnboardingProps) {
-  const queryClient = useQueryClient();
   const [nameError, setNameError] = useState<string | null>(null);
-  const createLedgerMutation = useCreateFinanceLedger({
-    mutation: {
-      onSuccess: async (response) => {
-        const ledger = LedgerResponse.parse(response.data);
-        reconcileLedgerList(queryClient, ledger);
-        await onCreated(ledger);
-        await queryClient.invalidateQueries({
-          queryKey: getListFinanceLedgersQueryKey(),
-        });
-      },
-    },
-  });
-  const serverError = createLedgerMutation.isError
-    ? getLedgerProblemMessage(
-        createLedgerMutation.error,
-        "The Ledger could not be created. Try again.",
-      )
-    : null;
-  const fieldError = nameError ?? serverError;
+  const create = useLedgerCreate(
+    "onboarding",
+    (ledger) => void onCreated(ledger),
+  );
+  const fieldError = nameError ?? create.error;
   const descriptionId = "first-ledger-name-description";
   const errorId = "first-ledger-name-error";
 
@@ -62,7 +41,7 @@ export function LedgerOnboarding({ onCreated }: LedgerOnboardingProps) {
     }
 
     setNameError(null);
-    createLedgerMutation.mutate({ data: { name } });
+    void create.submit(name);
   };
 
   return (
@@ -88,6 +67,7 @@ export function LedgerOnboarding({ onCreated }: LedgerOnboardingProps) {
               id="first-ledger-name"
               maxLength={100}
               name="name"
+              onChange={create.edited}
             />
             <FieldDescription id={descriptionId}>
               Use a distinct name you will recognize.
@@ -96,9 +76,21 @@ export function LedgerOnboarding({ onCreated }: LedgerOnboardingProps) {
               <FieldError id={errorId}>{fieldError}</FieldError>
             ) : null}
           </Field>
-          <Button disabled={createLedgerMutation.isPending} type="submit">
-            {createLedgerMutation.isPending ? "Creating…" : "Create Ledger"}
+          <Button
+            disabled={create.pending || create.unresolved || !create.ready}
+            type="submit"
+          >
+            {create.pending ? "Creating…" : "Create Ledger"}
           </Button>
+          {create.unresolved && !create.pending ? (
+            <Button
+              onClick={create.startAnother}
+              type="button"
+              variant="outline"
+            >
+              Start a separate Ledger create
+            </Button>
+          ) : null}
         </FieldGroup>
       </form>
     </div>

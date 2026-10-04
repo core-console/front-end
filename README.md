@@ -107,9 +107,17 @@ copy. These are UI wording rules, not changes to backend-owned domain meanings.
 ## Finance v1 integration status
 
 The current backend-owned Finance v1 OpenAPI contract is synchronized into
-`openapi/openapi.json`. Its 23 operations are available through the generated
+`openapi/openapi.json`. Its 24 operations are available through the generated
 Fetch clients, TanStack Query hooks, Zod schemas, MSW handlers, and Faker
 fixtures under `src/api/generated/`.
+
+The synchronized producer is backend T02 at
+`64667936120d47c6c7635812628f5c4667834ade`. Ledger creates use durable browser
+preparation, correlated receipts, and known-submission lookup. Other create
+workflows retain their preceding contracts. This partial integration is not
+the all-five production activation gate. See the
+[T03 integration note](docs/finance-ledger-submission-t03.md) for recovery seams
+and validation.
 
 Synchronize future committed backend contract changes through the existing
 `pnpm api:update` workflow described above. Do not hand-edit the snapshot or

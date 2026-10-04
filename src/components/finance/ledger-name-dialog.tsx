@@ -3,7 +3,6 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import {
   getListFinanceLedgersQueryKey,
-  useCreateFinanceLedger,
   useUpdateFinanceLedger,
 } from "@/api/generated/core-console";
 import { LedgerResponse } from "@/api/generated/schemas";
@@ -21,8 +20,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useLedgerCreate } from "./use-ledger-create";
 
 type LedgerNameDialogProps = {
   ledger?: LedgerResponse;
@@ -32,7 +37,106 @@ type LedgerNameDialogProps = {
   open: boolean;
 };
 
-export function LedgerNameDialog({
+export function LedgerNameDialog({ ...props }: LedgerNameDialogProps) {
+  if (props.mode === "create")
+    return props.open ? <LedgerCreateDialog {...props} /> : null;
+  return <LedgerRenameDialog {...props} />;
+}
+
+function LedgerCreateDialog({
+  onComplete,
+  onOpenChange,
+  open,
+}: LedgerNameDialogProps) {
+  const [name, setName] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
+  const create = useLedgerCreate("additional", (ledger) => {
+    onComplete(ledger);
+    onOpenChange(false);
+  });
+  const error = nameError ?? create.error;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create Ledger</DialogTitle>
+          <DialogDescription>
+            Create another financial context and switch to it.
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            const normalized = name.trim();
+            if (!normalized || [...normalized].length > 100) {
+              setNameError(
+                !normalized
+                  ? "Enter a Ledger name."
+                  : "Ledger name must be 100 characters or fewer.",
+              );
+              return;
+            }
+            setNameError(null);
+            void create.submit(normalized);
+          }}
+        >
+          <FieldGroup>
+            <Field data-invalid={Boolean(error)}>
+              <FieldLabel htmlFor="create-ledger-name">Ledger name</FieldLabel>
+              <Input
+                autoFocus
+                id="create-ledger-name"
+                maxLength={100}
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  create.edited();
+                }}
+                aria-invalid={Boolean(error)}
+                aria-describedby={
+                  error ? "create-ledger-name-error" : undefined
+                }
+                aria-errormessage={
+                  error ? "create-ledger-name-error" : undefined
+                }
+              />
+              {error ? (
+                <FieldError id="create-ledger-name-error">{error}</FieldError>
+              ) : null}
+            </Field>
+            {create.unresolved && !create.pending ? (
+              <Button
+                onClick={create.startAnother}
+                type="button"
+                variant="outline"
+              >
+                Start a separate Ledger create
+              </Button>
+            ) : null}
+            <DialogFooter>
+              <Button
+                onClick={() => onOpenChange(false)}
+                type="button"
+                variant="outline"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={create.pending || create.unresolved || !create.ready}
+              >
+                {create.pending ? "Creating…" : "Create"}
+              </Button>
+            </DialogFooter>
+          </FieldGroup>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function LedgerRenameDialog({
   ledger,
   mode,
   onComplete,
@@ -53,9 +157,6 @@ export function LedgerNameDialog({
       queryKey: getListFinanceLedgersQueryKey(),
     });
   };
-  const createMutation = useCreateFinanceLedger({
-    mutation: { onSuccess: finish },
-  });
   const renameMutation = useUpdateFinanceLedger({
     mutation: {
       onError: async (error) => {
@@ -69,18 +170,16 @@ export function LedgerNameDialog({
       onSuccess: finish,
     },
   });
-  const mutation = mode === "create" ? createMutation : renameMutation;
-  const resetCreateMutation = createMutation.reset;
+  const mutation = renameMutation;
   const resetRenameMutation = renameMutation.reset;
 
   useEffect(() => {
     if (open) {
       setName(initialName);
       setNameError(null);
-      resetCreateMutation();
       resetRenameMutation();
     }
-  }, [initialName, open, resetCreateMutation, resetRenameMutation]);
+  }, [initialName, open, resetRenameMutation]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -95,9 +194,7 @@ export function LedgerNameDialog({
     }
 
     setNameError(null);
-    if (mode === "create") {
-      createMutation.mutate({ data: { name: normalizedName } });
-    } else if (ledger) {
+    if (ledger) {
       renameMutation.mutate({
         ledgerId: ledger.id,
         data: { name: normalizedName },

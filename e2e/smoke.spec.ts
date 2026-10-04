@@ -19,6 +19,7 @@ import {
   TransactionHistoryPageResponse,
   UserResponse,
 } from "../src/api/generated/schemas/index.ts";
+import { createdLedgerReceipt } from "../src/test/submission-fixtures.ts";
 
 const accessibilityTags = [
   "wcag2a",
@@ -1641,7 +1642,13 @@ test("carries a new Ledger through setup, four entries, history, detail, and nav
     if (route.request().method() === "POST") {
       const next = ledgers.length === 0 ? financeLedgers[0]! : secondLedger;
       ledgers.push(next);
-      await route.fulfill({ json: next, status: 201 });
+      await route.fulfill({
+        json: createdLedgerReceipt(
+          route.request().headers()["idempotency-key"]!,
+          next.id,
+        ),
+        status: 201,
+      });
     } else await route.fulfill({ json: ledgers });
   });
   await page.route("**/api/finance/currencies", async (route) => {

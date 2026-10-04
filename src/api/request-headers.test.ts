@@ -96,6 +96,16 @@ it.each(cases)(
     await requests[operationId]!(
       ...pathArguments,
       {},
+      ...(operationId === "createFinanceLedger"
+        ? [
+            {
+              "Idempotency-Key": "11111111-1111-4111-8111-111111111111",
+              "Finance-Command-Version": "1",
+              "Finance-Submission-Owner":
+                "22222222-2222-4222-8222-222222222222",
+            },
+          ]
+        : []),
       headers ? { headers } : undefined,
     );
 

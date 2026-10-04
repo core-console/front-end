@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom/vitest";
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, beforeEach } from "vitest";
 
@@ -10,6 +11,8 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  globalThis.indexedDB = new IDBFactory();
+  globalThis.IDBKeyRange = IDBKeyRange;
   seedMockData();
 });
 

@@ -13,6 +13,8 @@ import { useListFinanceLedgers } from "@/api/generated/core-console";
 import { LedgerResponse } from "@/api/generated/schemas";
 import { LedgerNameDialog } from "@/components/finance/ledger-name-dialog";
 import { LedgerOnboarding } from "@/components/finance/ledger-onboarding";
+import { LedgerSubmissionsProvider } from "@/components/finance/ledger-submissions";
+import { LedgerSubmissionRecovery } from "@/components/finance/ledger-submission-recovery";
 import { resolveOverviewDate } from "@/components/finance/overview-date";
 import {
   addressedLedgerValue,
@@ -72,7 +74,9 @@ const TransactionDetail = lazy(() =>
 
 type Destination = (typeof destinations)[number];
 type LedgerDialogState =
-  { mode: "create" } | { ledger: LedgerResponse; mode: "rename" } | null;
+  | { mode: "create"; locationKey: string }
+  | { ledger: LedgerResponse; mode: "rename" }
+  | null;
 
 const findDestination = (section: string | undefined) =>
   destinations.find((destination) => destination.slug === section);
@@ -156,6 +160,14 @@ function LedgerMenu({
 }
 
 export function Component() {
+  return (
+    <LedgerSubmissionsProvider>
+      <FinanceContent />
+    </LedgerSubmissionsProvider>
+  );
+}
+
+function FinanceContent() {
   const { section, transactionId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -377,7 +389,9 @@ export function Component() {
         {ledgersQuery.isSuccess && ledgersQuery.data.length > 0 ? (
           <LedgerMenu
             ledgers={ledgersQuery.data}
-            onCreate={() => setDialog({ mode: "create" })}
+            onCreate={() =>
+              setDialog({ mode: "create", locationKey: location.key })
+            }
             onRename={() => {
               if (selectedLedger) {
                 setDialog({ ledger: selectedLedger, mode: "rename" });
@@ -399,6 +413,8 @@ export function Component() {
           {deletionCompleted ? "Transaction deleted." : ""}
         </span>
       </p>
+
+      <LedgerSubmissionRecovery />
 
       {ledgersQuery.isPending ? (
         <p
@@ -440,6 +456,7 @@ export function Component() {
       ) : null}
       {ledgersQuery.isSuccess && ledgersQuery.data.length === 0 ? (
         <LedgerOnboarding
+          key={location.key}
           onCreated={(ledger) =>
             navigate(currentOverviewHref(ledger.id), { flushSync: true })
           }
@@ -526,7 +543,7 @@ export function Component() {
         onOpenChange={(open) => {
           if (!open) setDialog(null);
         }}
-        open={dialog?.mode === "create"}
+        open={dialog?.mode === "create" && dialog.locationKey === location.key}
       />
       {dialog?.mode === "rename" ? (
         <LedgerNameDialog

@@ -23,11 +23,19 @@ import type {
   CurrencyResponse,
   ExpenseTransactionResponse,
   FinanceOverviewResponse,
+  FinanceSubmissionResponse,
   FinanceTransactionResponse,
   HelloWorldResponse,
   IncomeTransactionResponse,
   InternalTransferTransactionResponse,
+  LedgerConflictResponse,
+  LedgerCreatedOutcome,
+  LedgerCreatedReceipt,
+  LedgerRejectedOutcome,
   LedgerResponse,
+  LedgerSubmissionTerminal,
+  LedgerSubmissionUnfinished,
+  LedgerValidationResponse,
   MeResponse,
   ProblemDetails,
   ReplaceBalanceAdjustmentResultResponse,
@@ -192,18 +200,55 @@ export const getListFinanceLedgersResponseMock503 = (
 });
 
 export const getCreateFinanceLedgerResponseMock = (
-  overrideResponse: Partial<Extract<LedgerResponse, object>> = {},
-): LedgerResponse => ({
-  id: faker.string.uuid(),
-  name: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  overrideResponse: Partial<Extract<LedgerCreatedReceipt, object>> = {},
+): LedgerCreatedReceipt => ({
+  admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  commandVersion: "1",
+  operation: "createFinanceLedger",
+  outcome: {
+    kind: "created",
+    resource: { id: faker.string.uuid(), type: "ledger" },
+  },
+  resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  submissionId: faker.string.uuid(),
+  targetLedgerId: null,
   ...overrideResponse,
 });
 
 export const getCreateFinanceLedgerResponseMock201 = (
-  overrideResponse: Partial<Extract<LedgerResponse, object>> = {},
-): LedgerResponse => ({
-  id: faker.string.uuid(),
-  name: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  overrideResponse: Partial<Extract<LedgerCreatedReceipt, object>> = {},
+): LedgerCreatedReceipt => ({
+  admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  commandVersion: "1",
+  operation: "createFinanceLedger",
+  outcome: {
+    kind: "created",
+    resource: { id: faker.string.uuid(), type: "ledger" },
+  },
+  resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  submissionId: faker.string.uuid(),
+  targetLedgerId: null,
+  ...overrideResponse,
+});
+
+export const getCreateFinanceLedgerResponseMock400 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
   ...overrideResponse,
 });
 
@@ -228,7 +273,7 @@ export const getCreateFinanceLedgerResponseMock403 = (
   ...overrideResponse,
 });
 
-export const getCreateFinanceLedgerResponseMock409 = (
+export const getCreateFinanceLedgerResponseMock404 = (
   overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
 ): ProblemDetails => ({
   code: faker.helpers.arrayElement([
@@ -249,26 +294,130 @@ export const getCreateFinanceLedgerResponseMock409 = (
   ...overrideResponse,
 });
 
-export const getCreateFinanceLedgerResponseMock422 = (
-  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
-): ProblemDetails => ({
-  code: faker.helpers.arrayElement([
-    faker.string.alpha({ length: { min: 10, max: 20 } }),
-    null,
-  ]),
-  detail: faker.helpers.arrayElement([
-    faker.string.alpha({ length: { min: 10, max: 20 } }),
-    null,
-  ]),
-  instance: faker.helpers.arrayElement([
-    faker.string.alpha({ length: { min: 10, max: 20 } }),
-    null,
-  ]),
-  status: faker.number.int({ min: 100, max: 599 }),
-  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
-  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
-  ...overrideResponse,
-});
+export const getCreateFinanceLedgerResponseMock409 =
+  (): LedgerConflictResponse =>
+    faker.helpers.arrayElement([
+      {
+        code: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: faker.helpers.arrayElement([
+          Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            [faker.string.alphanumeric(5)]: {},
+          })),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.number.int({ min: 100, max: 599 }),
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: "finance_ledger_name_conflict",
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: 409,
+        submissionReceipt: {
+          admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          commandVersion: "1",
+          operation: "createFinanceLedger",
+          outcome: {
+            kind: "rejected",
+            problem: {
+              code: "finance_ledger_name_conflict",
+              detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+              status: 409,
+              title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+              type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            },
+          },
+          resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          submissionId: faker.string.uuid(),
+          targetLedgerId: null,
+        },
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+    ]);
+
+export const getCreateFinanceLedgerResponseMock422 =
+  (): LedgerValidationResponse =>
+    faker.helpers.arrayElement([
+      {
+        code: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: faker.helpers.arrayElement([
+          Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            [faker.string.alphanumeric(5)]: {},
+          })),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.number.int({ min: 100, max: 599 }),
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: "validation_error",
+        commandValidationRejection: {
+          attemptedBody: {
+            [faker.string.alphanumeric(5)]: {},
+          },
+          commandVersion: "1",
+          kind: "definitivelyNotAdmitted",
+          operation: "createFinanceLedger",
+          ownerId: faker.string.uuid(),
+          submissionId: faker.string.uuid(),
+          targetLedgerId: null,
+        },
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          [faker.string.alphanumeric(5)]: {},
+        })),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: 422,
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+    ]);
 
 export const getCreateFinanceLedgerResponseMock500 = (
   overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
@@ -3797,6 +3946,204 @@ export const getReplaceFinanceTransactionResponseMock503 = (
   ...overrideResponse,
 });
 
+export const getGetFinanceSubmissionResponseLedgerSubmissionUnfinishedMock = (
+  overrideResponse: Partial<LedgerSubmissionUnfinished> = {},
+): LedgerSubmissionUnfinished => ({
+  ...{
+    admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+    commandVersion: "1",
+    operation: "createFinanceLedger",
+    state: faker.helpers.arrayElement(["unfinished"] as const),
+    submissionId: faker.string.uuid(),
+    targetLedgerId: null,
+  },
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseLedgerCreatedOutcomeMock = (
+  overrideResponse: Partial<LedgerCreatedOutcome> = {},
+): LedgerCreatedOutcome => ({
+  ...{ kind: "created", resource: { id: faker.string.uuid(), type: "ledger" } },
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseLedgerRejectedOutcomeMock = (
+  overrideResponse: Partial<LedgerRejectedOutcome> = {},
+): LedgerRejectedOutcome => ({
+  ...{
+    kind: "rejected",
+    problem: {
+      code: "finance_ledger_name_conflict",
+      detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      status: 409,
+      title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    },
+  },
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseLedgerSubmissionTerminalMock = (
+  overrideResponse: Partial<LedgerSubmissionTerminal> = {},
+): LedgerSubmissionTerminal => ({
+  ...{
+    receipt: {
+      admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      commandVersion: "1",
+      operation: "createFinanceLedger",
+      outcome: faker.helpers.arrayElement([
+        { ...getGetFinanceSubmissionResponseLedgerCreatedOutcomeMock() },
+        { ...getGetFinanceSubmissionResponseLedgerRejectedOutcomeMock() },
+      ]),
+      resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      submissionId: faker.string.uuid(),
+      targetLedgerId: null,
+    },
+    state: faker.helpers.arrayElement(["terminal"] as const),
+  },
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseMock =
+  (): FinanceSubmissionResponse =>
+    faker.helpers.arrayElement([
+      { ...getGetFinanceSubmissionResponseLedgerSubmissionUnfinishedMock() },
+      { ...getGetFinanceSubmissionResponseLedgerSubmissionTerminalMock() },
+    ]);
+
+export const getGetFinanceSubmissionResponseMock200 =
+  (): FinanceSubmissionResponse =>
+    faker.helpers.arrayElement([
+      { ...getGetFinanceSubmissionResponseLedgerSubmissionUnfinishedMock() },
+      { ...getGetFinanceSubmissionResponseLedgerSubmissionTerminalMock() },
+    ]);
+
+export const getGetFinanceSubmissionResponseMock400 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseMock403 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseMock404 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseMock422 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseMock500 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseMock503 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
 export const getGetHelloWorldResponseMock = (): HelloWorldResponse => ({
   message: "Hello, world!",
 });
@@ -4900,10 +5247,10 @@ export const getListFinanceLedgersMockHandler503 = (
 
 export const getCreateFinanceLedgerMockHandler = (
   overrideResponse?:
-    | LedgerResponse
+    | LedgerCreatedReceipt
     | ((
         info: Parameters<Parameters<typeof http.post>[1]>[0],
-      ) => Promise<LedgerResponse> | LedgerResponse),
+      ) => Promise<LedgerCreatedReceipt> | LedgerCreatedReceipt),
   options?: RequestHandlerOptions,
 ) => {
   return http.post(
@@ -4924,10 +5271,10 @@ export const getCreateFinanceLedgerMockHandler = (
 
 export const getCreateFinanceLedgerMockHandler201 = (
   overrideResponse?:
-    | LedgerResponse
+    | LedgerCreatedReceipt
     | ((
         info: Parameters<Parameters<typeof http.post>[1]>[0],
-      ) => Promise<LedgerResponse> | LedgerResponse),
+      ) => Promise<LedgerCreatedReceipt> | LedgerCreatedReceipt),
   options?: RequestHandlerOptions,
 ) => {
   return http.post(
@@ -4940,6 +5287,33 @@ export const getCreateFinanceLedgerMockHandler201 = (
             : overrideResponse
           : getCreateFinanceLedgerResponseMock201(),
         { status: 201 },
+      );
+    },
+    options,
+  );
+};
+
+export const getCreateFinanceLedgerMockHandler400 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateFinanceLedgerResponseMock400(),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/problem+json" },
+        },
       );
     },
     options,
@@ -4973,12 +5347,39 @@ export const getCreateFinanceLedgerMockHandler403 = (
   );
 };
 
-export const getCreateFinanceLedgerMockHandler409 = (
+export const getCreateFinanceLedgerMockHandler404 = (
   overrideResponse?:
     | ProblemDetails
     | ((
         info: Parameters<Parameters<typeof http.post>[1]>[0],
       ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateFinanceLedgerResponseMock404(),
+        {
+          status: 404,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getCreateFinanceLedgerMockHandler409 = (
+  overrideResponse?:
+    | LedgerConflictResponse
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<LedgerConflictResponse> | LedgerConflictResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.post(
@@ -5002,10 +5403,10 @@ export const getCreateFinanceLedgerMockHandler409 = (
 
 export const getCreateFinanceLedgerMockHandler422 = (
   overrideResponse?:
-    | ProblemDetails
+    | LedgerValidationResponse
     | ((
         info: Parameters<Parameters<typeof http.post>[1]>[0],
-      ) => Promise<ProblemDetails> | ProblemDetails),
+      ) => Promise<LedgerValidationResponse> | LedgerValidationResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.post(
@@ -9021,6 +9422,216 @@ export const getReplaceFinanceTransactionMockHandler503 = (
   );
 };
 
+export const getGetFinanceSubmissionMockHandler = (
+  overrideResponse?:
+    | FinanceSubmissionResponse
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<FinanceSubmissionResponse> | FinanceSubmissionResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/submissions/:submissionId",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceSubmissionResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceSubmissionMockHandler200 = (
+  overrideResponse?:
+    | FinanceSubmissionResponse
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<FinanceSubmissionResponse> | FinanceSubmissionResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/submissions/:submissionId",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceSubmissionResponseMock200(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceSubmissionMockHandler400 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/submissions/:submissionId",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceSubmissionResponseMock400(),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceSubmissionMockHandler403 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/submissions/:submissionId",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceSubmissionResponseMock403(),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceSubmissionMockHandler404 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/submissions/:submissionId",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceSubmissionResponseMock404(),
+        {
+          status: 404,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceSubmissionMockHandler422 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/submissions/:submissionId",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceSubmissionResponseMock422(),
+        {
+          status: 422,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceSubmissionMockHandler500 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/submissions/:submissionId",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceSubmissionResponseMock500(),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceSubmissionMockHandler503 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/submissions/:submissionId",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceSubmissionResponseMock503(),
+        {
+          status: 503,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
 export const getGetHelloWorldMockHandler = (
   overrideResponse?:
     | HelloWorldResponse
@@ -10136,6 +10747,7 @@ export const getCoreConsoleAPIMock = () => [
   getDeleteFinanceTransactionMockHandler(),
   getGetFinanceTransactionMockHandler(),
   getReplaceFinanceTransactionMockHandler(),
+  getGetFinanceSubmissionMockHandler(),
   getGetHelloWorldMockHandler(),
   getGetCurrentUserMockHandler(),
   getListUsersMockHandler(),

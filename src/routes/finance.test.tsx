@@ -1,19 +1,25 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
+import { http, HttpResponse } from "msw";
 
 import { getListFinanceLedgersQueryKey } from "@/api/generated/core-console";
 import {
   getListFinanceLedgersMockHandler,
   getListFinanceLedgersMockHandler503,
   getCreateFinanceLedgerMockHandler,
-  getCreateFinanceLedgerMockHandler409,
+  getGetCurrentUserMockHandler,
   getUpdateFinanceLedgerMockHandler,
   getUpdateFinanceLedgerMockHandler404,
   getUpdateFinanceLedgerMockHandler409,
 } from "@/api/generated/core-console.msw";
 import { server } from "@/mocks/server";
 import { renderRoute } from "@/test/render";
+import {
+  createdLedgerReceipt,
+  rejectedLedgerProblem,
+  submissionTestUser,
+} from "@/test/submission-fixtures";
 
 const personalLedger = {
   id: "a40a626a-99f1-4e81-940b-66f9e0d45c90",
@@ -32,6 +38,7 @@ const strasseLedger = {
 describe("Finance foundation", () => {
   beforeEach(() => {
     localStorage.clear();
+    server.use(getGetCurrentUserMockHandler(submissionTestUser));
   });
 
   it("exposes one global Finance destination and four local destinations", async () => {
@@ -258,7 +265,10 @@ describe("Finance foundation", () => {
         createRequests += 1;
         createBody = await request.json();
         ledgers = [{ ...personalLedger, name: "Household" }];
-        return ledgers[0]!;
+        return createdLedgerReceipt(
+          request.headers.get("Idempotency-Key")!,
+          ledgers[0]!.id,
+        );
       }),
     );
 
@@ -472,7 +482,10 @@ describe("Finance foundation", () => {
         const body = (await request.json()) as { name: string };
         const created = { ...teamLedger, name: body.name };
         ledgers = [...ledgers, created];
-        return created;
+        return createdLedgerReceipt(
+          request.headers.get("Idempotency-Key")!,
+          created.id,
+        );
       }),
     );
     const { router } = renderRoute(
@@ -498,7 +511,7 @@ describe("Finance foundation", () => {
     ).toBeVisible();
   });
 
-  it("reconciles a created Ledger in backend name order before refresh completes", async () => {
+  it("keeps the receipt resolved while fetching the current Ledger list", async () => {
     const user = userEvent.setup();
     let listRequests = 0;
     let releaseRefresh!: () => void;
@@ -514,7 +527,12 @@ describe("Finance foundation", () => {
           ? [personalLedger]
           : [createdLedger, personalLedger];
       }),
-      getCreateFinanceLedgerMockHandler(createdLedger),
+      getCreateFinanceLedgerMockHandler(({ request }) =>
+        createdLedgerReceipt(
+          request.headers.get("Idempotency-Key")!,
+          createdLedger.id,
+        ),
+      ),
     );
     renderRoute(`/finance/accounts?ledger=${personalLedger.id}`);
 
@@ -525,6 +543,12 @@ describe("Finance foundation", () => {
     const dialog = await screen.findByRole("dialog", { name: "Create Ledger" });
     await user.type(within(dialog).getByLabelText("Ledger name"), "Team fund");
     await user.click(within(dialog).getByRole("button", { name: "Create" }));
+
+    expect(await screen.findByText(/Ledger created:/)).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Personal", hidden: true }),
+    ).toBeVisible();
+    releaseRefresh();
 
     expect(
       await screen.findByRole("button", { name: "accounts" }),
@@ -538,10 +562,9 @@ describe("Finance foundation", () => {
         .slice(0, 2)
         .map((item) => item.textContent),
     ).toEqual(["accounts", "Personal"]);
-    releaseRefresh();
   });
 
-  it("uses backend Unicode case-fold ordering before a create refresh completes", async () => {
+  it("uses the refreshed authoritative Ledger names and Unicode ordering", async () => {
     const user = userEvent.setup();
     let listRequests = 0;
     let releaseRefresh!: () => void;
@@ -556,7 +579,12 @@ describe("Finance foundation", () => {
           ? [straszLedger]
           : [strasseLedger, straszLedger];
       }),
-      getCreateFinanceLedgerMockHandler(strasseLedger),
+      getCreateFinanceLedgerMockHandler(({ request }) =>
+        createdLedgerReceipt(
+          request.headers.get("Idempotency-Key")!,
+          strasseLedger.id,
+        ),
+      ),
     );
     renderRoute(`/finance/accounts?ledger=${straszLedger.id}`);
 
@@ -568,6 +596,9 @@ describe("Finance foundation", () => {
     await user.type(within(dialog).getByLabelText("Ledger name"), "Straße");
     await user.click(within(dialog).getByRole("button", { name: "Create" }));
 
+    expect(await screen.findByText(/Ledger created:/)).toBeVisible();
+    releaseRefresh();
+
     expect(await screen.findByRole("button", { name: "Straße" })).toBeVisible();
     expect(listRequests).toBe(2);
     await user.click(screen.getByRole("button", { name: "Straße" }));
@@ -578,19 +609,18 @@ describe("Finance foundation", () => {
         .slice(0, 2)
         .map((item) => item.textContent),
     ).toEqual(["Straße", "Strasz"]);
-    releaseRefresh();
   });
 
   it("keeps a conflicting create open with its entered name", async () => {
     const user = userEvent.setup();
     server.use(
       getListFinanceLedgersMockHandler([personalLedger]),
-      getCreateFinanceLedgerMockHandler409({
-        type: "about:blank",
-        title: "Conflict",
-        status: 409,
-        code: "finance_ledger_name_conflict",
-      }),
+      http.post("*/api/finance/ledgers", ({ request }) =>
+        HttpResponse.json(
+          rejectedLedgerProblem(request.headers.get("Idempotency-Key")!),
+          { status: 409 },
+        ),
+      ),
     );
     renderRoute(`/finance/overview?ledger=${personalLedger.id}`);
 
@@ -636,12 +666,12 @@ describe("Finance foundation", () => {
     const user = userEvent.setup();
     server.use(
       getListFinanceLedgersMockHandler([]),
-      getCreateFinanceLedgerMockHandler409({
-        type: "about:blank",
-        title: "Conflict",
-        status: 409,
-        code: "finance_ledger_name_conflict",
-      }),
+      http.post("*/api/finance/ledgers", ({ request }) =>
+        HttpResponse.json(
+          rejectedLedgerProblem(request.headers.get("Idempotency-Key")!),
+          { status: 409 },
+        ),
+      ),
     );
     renderRoute("/finance/overview");
 
