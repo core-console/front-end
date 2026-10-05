@@ -1,3 +1,6 @@
+import { transactionCreateHandler } from "@/test/transaction-handlers";
+import { submissionTestUser } from "@/test/submission-fixtures";
+import { getGetCurrentUserMockHandler } from "@/api/generated/core-console.msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import { onlineManager } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
@@ -30,6 +33,8 @@ import {
 } from "@/api/generated/schemas";
 import { server } from "@/mocks/server";
 import { renderRoute } from "@/test/render";
+
+beforeEach(() => server.use(getGetCurrentUserMockHandler(submissionTestUser)));
 
 const ledger = {
   id: "a40a626a-99f1-4e81-940b-66f9e0d45c90",
@@ -575,14 +580,11 @@ describe("Finance Overview", () => {
         items: created ? [createdIncome] : [],
         nextCursor: null,
       })),
-      http.post(
-        "*/api/finance/ledgers/:ledgerId/transactions",
-        async ({ request }) => {
-          submitted = await request.json();
-          created = true;
-          return HttpResponse.json(createdIncome, { status: 201 });
-        },
-      ),
+      transactionCreateHandler(async ({ request }) => {
+        submitted = await request.json();
+        created = true;
+        return HttpResponse.json(createdIncome, { status: 201 });
+      }),
     );
     renderRoute(
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-17`,
@@ -692,7 +694,7 @@ describe("Finance Overview", () => {
             : [],
         });
       }),
-      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+      transactionCreateHandler(() => {
         created = true;
         return HttpResponse.json(createdExpense, { status: 201 });
       }),
@@ -778,36 +780,33 @@ describe("Finance Overview", () => {
             : [],
         });
       }),
-      http.post(
-        "*/api/finance/ledgers/:ledgerId/transactions",
-        async ({ request }) => {
-          const body = (await request.json()) as {
-            economicAmount: { amount: string };
-          };
-          const transaction = {
-            ...dayTransactions[1],
-            id: `99999999-9999-4999-8999-99999999999${recorded.length + 1}`,
-            account: {
-              id: account.id,
-              name: account.name,
-              status: "active" as const,
+      transactionCreateHandler(async ({ request }) => {
+        const body = (await request.json()) as {
+          economicAmount: { amount: string };
+        };
+        const transaction = {
+          ...dayTransactions[1],
+          id: `99999999-9999-4999-8999-99999999999${recorded.length + 1}`,
+          account: {
+            id: account.id,
+            name: account.name,
+            status: "active" as const,
+          },
+          categoryAllocations: [
+            {
+              amount: { amount: body.economicAmount.amount, currency: "CNY" },
+              category: null,
             },
-            categoryAllocations: [
-              {
-                amount: { amount: body.economicAmount.amount, currency: "CNY" },
-                category: null,
-              },
-            ],
-            economicAmount: {
-              amount: body.economicAmount.amount,
-              currency: "CNY",
-            },
-            transactionDate: "2026-08-17",
-          } satisfies TransactionHistoryPageResponse["items"][number];
-          recorded.push(transaction);
-          return HttpResponse.json(transaction, { status: 201 });
-        },
-      ),
+          ],
+          economicAmount: {
+            amount: body.economicAmount.amount,
+            currency: "CNY",
+          },
+          transactionDate: "2026-08-17",
+        } satisfies TransactionHistoryPageResponse["items"][number];
+        recorded.push(transaction);
+        return HttpResponse.json(transaction, { status: 201 });
+      }),
     );
     renderRoute(
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-17`,
@@ -955,7 +954,7 @@ describe("Finance Overview", () => {
       ]),
       getListFinanceCurrenciesMockHandler([{ code: "CNY", minorUnit: 2 }]),
       getListFinanceTransactionsMockHandler({ items: [], nextCursor: null }),
-      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+      transactionCreateHandler(() => {
         submissions += 1;
         return HttpResponse.json({}, { status: 500 });
       }),

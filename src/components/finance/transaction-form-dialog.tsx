@@ -1,11 +1,9 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
-import { useCreateFinanceTransaction } from "@/api/generated/core-console";
+import { useFinanceCreate } from "./use-finance-create";
 import {
   CreateFinanceTransactionBody,
-  ExpenseTransactionResponse,
   FinanceRequestDate,
-  IncomeTransactionResponse,
   type AccountResponse,
   type CategoryResponse,
   type CurrencyResponse,
@@ -166,26 +164,29 @@ export function TransactionFormDialog({
     (currency) => currency.code === selectedAccount?.currency,
   );
 
-  const finish = async (response: { data: unknown }) => {
-    const transaction =
-      kind === "expense"
-        ? ExpenseTransactionResponse.parse(response.data)
-        : IncomeTransactionResponse.parse(response.data);
-    if (inline) {
-      await onRecorded(transaction);
-      setAmount("");
-      setNote("");
-      setErrors({});
-      focusAfterSuccessRef.current = true;
-    } else {
-      const refresh = onRecorded(transaction);
-      onOpenChange(false);
-      await refresh;
-    }
-  };
-  const mutation = useCreateFinanceTransaction({
-    mutation: {
-      onError: async (error) => {
+  const create = useFinanceCreate(
+    async (result, isCurrent) => {
+      if (!result.transaction) return;
+      if (inline) {
+        await onRecorded(result.transaction);
+        if (!isCurrent()) return;
+        setAmount("");
+        setNote("");
+        setErrors({});
+        focusAfterSuccessRef.current = true;
+      } else {
+        void onRecorded(result.transaction);
+        onOpenChange(false);
+      }
+    },
+    ledgerId,
+    open,
+    {
+      operation: "createFinanceTransaction",
+      continueAfterCreated: inline,
+      onRejected: async (problem, isCurrent) => {
+        const error = { info: problem };
+
         const feedback = getTransactionProblemFeedback(
           error,
           `The ${kind} could not be recorded. Try again.`,
@@ -230,21 +231,17 @@ export function TransactionFormDialog({
         if (feedback.field === "accountId" || feedback.field === "categoryId") {
           await refreshReferences();
         }
-        setFocusField(feedback.field);
-      },
-      onSuccess: finish,
-      onSettled: () => {
-        submittingRef.current = false;
+        if (isCurrent()) setFocusField(feedback.field);
       },
     },
-  });
+  );
 
   useEffect(() => {
-    if (!mutation.isPending && focusAfterSuccessRef.current) {
+    if (!create.pending && focusAfterSuccessRef.current) {
       focusAfterSuccessRef.current = false;
       amountRef.current?.focus();
     }
-  }, [mutation.isPending]);
+  }, [create.pending]);
 
   useEffect(() => {
     if (!focusField) return;
@@ -259,15 +256,7 @@ export function TransactionFormDialog({
     setFocusField(null);
   }, [accounts, categories, focusField]);
 
-  const problemFeedback = mutation.isError
-    ? getTransactionProblemFeedback(
-        mutation.error,
-        `The ${kind} could not be recorded. Try again.`,
-      )
-    : null;
-  const serverError = problemFeedback?.field
-    ? null
-    : (problemFeedback?.message ?? null);
+  const serverError = create.error;
   const activeAccounts = accounts.filter(
     (account) =>
       account.status === "active" && !unavailableAccountLabels.has(account.id),
@@ -280,14 +269,26 @@ export function TransactionFormDialog({
   const formId = inline ? "quick-entry" : `record-${kind}`;
   const kindLabel = kind === "expense" ? "Expense" : "Income";
 
+  const markEdited = create.edited;
+  useEffect(() => {
+    markEdited();
+  }, [inlineDate, kind, markEdited]);
+
   const clearFieldError = (key: keyof FormErrors) => {
     setErrors((current) => withoutError(current, key));
-    if (mutation.isError) mutation.reset();
+    create.edited();
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (mutation.isPending || submittingRef.current || submitBlocked) return;
+    if (
+      create.pending ||
+      submittingRef.current ||
+      submitBlocked ||
+      create.unresolved ||
+      !create.ready
+    )
+      return;
 
     const nextErrors: FormErrors = {};
     const trimmedNote = note.trim();
@@ -369,12 +370,21 @@ export function TransactionFormDialog({
       transactionDate: effectiveDate,
     });
     submittingRef.current = true;
-    mutation.mutate({ data, ledgerId });
+    void create
+      .submit({
+        operation: "createFinanceTransaction",
+        targetLedgerId: ledgerId,
+        body: data,
+        workflow: inline ? "quickEntry" : "transaction",
+      })
+      .finally(() => {
+        submittingRef.current = false;
+      });
   };
 
   const form = (
     <form
-      aria-busy={mutation.isPending}
+      aria-busy={create.pending}
       aria-describedby={inline ? "quick-entry-effective-date" : undefined}
       aria-label={inline ? "Quick Entry" : `Record ${kind}`}
       className="flex flex-col gap-4"
@@ -390,7 +400,7 @@ export function TransactionFormDialog({
           >
             <Button
               aria-pressed={kind === "expense"}
-              disabled={mutation.isPending}
+              disabled={create.pending}
               onClick={() => onOpenChange(false)}
               type="button"
               variant={kind === "expense" ? "default" : "outline"}
@@ -399,7 +409,7 @@ export function TransactionFormDialog({
             </Button>
             <Button
               aria-pressed={kind === "income"}
-              disabled={mutation.isPending}
+              disabled={create.pending}
               onClick={() => onOpenChange(true)}
               type="button"
               variant={kind === "income" ? "default" : "outline"}
@@ -428,7 +438,7 @@ export function TransactionFormDialog({
             }
             aria-invalid={Boolean(errors.amount)}
             autoFocus={!inline}
-            disabled={mutation.isPending}
+            disabled={create.pending}
             id={`${formId}-amount`}
             inputMode="decimal"
             onChange={(event) => {
@@ -458,7 +468,7 @@ export function TransactionFormDialog({
               errors.accountId ? `${formId}-account-error` : undefined
             }
             aria-invalid={Boolean(errors.accountId)}
-            disabled={mutation.isPending}
+            disabled={create.pending}
             id={`${formId}-account`}
             onChange={(event) => {
               const nextAccountId = event.target.value;
@@ -511,7 +521,7 @@ export function TransactionFormDialog({
               errors.categoryId ? `${formId}-category-error` : undefined
             }
             aria-invalid={Boolean(errors.categoryId)}
-            disabled={mutation.isPending}
+            disabled={create.pending}
             id={`${formId}-category`}
             onChange={(event) => {
               const nextCategoryId = event.target.value;
@@ -560,7 +570,7 @@ export function TransactionFormDialog({
                 errors.transactionDate ? `${formId}-date-error` : undefined
               }
               aria-invalid={Boolean(errors.transactionDate)}
-              disabled={mutation.isPending}
+              disabled={create.pending}
               id={`${formId}-date`}
               onChange={(event) => {
                 setTransactionDate(event.target.value);
@@ -587,7 +597,7 @@ export function TransactionFormDialog({
                 errors.note ? `${formId}-note-error` : undefined
               }
               aria-invalid={Boolean(errors.note)}
-              disabled={mutation.isPending}
+              disabled={create.pending}
               id={`${formId}-note`}
               onChange={(event) => {
                 setNote(event.target.value);
@@ -603,7 +613,7 @@ export function TransactionFormDialog({
                 errors.note ? `${formId}-note-error` : undefined
               }
               aria-invalid={Boolean(errors.note)}
-              disabled={mutation.isPending}
+              disabled={create.pending}
               id={`${formId}-note`}
               onChange={(event) => {
                 setNote(event.target.value);
@@ -626,7 +636,7 @@ export function TransactionFormDialog({
       <div className="flex justify-end gap-2">
         {!inline ? (
           <Button
-            disabled={mutation.isPending}
+            disabled={create.pending}
             onClick={() => onOpenChange(false)}
             type="button"
             variant="ghost"
@@ -634,8 +644,21 @@ export function TransactionFormDialog({
             Cancel
           </Button>
         ) : null}
-        <Button disabled={mutation.isPending || submitBlocked} type="submit">
-          {mutation.isPending ? `Recording ${kind}…` : `Record ${kind}`}
+        {create.unresolved && !create.integrityBlocked && !create.pending ? (
+          <Button type="button" variant="outline" onClick={create.startAnother}>
+            Start a separate Transaction create
+          </Button>
+        ) : null}
+        <Button
+          disabled={
+            create.pending ||
+            submitBlocked ||
+            create.unresolved ||
+            !create.ready
+          }
+          type="submit"
+        >
+          {create.pending ? `Recording ${kind}…` : `Record ${kind}`}
         </Button>
       </div>
     </form>
@@ -646,16 +669,16 @@ export function TransactionFormDialog({
   return (
     <Dialog
       onOpenChange={(nextOpen) => {
-        if (!nextOpen && mutation.isPending) return;
+        if (!nextOpen && create.pending) return;
         onOpenChange(nextOpen);
       }}
       open={open}
     >
       <DialogContent
-        aria-busy={mutation.isPending}
+        aria-busy={create.pending}
         className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-md"
         finalFocus={false}
-        showCloseButton={!mutation.isPending}
+        showCloseButton={!create.pending}
       >
         <DialogHeader>
           <DialogTitle>Record {kind}</DialogTitle>

@@ -1,10 +1,9 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
-import { useCreateFinanceTransaction } from "@/api/generated/core-console";
+import { useFinanceCreate } from "./use-finance-create";
 import {
   CreateFinanceTransactionBody,
   FinanceRequestDate,
-  InternalTransferTransactionResponse,
   ProblemDetails,
   type AccountResponse,
   type CurrencyResponse,
@@ -216,7 +215,10 @@ export function InternalTransferFormDialog({
       : destinationAccount
         ? accountLabels.get(destinationAccount.id)
         : undefined;
-  const recoverAccounts = async (reason: AccountRecoveryReason) => {
+  const recoverAccounts = async (
+    reason: AccountRecoveryReason,
+    isCurrent: () => boolean = () => true,
+  ) => {
     if (recoveryPendingRef.current) return;
     recoveryPendingRef.current = true;
     setRecoveryPending(true);
@@ -225,6 +227,11 @@ export function InternalTransferFormDialog({
       result = await refreshAccounts();
     } catch {
       result = { status: "error" };
+    }
+    if (!isCurrent()) {
+      recoveryPendingRef.current = false;
+      setRecoveryPending(false);
+      return;
     }
     if (result.status === "error") {
       setAccountRecoveryReason(reason);
@@ -317,9 +324,18 @@ export function InternalTransferFormDialog({
     recoveryPendingRef.current = false;
     setRecoveryPending(false);
   };
-  const mutation = useCreateFinanceTransaction({
-    mutation: {
-      onError: async (error) => {
+  const create = useFinanceCreate(
+    (result) => {
+      if (!result.transaction) return;
+      void onRecorded(result.transaction);
+      onOpenChange(false);
+    },
+    ledgerId,
+    open,
+    {
+      operation: "createFinanceTransaction",
+      onRejected: async (problemValue, isCurrent) => {
+        const error = { info: problemValue };
         const problem = parseProblem(error);
         const isCurrencyMismatch =
           problem.success &&
@@ -333,6 +349,7 @@ export function InternalTransferFormDialog({
         ) {
           await recoverAccounts(
             isCurrencyMismatch ? "currencyMismatch" : "accountReference",
+            isCurrent,
           );
           return;
         }
@@ -352,17 +369,9 @@ export function InternalTransferFormDialog({
           setFocusField("transactionDate");
         }
       },
-      onSuccess: async (response) => {
-        const transaction = InternalTransferTransactionResponse.parse(
-          response.data,
-        );
-        const refresh = onRecorded(transaction);
-        onOpenChange(false);
-        await refresh;
-      },
     },
-  });
-  const workflowPending = mutation.isPending || recoveryPending;
+  );
+  const workflowPending = create.pending || recoveryPending;
 
   useEffect(() => {
     if (!accountRecoveryReason || workflowPending) return;
@@ -393,12 +402,18 @@ export function InternalTransferFormDialog({
       return next;
     });
     if (!accountRecoveryReason) setServerError("");
-    if (mutation.isError) mutation.reset();
+    create.edited();
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (submittingRef.current || workflowPending || accountRecoveryReason) {
+    if (
+      submittingRef.current ||
+      workflowPending ||
+      accountRecoveryReason ||
+      create.unresolved ||
+      !create.ready
+    ) {
       return;
     }
 
@@ -477,7 +492,16 @@ export function InternalTransferFormDialog({
       transactionDate,
     });
     submittingRef.current = true;
-    mutation.mutate({ data, ledgerId });
+    void create
+      .submit({
+        operation: "createFinanceTransaction",
+        targetLedgerId: ledgerId,
+        body: data,
+        workflow: "internalTransfer",
+      })
+      .finally(() => {
+        submittingRef.current = false;
+      });
   };
 
   const formId = "record-internal-transfer";
@@ -736,12 +760,14 @@ export function InternalTransferFormDialog({
               <FieldError id={`${formId}-note-error`}>{errors.note}</FieldError>
             </Field>
           </FieldGroup>
-          {serverError && accountRecoveryReason ? (
+          {(serverError || create.error) && accountRecoveryReason ? (
             <div
               className="flex flex-wrap items-center justify-between gap-3"
               role="alert"
             >
-              <p className="text-sm text-destructive">{serverError}</p>
+              <p className="text-sm text-destructive">
+                {serverError || create.error}
+              </p>
               <Button
                 disabled={workflowPending}
                 onClick={() => void recoverAccounts(accountRecoveryReason)}
@@ -755,10 +781,19 @@ export function InternalTransferFormDialog({
                   : "Retry Account refresh"}
               </Button>
             </div>
-          ) : serverError ? (
+          ) : serverError || create.error ? (
             <p className="text-sm text-destructive" role="alert">
-              {serverError}
+              {serverError || create.error}
             </p>
+          ) : null}
+          {create.unresolved && !create.integrityBlocked && !workflowPending ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={create.startAnother}
+            >
+              Start a separate Transaction create
+            </Button>
           ) : null}
           <DialogFooter>
             <Button
@@ -778,12 +813,17 @@ export function InternalTransferFormDialog({
               Cancel
             </Button>
             <Button
-              disabled={workflowPending || accountRecoveryReason !== null}
+              disabled={
+                workflowPending ||
+                accountRecoveryReason !== null ||
+                create.unresolved ||
+                !create.ready
+              }
               type="submit"
             >
               {recoveryPending
                 ? "Refreshing Accounts…"
-                : mutation.isPending
+                : create.pending
                   ? "Recording transfer…"
                   : "Record transfer"}
             </Button>

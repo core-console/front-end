@@ -803,7 +803,6 @@ export function TransactionsDestination({
   const recordTransaction = async (
     transaction: FinanceTransactionResponseOutput,
   ) => {
-    reconcileLedgerTransactionHistories(queryClient, ledgerId, transaction);
     setAnnouncement(
       `${
         transaction.kind === "expense"
@@ -813,18 +812,8 @@ export function TransactionsDestination({
             : "Internal Transfer"
       } recorded.`,
     );
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: getListFinanceTransactionsQueryKey(ledgerId),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: getListFinanceAccountsQueryKey(ledgerId),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: getGetFinanceOverviewQueryKey(ledgerId),
-      }),
-    ]);
   };
+
   const recordBalanceAdjustment = async (
     result: BalanceAdjustmentResultResponseOutput,
     accountId: string,

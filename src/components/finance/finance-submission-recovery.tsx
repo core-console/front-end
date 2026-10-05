@@ -1,4 +1,8 @@
-import { submissionLabel, rejectionMessage } from "./submission-journal";
+import {
+  submissionLabel,
+  submissionDescription,
+  rejectionMessage,
+} from "./submission-journal";
 import { Link } from "react-router";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -50,6 +54,7 @@ export function FinanceSubmissionRecovery({
         const outcome =
           resolution?.kind === "receipt" ? resolution.receipt.outcome : null;
         const label = submissionLabel(record);
+        const description = submissionDescription(record);
         const originalLedger = ledgers.find(
           (ledger) => ledger.id === record.targetLedgerId,
         );
@@ -65,13 +70,11 @@ export function FinanceSubmissionRecovery({
           <Alert
             key={record.submissionId}
             role="status"
-            aria-label={`${title}: ${record.body.name}`}
+            aria-label={`${title}: ${description}`}
           >
             <AlertTitle>
               {title}:{" "}
-              <span className="[overflow-wrap:anywhere]">
-                {record.body.name}
-              </span>
+              <span className="[overflow-wrap:anywhere]">{description}</span>
             </AlertTitle>
             <AlertDescription>
               <p>
@@ -125,7 +128,7 @@ export function FinanceSubmissionRecovery({
                           to={
                             record.operation === "createFinanceLedger"
                               ? `/finance/overview?ledger=${outcome.resource.id}`
-                              : `/finance/${record.operation === "createFinanceAccount" ? "accounts" : "categories"}?ledger=${record.targetLedgerId}`
+                              : `/finance/${record.operation === "createFinanceAccount" ? "accounts" : record.operation === "createFinanceCategory" ? "categories" : "transactions"}?ledger=${record.targetLedgerId}`
                           }
                         >
                           Open{" "}
@@ -133,7 +136,9 @@ export function FinanceSubmissionRecovery({
                             ? "Ledger"
                             : record.operation === "createFinanceAccount"
                               ? "Accounts"
-                              : "Categories"}
+                              : record.operation === "createFinanceCategory"
+                                ? "Categories"
+                                : "Transactions"}
                         </Link>
                         <Button
                           disabled={pending}

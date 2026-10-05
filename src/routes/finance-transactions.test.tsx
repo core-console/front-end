@@ -1,3 +1,6 @@
+import { transactionCreateHandler } from "@/test/transaction-handlers";
+import { submissionTestUser } from "@/test/submission-fixtures";
+import { getGetCurrentUserMockHandler } from "@/api/generated/core-console.msw";
 import {
   act,
   fireEvent,
@@ -7,7 +10,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { getGetBalanceAdjustmentContextQueryKey } from "@/api/generated/core-console";
 import {
@@ -25,6 +28,8 @@ import type {
 } from "@/api/generated/schemas";
 import { server } from "@/mocks/server";
 import { renderRoute } from "@/test/render";
+
+beforeEach(() => server.use(getGetCurrentUserMockHandler(submissionTestUser)));
 
 const ledger = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -266,14 +271,11 @@ describe("Finance Transactions destination", () => {
         items: created ? [createdExpense, ...history.items] : history.items,
         nextCursor: null,
       })),
-      http.post(
-        "*/api/finance/ledgers/:ledgerId/transactions",
-        async ({ request }) => {
-          submittedBody = await request.json();
-          created = true;
-          return HttpResponse.json(createdExpense, { status: 201 });
-        },
-      ),
+      transactionCreateHandler(async ({ request }) => {
+        submittedBody = await request.json();
+        created = true;
+        return HttpResponse.json(createdExpense, { status: 201 });
+      }),
     );
     renderRoute(`/finance/transactions?ledger=${ledger.id}`);
 
@@ -326,28 +328,32 @@ describe("Finance Transactions destination", () => {
       within(dialog).getByRole("button", { name: "Record expense" }),
     );
 
-    expect(submittedBody).toEqual({
-      accountId,
-      categoryAllocations: [
-        {
-          amount: { amount: "9007199254740993.25", currency: "USD" },
-          categoryId: activeCategoryId,
+    await waitFor(() =>
+      expect(submittedBody).toEqual({
+        accountId,
+        categoryAllocations: [
+          {
+            amount: { amount: "9007199254740993.25", currency: "USD" },
+            categoryId: activeCategoryId,
+          },
+        ],
+        economicAmount: {
+          amount: "9007199254740993.25",
+          currency: "USD",
         },
-      ],
-      economicAmount: {
-        amount: "9007199254740993.25",
-        currency: "USD",
-      },
-      kind: "expense",
-      note: "Large exact purchase",
-      transactionDate: "2027-01-02",
-    });
+        kind: "expense",
+        note: "Large exact purchase",
+        transactionDate: "2027-01-02",
+      }),
+    );
     await waitFor(() =>
       expect(
         screen.queryByRole("dialog", { name: "Record expense" }),
       ).not.toBeInTheDocument(),
     );
-    expect(screen.getByRole("status")).toHaveTextContent("Expense recorded.");
+    expect(screen.getByRole("status", { name: "" })).toHaveTextContent(
+      "Expense recorded.",
+    );
     expect(
       await screen.findByRole("article", {
         name: "Expense on January 2, 2027",
@@ -385,13 +391,10 @@ describe("Finance Transactions destination", () => {
       getListFinanceCategoriesMockHandler([]),
       getListFinanceCurrenciesMockHandler([...currencies]),
       getListFinanceTransactionsMockHandler(history),
-      http.post(
-        "*/api/finance/ledgers/:ledgerId/transactions",
-        async ({ request }) => {
-          submittedBody = await request.json();
-          return HttpResponse.json(createdIncome, { status: 201 });
-        },
-      ),
+      transactionCreateHandler(async ({ request }) => {
+        submittedBody = await request.json();
+        return HttpResponse.json(createdIncome, { status: 201 });
+      }),
     );
     renderRoute(`/finance/transactions?ledger=${ledger.id}`);
 
@@ -437,20 +440,24 @@ describe("Finance Transactions destination", () => {
         screen.queryByRole("dialog", { name: "Record income" }),
       ).not.toBeInTheDocument(),
     );
-    expect(submittedBody).toEqual({
-      accountId,
-      categoryAllocations: [
-        {
-          amount: { amount: "12.5", currency: "USD" },
-          categoryId: null,
-        },
-      ],
-      economicAmount: { amount: "12.5", currency: "USD" },
-      kind: "income",
-      note: null,
-      transactionDate: localToday,
-    });
-    expect(screen.getByRole("status")).toHaveTextContent("Income recorded.");
+    await waitFor(() =>
+      expect(submittedBody).toEqual({
+        accountId,
+        categoryAllocations: [
+          {
+            amount: { amount: "12.5", currency: "USD" },
+            categoryId: null,
+          },
+        ],
+        economicAmount: { amount: "12.5", currency: "USD" },
+        kind: "income",
+        note: null,
+        transactionDate: localToday,
+      }),
+    );
+    expect(screen.getByRole("status", { name: "" })).toHaveTextContent(
+      "Income recorded.",
+    );
   });
 
   it("records one exact same-currency Internal Transfer and reconciles history", async () => {
@@ -505,14 +512,11 @@ describe("Finance Transactions destination", () => {
         items: created ? [createdTransfer, ...history.items] : history.items,
         nextCursor: null,
       })),
-      http.post(
-        "*/api/finance/ledgers/:ledgerId/transactions",
-        async ({ request }) => {
-          submittedBody = await request.json();
-          created = true;
-          return HttpResponse.json(createdTransfer, { status: 201 });
-        },
-      ),
+      transactionCreateHandler(async ({ request }) => {
+        submittedBody = await request.json();
+        created = true;
+        return HttpResponse.json(createdTransfer, { status: 201 });
+      }),
     );
     renderRoute(`/finance/transactions?ledger=${ledger.id}`);
 
@@ -565,20 +569,22 @@ describe("Finance Transactions destination", () => {
       within(dialog).getByRole("button", { name: "Record transfer" }),
     );
 
-    expect(submittedBody).toEqual({
-      amount: { amount: "9007199254740993.25", currency: "USD" },
-      destinationAccountId,
-      kind: "internalTransfer",
-      note: "Move exact reserve",
-      sourceAccountId: accountId,
-      transactionDate: "2027-04-07",
-    });
+    await waitFor(() =>
+      expect(submittedBody).toEqual({
+        amount: { amount: "9007199254740993.25", currency: "USD" },
+        destinationAccountId,
+        kind: "internalTransfer",
+        note: "Move exact reserve",
+        sourceAccountId: accountId,
+        transactionDate: "2027-04-07",
+      }),
+    );
     await waitFor(() =>
       expect(
         screen.queryByRole("dialog", { name: "Record internal transfer" }),
       ).not.toBeInTheDocument(),
     );
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(screen.getByRole("status", { name: "" })).toHaveTextContent(
       "Internal Transfer recorded.",
     );
     expect(
@@ -683,20 +689,22 @@ describe("Finance Transactions destination", () => {
       within(dialog).getByRole("button", { name: "Record adjustment" }),
     );
 
-    expect(submittedBody).toEqual({
-      accountId,
-      expectedAccountNature: "asset",
-      expectedDerivedBalance: {
-        amount: "9007199254740993.25",
-        currency: "USD",
-      },
-      note: "Counted cash",
-      targetBalance: {
-        amount: "9007199254740998.50",
-        currency: "USD",
-      },
-      transactionDate: "2027-04-10",
-    });
+    await waitFor(() =>
+      expect(submittedBody).toEqual({
+        accountId,
+        expectedAccountNature: "asset",
+        expectedDerivedBalance: {
+          amount: "9007199254740993.25",
+          currency: "USD",
+        },
+        note: "Counted cash",
+        targetBalance: {
+          amount: "9007199254740998.50",
+          currency: "USD",
+        },
+        transactionDate: "2027-04-10",
+      }),
+    );
     await waitFor(() =>
       expect(
         screen.queryByRole("dialog", {
@@ -704,7 +712,7 @@ describe("Finance Transactions destination", () => {
         }),
       ).not.toBeInTheDocument(),
     );
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(screen.getByRole("status", { name: "" })).toHaveTextContent(
       "Balance Adjustment recorded.",
     );
     expect(
@@ -777,14 +785,16 @@ describe("Finance Transactions destination", () => {
       within(dialog).getByRole("button", { name: "Record adjustment" }),
     );
 
-    expect(submittedBody).toEqual({
-      accountId,
-      expectedAccountNature: "asset",
-      expectedDerivedBalance: { amount: "-12.30", currency: "USD" },
-      note: null,
-      targetBalance: { amount: "-12.30", currency: "USD" },
-      transactionDate,
-    });
+    await waitFor(() =>
+      expect(submittedBody).toEqual({
+        accountId,
+        expectedAccountNature: "asset",
+        expectedDerivedBalance: { amount: "-12.30", currency: "USD" },
+        note: null,
+        targetBalance: { amount: "-12.30", currency: "USD" },
+        transactionDate,
+      }),
+    );
     await waitFor(() =>
       expect(
         screen.queryByRole("dialog", {
@@ -792,7 +802,7 @@ describe("Finance Transactions destination", () => {
         }),
       ).not.toBeInTheDocument(),
     );
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(screen.getByRole("status", { name: "" })).toHaveTextContent(
       "Balance already matched the target. No Balance Adjustment was created.",
     );
   });
@@ -1043,7 +1053,7 @@ describe("Finance Transactions destination", () => {
           transactionDate,
         },
       ]);
-      expect(screen.getByRole("status")).toHaveTextContent(
+      expect(screen.getByRole("status", { name: "" })).toHaveTextContent(
         "Balance already matched the target. No Balance Adjustment was created.",
       );
     },
@@ -1725,7 +1735,7 @@ describe("Finance Transactions destination", () => {
     ).toBeDisabled();
     await user.keyboard("{Escape}");
     expect(dialog).toBeVisible();
-    expect(requests).toBe(1);
+    await waitFor(() => expect(requests).toBe(1));
 
     await act(async () => {
       await router.navigate(`/finance/accounts?ledger=${ledger.id}`);
@@ -1739,11 +1749,11 @@ describe("Finance Transactions destination", () => {
       name: "Record transaction",
     });
     expect(remountedTrigger).toBeDisabled();
-    expect(requests).toBe(1);
+    await waitFor(() => expect(requests).toBe(1));
 
     releaseRequest();
     await waitFor(() => expect(remountedTrigger).toBeEnabled());
-    expect(requests).toBe(1);
+    await waitFor(() => expect(requests).toBe(1));
     expect(await screen.findByText("Correction +1.00 USD")).toBeVisible();
   });
 
@@ -1777,7 +1787,7 @@ describe("Finance Transactions destination", () => {
       getListFinanceCategoriesMockHandler([]),
       getListFinanceCurrenciesMockHandler([...currencies]),
       getListFinanceTransactionsMockHandler(history),
-      http.post("*/api/finance/ledgers/:ledgerId/transactions", async () => {
+      transactionCreateHandler(async () => {
         await responseGate;
         return HttpResponse.json(
           {
@@ -1893,7 +1903,7 @@ describe("Finance Transactions destination", () => {
       getListFinanceCategoriesMockHandler([]),
       getListFinanceCurrenciesMockHandler([...currencies]),
       getListFinanceTransactionsMockHandler(history),
-      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+      transactionCreateHandler(() => {
         transactionRequests += 1;
         sourceCurrencyChanged = true;
         return HttpResponse.json(
@@ -2015,7 +2025,7 @@ describe("Finance Transactions destination", () => {
       getListFinanceCategoriesMockHandler([]),
       getListFinanceCurrenciesMockHandler([...currencies]),
       getListFinanceTransactionsMockHandler(history),
-      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+      transactionCreateHandler(() => {
         transactionRequests += 1;
         destinationCurrencyChanged = true;
         return HttpResponse.json(
@@ -2122,7 +2132,7 @@ describe("Finance Transactions destination", () => {
       getListFinanceCategoriesMockHandler([]),
       getListFinanceCurrenciesMockHandler([...currencies]),
       getListFinanceTransactionsMockHandler(history),
-      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+      transactionCreateHandler(() => {
         transactionRequests += 1;
         return HttpResponse.json(
           {
@@ -2257,7 +2267,7 @@ describe("Finance Transactions destination", () => {
       getListFinanceCategoriesMockHandler([]),
       getListFinanceCurrenciesMockHandler([...currencies]),
       getListFinanceTransactionsMockHandler(history),
-      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+      transactionCreateHandler(() => {
         transactionRequests += 1;
         return HttpResponse.json(
           {
@@ -2418,7 +2428,7 @@ describe("Finance Transactions destination", () => {
         items: created ? [createdTransfer, ...history.items] : history.items,
         nextCursor: null,
       })),
-      http.post("*/api/finance/ledgers/:ledgerId/transactions", async () => {
+      transactionCreateHandler(async () => {
         requests += 1;
         await requestGate;
         created = true;
@@ -2465,7 +2475,7 @@ describe("Finance Transactions destination", () => {
     ).toBeDisabled();
     await user.keyboard("{Escape}");
     expect(dialog).toBeVisible();
-    expect(requests).toBe(1);
+    await waitFor(() => expect(requests).toBe(1));
 
     await act(async () => {
       await router.navigate(`/finance/accounts?ledger=${ledger.id}`);
@@ -2479,11 +2489,11 @@ describe("Finance Transactions destination", () => {
       name: "Record transaction",
     });
     expect(remountedTrigger).toBeDisabled();
-    expect(requests).toBe(1);
+    await waitFor(() => expect(requests).toBe(1));
 
     releaseRequest();
     await waitFor(() => expect(remountedTrigger).toBeEnabled());
-    expect(requests).toBe(1);
+    await waitFor(() => expect(requests).toBe(1));
     expect(
       await screen.findByRole("article", {
         name: "Internal Transfer on April 9, 2027",
@@ -2536,7 +2546,7 @@ describe("Finance Transactions destination", () => {
       ),
       getListFinanceCurrenciesMockHandler([...currencies]),
       getListFinanceTransactionsMockHandler(history),
-      http.post("*/api/finance/ledgers/:ledgerId/transactions", async () => {
+      transactionCreateHandler(async () => {
         requests += 1;
         if (requests === 1) {
           categoryArchived = true;
@@ -2635,7 +2645,7 @@ describe("Finance Transactions destination", () => {
       getListFinanceCategoriesMockHandler([]),
       getListFinanceCurrenciesMockHandler([...currencies]),
       getListFinanceTransactionsMockHandler(history),
-      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+      transactionCreateHandler(() => {
         accountArchived = true;
         return HttpResponse.json(
           {
@@ -2708,7 +2718,7 @@ describe("Finance Transactions destination", () => {
       getListFinanceCategoriesMockHandler([]),
       getListFinanceCurrenciesMockHandler([...currencies]),
       getListFinanceTransactionsMockHandler(history),
-      http.post("*/api/finance/ledgers/:ledgerId/transactions", async () => {
+      transactionCreateHandler(async () => {
         await responseGate;
         return HttpResponse.json(
           {
@@ -2786,7 +2796,7 @@ describe("Finance Transactions destination", () => {
       }),
       getListFinanceCurrenciesMockHandler([...currencies]),
       getListFinanceTransactionsMockHandler(history),
-      http.post("*/api/finance/ledgers/:ledgerId/transactions", async () => {
+      transactionCreateHandler(async () => {
         await responseGate;
         return HttpResponse.json(
           {
@@ -2868,7 +2878,7 @@ describe("Finance Transactions destination", () => {
       getListFinanceCategoriesMockHandler([...categories]),
       getListFinanceCurrenciesMockHandler([...currencies]),
       getListFinanceTransactionsMockHandler(history),
-      http.post("*/api/finance/ledgers/:ledgerId/transactions", async () => {
+      transactionCreateHandler(async () => {
         requests += 1;
         await requestGate;
         return HttpResponse.json(createdExpense, { status: 201 });
@@ -2911,7 +2921,7 @@ describe("Finance Transactions destination", () => {
     expect(
       screen.getByRole("dialog", { name: "Record expense" }),
     ).toBeVisible();
-    expect(requests).toBe(1);
+    await waitFor(() => expect(requests).toBe(1));
 
     releaseRequest();
     await waitFor(() =>
@@ -2919,7 +2929,7 @@ describe("Finance Transactions destination", () => {
         screen.queryByRole("dialog", { name: "Record expense" }),
       ).not.toBeInTheDocument(),
     );
-    expect(requests).toBe(1);
+    await waitFor(() => expect(requests).toBe(1));
   });
 
   it("restores successful empty-state focus only after recording is usable again", async () => {
@@ -2958,7 +2968,7 @@ describe("Finance Transactions destination", () => {
         items: created ? [createdExpense] : [],
         nextCursor: null,
       })),
-      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+      transactionCreateHandler(() => {
         created = true;
         return HttpResponse.json(createdExpense, { status: 201 });
       }),
@@ -3037,7 +3047,7 @@ describe("Finance Transactions destination", () => {
       getListFinanceCategoriesMockHandler([]),
       getListFinanceCurrenciesMockHandler([...currencies]),
       getListFinanceTransactionsMockHandler(history),
-      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+      transactionCreateHandler(() => {
         accountsEligible = false;
         return HttpResponse.json(createdExpense, { status: 201 });
       }),
@@ -3094,7 +3104,7 @@ describe("Finance Transactions destination", () => {
       getListFinanceCategoriesMockHandler([...categories]),
       getListFinanceCurrenciesMockHandler([...currencies]),
       getListFinanceTransactionsMockHandler(history),
-      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+      transactionCreateHandler(() => {
         requests += 1;
         if (requests === 1) {
           return HttpResponse.json(
@@ -3164,9 +3174,7 @@ describe("Finance Transactions destination", () => {
       await within(dialog).findByRole("alert", {
         name: "",
       }),
-    ).toHaveTextContent(
-      "Transactions are temporarily unavailable. Try again later.",
-    );
+    ).toHaveTextContent("outcome is unknown");
     expect(amount).toHaveValue("25.00");
     expect(category).toHaveValue(activeCategoryId);
     expect(date).toHaveValue("2027-04-06");
@@ -3354,7 +3362,7 @@ describe("Finance Transactions destination", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "From date must be on or before To date.",
     );
-    expect(requests).toBe(1);
+    await waitFor(() => expect(requests).toBe(1));
     expect(router.state.location.search).toBe(`?ledger=${ledger.id}`);
   });
 
@@ -3560,7 +3568,7 @@ describe("Finance Transactions destination", () => {
         name: "Income on August 16, 2026",
       }),
     ).toHaveLength(1);
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(screen.getByRole("status", { name: "" })).toHaveTextContent(
       "1 more transaction loaded.",
     );
     expect(

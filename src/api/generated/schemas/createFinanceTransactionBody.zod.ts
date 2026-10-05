@@ -12,105 +12,81 @@ export const createFinanceTransactionBodyOneCategoryAllocationsMax = 1;
 export const createFinanceTransactionBodyTwoCategoryAllocationsMax = 1;
 
 export const CreateFinanceTransactionBody = zod.union([
-  zod
-    .strictObject({
-      accountId: zod.uuid(),
-      categoryAllocations: zod
-        .array(
-          zod
-            .strictObject({
-              amount: zod
-                .strictObject({
-                  amount: zod
-                    .string()
-                    .describe(
-                      "Plain base-10 decimal string. After sign and insignificant leading zeros are normalized, a non-zero value may have at most 131,072 integer digits; currency minor-unit precision applies separately. Values outside this durable PostgreSQL numeric range return 422 validation_error.",
-                    ),
-                  currency: zod.enum(["CNY", "JPY", "USD"]),
-                })
-                .describe(
-                  "Exact decimal-string Money supplied by a Finance caller.",
-                ),
-              categoryId: zod.union([zod.uuid(), zod.null()]).optional(),
-            })
-            .describe("One complete v1 allocation, optionally Uncategorized."),
-        )
-        .min(1)
-        .max(createFinanceTransactionBodyOneCategoryAllocationsMax),
-      economicAmount: zod
-        .strictObject({
-          amount: zod
-            .string()
-            .describe(
-              "Plain base-10 decimal string. After sign and insignificant leading zeros are normalized, a non-zero value may have at most 131,072 integer digits; currency minor-unit precision applies separately. Values outside this durable PostgreSQL numeric range return 422 validation_error.",
-            ),
-          currency: zod.enum(["CNY", "JPY", "USD"]),
-        })
-        .describe("Exact decimal-string Money supplied by a Finance caller."),
-      kind: zod.literal("income").meta({ title: "Kind" }),
-      note: zod.union([zod.string(), zod.null()]).optional(),
-      transactionDate: zod.iso.date(),
-    })
-    .describe("Record value received from outside the Finance Ledger."),
-  zod
-    .strictObject({
-      accountId: zod.uuid(),
-      categoryAllocations: zod
-        .array(
-          zod
-            .strictObject({
-              amount: zod
-                .strictObject({
-                  amount: zod
-                    .string()
-                    .describe(
-                      "Plain base-10 decimal string. After sign and insignificant leading zeros are normalized, a non-zero value may have at most 131,072 integer digits; currency minor-unit precision applies separately. Values outside this durable PostgreSQL numeric range return 422 validation_error.",
-                    ),
-                  currency: zod.enum(["CNY", "JPY", "USD"]),
-                })
-                .describe(
-                  "Exact decimal-string Money supplied by a Finance caller.",
-                ),
-              categoryId: zod.union([zod.uuid(), zod.null()]).optional(),
-            })
-            .describe("One complete v1 allocation, optionally Uncategorized."),
-        )
-        .min(1)
-        .max(createFinanceTransactionBodyTwoCategoryAllocationsMax),
-      economicAmount: zod
-        .strictObject({
-          amount: zod
-            .string()
-            .describe(
-              "Plain base-10 decimal string. After sign and insignificant leading zeros are normalized, a non-zero value may have at most 131,072 integer digits; currency minor-unit precision applies separately. Values outside this durable PostgreSQL numeric range return 422 validation_error.",
-            ),
-          currency: zod.enum(["CNY", "JPY", "USD"]),
-        })
-        .describe("Exact decimal-string Money supplied by a Finance caller."),
-      kind: zod.literal("expense").meta({ title: "Kind" }),
-      note: zod.union([zod.string(), zod.null()]).optional(),
-      transactionDate: zod.iso.date(),
-    })
-    .describe("Record value spent outside the Finance Ledger."),
-  zod
-    .strictObject({
+  zod.strictObject({
+    accountId: zod.uuid(),
+    categoryAllocations: zod
+      .array(
+        zod.strictObject({
+          amount: zod.strictObject({
+            amount: zod
+              .string()
+              .describe(
+                "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+              ),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          }),
+          categoryId: zod.union([zod.uuid(), zod.null()]).optional(),
+        }),
+      )
+      .min(1)
+      .max(createFinanceTransactionBodyOneCategoryAllocationsMax),
+    economicAmount: zod.strictObject({
       amount: zod
-        .strictObject({
-          amount: zod
-            .string()
-            .describe(
-              "Plain base-10 decimal string. After sign and insignificant leading zeros are normalized, a non-zero value may have at most 131,072 integer digits; currency minor-unit precision applies separately. Values outside this durable PostgreSQL numeric range return 422 validation_error.",
-            ),
-          currency: zod.enum(["CNY", "JPY", "USD"]),
-        })
-        .describe("Exact decimal-string Money supplied by a Finance caller."),
-      destinationAccountId: zod.uuid(),
-      kind: zod.literal("internalTransfer").meta({ title: "Kind" }),
-      note: zod.union([zod.string(), zod.null()]).optional(),
-      sourceAccountId: zod.uuid(),
-      transactionDate: zod.iso.date(),
-    })
-    .describe("Record one atomic same-currency Transfer between two Accounts."),
+        .string()
+        .describe(
+          "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+        ),
+      currency: zod.enum(["CNY", "JPY", "USD"]),
+    }),
+    kind: zod.literal("income").meta({ title: "Kind" }),
+    note: zod.union([zod.string(), zod.null()]).optional(),
+    transactionDate: zod.iso.date(),
+  }),
+  zod.strictObject({
+    accountId: zod.uuid(),
+    categoryAllocations: zod
+      .array(
+        zod.strictObject({
+          amount: zod.strictObject({
+            amount: zod
+              .string()
+              .describe(
+                "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+              ),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          }),
+          categoryId: zod.union([zod.uuid(), zod.null()]).optional(),
+        }),
+      )
+      .min(1)
+      .max(createFinanceTransactionBodyTwoCategoryAllocationsMax),
+    economicAmount: zod.strictObject({
+      amount: zod
+        .string()
+        .describe(
+          "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+        ),
+      currency: zod.enum(["CNY", "JPY", "USD"]),
+    }),
+    kind: zod.literal("expense").meta({ title: "Kind" }),
+    note: zod.union([zod.string(), zod.null()]).optional(),
+    transactionDate: zod.iso.date(),
+  }),
+  zod.strictObject({
+    amount: zod.strictObject({
+      amount: zod
+        .string()
+        .describe(
+          "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+        ),
+      currency: zod.enum(["CNY", "JPY", "USD"]),
+    }),
+    destinationAccountId: zod.uuid(),
+    kind: zod.literal("internalTransfer").meta({ title: "Kind" }),
+    note: zod.union([zod.string(), zod.null()]).optional(),
+    sourceAccountId: zod.uuid(),
+    transactionDate: zod.iso.date(),
+  }),
 ]);
 
 export type CreateFinanceTransactionBody = zod.input<

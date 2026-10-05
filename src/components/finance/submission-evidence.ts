@@ -14,27 +14,39 @@ import {
   LedgerTerminalProblem,
   LedgerValidationProblem,
   SubmissionNonterminalProblem,
+  TransactionCreatedReceipt,
+  TransactionSubmissionReceipt,
+  TransactionArchivedTerminalProblem,
+  TransactionMissingTerminalProblem,
+  TransactionInvalidTerminalProblem,
+  TransactionValidationProblem,
 } from "@/api/generated/schemas";
 
 const receiptSchema = z.union([
   LedgerSubmissionReceipt,
   AccountSubmissionReceipt,
   CategorySubmissionReceipt,
+  TransactionSubmissionReceipt,
 ]);
 const createdReceiptSchema = z.union([
   LedgerCreatedReceipt,
   AccountCreatedReceipt,
   CategoryCreatedReceipt,
+  TransactionCreatedReceipt,
 ]);
 const terminalProblemSchema = z.union([
   LedgerTerminalProblem,
   AccountTerminalProblem,
   CategoryTerminalProblem,
+  TransactionArchivedTerminalProblem,
+  TransactionMissingTerminalProblem,
+  TransactionInvalidTerminalProblem,
 ]);
 const validationProblemSchema = z.union([
   LedgerValidationProblem,
   AccountValidationProblem,
   CategoryValidationProblem,
+  TransactionValidationProblem,
 ]);
 
 export const submissionResolutionSchema = z.discriminatedUnion("kind", [

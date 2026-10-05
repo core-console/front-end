@@ -579,7 +579,6 @@ export function OverviewDestination({
   const recordTransaction = async (
     transaction: FinanceTransactionResponseOutput,
   ) => {
-    await refreshAfterWrite(transaction);
     setAnnouncement(
       `${transaction.kind === "internalTransfer" ? "Internal Transfer" : transaction.kind === "income" ? "Income" : "Expense"} recorded.`,
     );

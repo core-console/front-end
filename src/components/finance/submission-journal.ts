@@ -4,6 +4,7 @@ import {
   CreateFinanceLedgerBody,
   CreateFinanceAccountBody,
   CreateFinanceCategoryBody,
+  CreateFinanceTransactionBody,
 } from "@/api/generated/schemas";
 import { resolveApiBaseUrl } from "@/config/env";
 import {
@@ -63,10 +64,18 @@ const categoryCommand = z.strictObject({
   }),
   workflow: z.literal("category"),
 });
+const transactionCommand = z.strictObject({
+  operation: z.literal("createFinanceTransaction"),
+  endpoint: z.string(),
+  targetLedgerId: z.uuid(),
+  body: CreateFinanceTransactionBody,
+  workflow: z.enum(["quickEntry", "transaction", "internalTransfer"]),
+});
 export type CreateSubmissionCommand =
   | Omit<z.infer<typeof ledgerCommand>, "endpoint">
   | Omit<z.infer<typeof accountCommand>, "endpoint">
-  | Omit<z.infer<typeof categoryCommand>, "endpoint">;
+  | Omit<z.infer<typeof categoryCommand>, "endpoint">
+  | Omit<z.infer<typeof transactionCommand>, "endpoint">;
 function recordsFor<T extends z.ZodRawShape>(shape: T) {
   return z.discriminatedUnion("state", [
     z.strictObject({
@@ -87,7 +96,15 @@ const recordSchema = z
     recordsFor(ledgerCommand.shape),
     recordsFor(accountCommand.shape),
     recordsFor(categoryCommand.shape),
+    recordsFor(transactionCommand.shape),
   ])
+  .refine(
+    (record) =>
+      record.operation !== "createFinanceTransaction" ||
+      (record.body.kind === "internalTransfer") ===
+        (record.workflow === "internalTransfer"),
+    "Transaction workflow does not match its kind.",
+  )
   .refine(
     (record) => record.endpoint === endpointFor(record),
     "Submission endpoint does not match its operation and scope.",
@@ -108,10 +125,14 @@ export function submissionLabel(record: Pick<FinanceSubmission, "operation">) {
       return "Account";
     case "createFinanceCategory":
       return "Category";
+    case "createFinanceTransaction":
+      return "Transaction";
   }
 }
 
 export function rejectionMessage(record: FinanceSubmission) {
+  if (record.operation === "createFinanceTransaction")
+    return "The Transaction command was rejected. Review the draft before creating a new submission.";
   return record.operation === "createFinanceAccount"
     ? "The Account command was rejected. Review the draft before creating a new submission."
     : `A ${submissionLabel(record)} with this name already exists.`;
@@ -125,7 +146,18 @@ function endpointFor(command: CreateSubmissionCommand) {
       return `/finance/ledgers/${command.targetLedgerId}/accounts`;
     case "createFinanceCategory":
       return `/finance/ledgers/${command.targetLedgerId}/categories`;
+    case "createFinanceTransaction":
+      return `/finance/ledgers/${command.targetLedgerId}/transactions`;
   }
+}
+
+export function submissionDescription(record: FinanceSubmission) {
+  if (record.operation !== "createFinanceTransaction") return record.body.name;
+  const money =
+    record.body.kind === "internalTransfer"
+      ? record.body.amount
+      : record.body.economicAmount;
+  return `${record.body.kind === "internalTransfer" ? "Internal Transfer" : record.body.kind === "income" ? "Income" : "Expense"} ${money.amount} ${money.currency} · ${record.body.transactionDate}`;
 }
 
 const key = (record: SubmissionNamespace & { submissionId: string }) => [

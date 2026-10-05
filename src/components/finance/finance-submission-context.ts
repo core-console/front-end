@@ -3,6 +3,7 @@ import type {
   LedgerResponse,
   AccountResponse,
   CategoryResponse,
+  FinanceTransactionResponseOutput,
 } from "@/api/generated/schemas";
 import type {
   FinanceSubmission,
@@ -13,6 +14,8 @@ export type SubmitResult = {
   ledger?: LedgerResponse | undefined;
   account?: AccountResponse | undefined;
   category?: CategoryResponse | undefined;
+  transaction?: FinanceTransactionResponseOutput | undefined;
+  refreshing?: Promise<void>;
   message?: string;
 };
 export type SubmissionContext = {

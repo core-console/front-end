@@ -1,3 +1,10 @@
+import {
+  claimReplacement,
+  releaseReplacement,
+  replacementKey,
+  replacementPending as isReplacementPending,
+  subscribeReplacement,
+} from "./ordinary-transaction-replacement";
 import { type InfiniteData, useQueryClient } from "@tanstack/react-query";
 import {
   type FormEvent,
@@ -82,27 +89,6 @@ const decimal = /^\d+(?:\.\d+)?$/;
 
 // A replacement owns its identity from preflight through cache reconciliation,
 // even when navigation unmounts the form that started it.
-const replacementLocks = new Set<string>();
-const replacementListeners = new Set<() => void>();
-const replacementKey = (ledgerId: string, transactionId: string) =>
-  JSON.stringify([ledgerId, transactionId]);
-const notifyReplacementListeners = () => {
-  for (const listener of replacementListeners) listener();
-};
-const subscribeReplacement = (listener: () => void) => {
-  replacementListeners.add(listener);
-  return () => replacementListeners.delete(listener);
-};
-function claimReplacement(key: string) {
-  if (replacementLocks.has(key)) return false;
-  replacementLocks.add(key);
-  notifyReplacementListeners();
-  return true;
-}
-function releaseReplacement(key: string) {
-  replacementLocks.delete(key);
-  notifyReplacementListeners();
-}
 
 function status(error: unknown) {
   return typeof error === "object" && error !== null && "status" in error
@@ -140,7 +126,7 @@ export function TransactionEditDialog({
   const [editTransaction, setEditTransaction] = useState<Ordinary | null>(null);
   const lockKey = replacementKey(ledgerId, transactionId);
   const replacementPending = useSyncExternalStore(subscribeReplacement, () =>
-    replacementLocks.has(lockKey),
+    isReplacementPending(lockKey),
   );
   const [needsFreshDetail, setNeedsFreshDetail] = useState(replacementPending);
   const [refreshFailed, setRefreshFailed] = useState(false);
@@ -587,7 +573,7 @@ function EditForm({
     event.preventDefault();
     if (locked.current || uncertainResult) return;
     const lockKey = replacementKey(ledgerId, transaction.id);
-    if (replacementLocks.has(lockKey)) {
+    if (isReplacementPending(lockKey)) {
       setServerError(
         "Replacement in progress. Wait for it to finish before editing this Transaction.",
       );

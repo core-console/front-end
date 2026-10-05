@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   useCallback,
   useEffect,
@@ -14,6 +14,7 @@ import {
   createFinanceLedger,
   createFinanceAccount,
   createFinanceCategory,
+  createFinanceTransaction,
   getCurrentUser,
   getFinanceSubmission,
   getGetCurrentUserQueryKey,
@@ -33,6 +34,7 @@ import {
   MeResponse,
 } from "@/api/generated/schemas";
 import { env } from "@/config/env";
+import { refreshSubmittedTransaction } from "./transaction-submission-refresh";
 import {
   correlates,
   createResponseResolution,
@@ -199,13 +201,23 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
     async (
       record: FinanceSubmission,
     ): Promise<
-      Pick<SubmitResult, "ledger" | "account" | "category" | "message">
+      Pick<
+        SubmitResult,
+        | "ledger"
+        | "account"
+        | "category"
+        | "transaction"
+        | "refreshing"
+        | "message"
+      >
     > => {
       const label = submissionLabel(record);
       try {
         await assertOwner(record);
-        let resource: Pick<SubmitResult, "ledger" | "account" | "category"> =
-          {};
+        let resource: Pick<
+          SubmitResult,
+          "ledger" | "account" | "category" | "transaction" | "refreshing"
+        > = {};
         const outcome =
           record.state === "resolved" && record.resolution.kind === "receipt"
             ? record.resolution.receipt.outcome
@@ -213,6 +225,20 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
         if (outcome?.kind !== "created") return resource;
         const id = outcome.resource.id;
         switch (record.operation) {
+          case "createFinanceTransaction": {
+            resource = await refreshSubmittedTransaction(
+              queryClient,
+              record,
+              id,
+              () => matches(record),
+              () =>
+                showMessage(
+                  record,
+                  "Transaction creation is confirmed. Your Transaction list could not refresh. Retry the list refresh; do not create again.",
+                ),
+            );
+            break;
+          }
           case "createFinanceLedger": {
             const response = await listFinanceLedgers({ cache: "no-store" });
             const values = LedgerResponse.array().parse(response.data);
@@ -249,9 +275,15 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
             break;
           }
         }
-        const message = Object.values(resource).some(Boolean)
-          ? `${label} creation is confirmed. Your ${label} list is current.`
-          : `${label} creation is confirmed. The ${label} is currently unavailable; it will not be recreated.`;
+        const message =
+          resource.ledger ||
+          resource.account ||
+          resource.category ||
+          resource.transaction
+            ? record.operation === "createFinanceTransaction"
+              ? "Transaction creation is confirmed. View Transactions for its current state."
+              : `${label} creation is confirmed. Your ${label} list is current.`
+            : `${label} creation is confirmed. The ${label} is currently unavailable; it will not be recreated.`;
         showMessage(record, message);
         return { ...resource, message };
       } catch {
@@ -322,11 +354,17 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
                   record.body,
                   headers,
                 )
-              : await createFinanceCategory(
-                  record.targetLedgerId,
-                  record.body,
-                  headers,
-                );
+              : record.operation === "createFinanceCategory"
+                ? await createFinanceCategory(
+                    record.targetLedgerId,
+                    record.body,
+                    headers,
+                  )
+                : await createFinanceTransaction(
+                    record.targetLedgerId,
+                    record.body,
+                    headers,
+                  );
         resolution = createResponseResolution(record, response.data);
         if (!resolution)
           throw new SubmissionRecoveryError(
@@ -368,6 +406,20 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
     },
     [assertOwner, load, settle, showMessage],
   );
+
+  const transactionRetry = useMutation({
+    mutationKey: ["createFinanceTransaction"],
+    mutationFn: async ({
+      record,
+    }: {
+      ledgerId: string;
+      record: FinanceSubmission;
+    }) => {
+      const result = await dispatch(record);
+      await result.refreshing;
+      return result;
+    },
+  });
 
   const run = useCallback(
     (record: FinanceSubmission, action: () => Promise<void>) => {
@@ -502,7 +554,13 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
           // not grant execution intent to the automatic lookup itself.
           await running.current.get(submissionToken(record));
           return run(record, async () => {
-            const result = await dispatch(record);
+            const result =
+              record.operation === "createFinanceTransaction"
+                ? await transactionRetry.mutateAsync({
+                    ledgerId: record.targetLedgerId,
+                    record,
+                  })
+                : await dispatch(record);
             if (result.message) showMessage(record, result.message);
           });
         },
@@ -514,7 +572,8 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
           }),
         refreshResourceList: (record) =>
           run(record, async () => {
-            await refresh(record);
+            const result = await refresh(record);
+            await result.refreshing;
           }),
         recover,
       }}

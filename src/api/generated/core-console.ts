@@ -35,15 +35,14 @@ import type {
   CategoryValidationResponse,
   CorrectAccountSemanticsRequest,
   CreateBalanceAdjustmentRequest,
-  CreateExpenseTransactionRequest,
   CreateFinanceAccountBody,
   CreateFinanceAccountHeaders,
   CreateFinanceCategoryBody,
   CreateFinanceCategoryHeaders,
   CreateFinanceLedgerBody,
   CreateFinanceLedgerHeaders,
-  CreateIncomeTransactionRequest,
-  CreateInternalTransferTransactionRequest,
+  CreateFinanceTransactionBody,
+  CreateFinanceTransactionHeaders,
   CreateUserRequest,
   CurrencyResponse,
   FinanceOverviewResponse,
@@ -66,7 +65,11 @@ import type {
   ReplaceIncomeTransactionRequest,
   ReplaceInternalTransferTransactionRequest,
   SubmissionNonterminalProblem,
+  TransactionConflictResponse,
+  TransactionCreatedReceipt,
   TransactionHistoryPageResponse,
+  TransactionNotFoundResponse,
+  TransactionValidationResponse,
   UpdateAccountRequest,
   UpdateCategoryRequest,
   UpdateLedgerRequest,
@@ -4198,8 +4201,13 @@ export function useListFinanceTransactions<
 }
 
 export type createFinanceTransactionResponse201 = {
-  data: FinanceTransactionResponse;
+  data: TransactionCreatedReceipt;
   status: 201;
+};
+
+export type createFinanceTransactionResponse400 = {
+  data: ProblemDetails;
+  status: 400;
 };
 
 export type createFinanceTransactionResponse403 = {
@@ -4208,17 +4216,17 @@ export type createFinanceTransactionResponse403 = {
 };
 
 export type createFinanceTransactionResponse404 = {
-  data: ProblemDetails;
+  data: TransactionNotFoundResponse;
   status: 404;
 };
 
 export type createFinanceTransactionResponse409 = {
-  data: ProblemDetails;
+  data: TransactionConflictResponse;
   status: 409;
 };
 
 export type createFinanceTransactionResponse422 = {
-  data: ProblemDetails;
+  data: TransactionValidationResponse;
   status: 422;
 };
 
@@ -4237,6 +4245,7 @@ export type createFinanceTransactionResponseSuccess =
     headers: Headers;
   };
 export type createFinanceTransactionResponseError = (
+  | createFinanceTransactionResponse400
   | createFinanceTransactionResponse403
   | createFinanceTransactionResponse404
   | createFinanceTransactionResponse409
@@ -4252,15 +4261,13 @@ export const getCreateFinanceTransactionUrl = (ledgerId: string) => {
 };
 
 /**
- * Create one supported Finance Transaction.
+ * Admits Income, Expense, or Internal Transfer v1 and returns an immutable receipt.
  * @summary Create a Finance Transaction
  */
 export const createFinanceTransaction = async (
   ledgerId: string,
-  createIncomeTransactionRequestCreateExpenseTransactionRequestCreateInternalTransferTransactionRequest:
-    | CreateIncomeTransactionRequest
-    | CreateExpenseTransactionRequest
-    | CreateInternalTransferTransactionRequest,
+  createFinanceTransactionBody: CreateFinanceTransactionBody,
+  headers: CreateFinanceTransactionHeaders,
   options?: RequestInit,
 ): Promise<createFinanceTransactionResponseSuccess> => {
   const getHeaders = (
@@ -4285,12 +4292,10 @@ export const createFinanceTransaction = async (
     ...options,
     method: "POST",
     headers: getHeaders(
-      { "Content-Type": "application/json" },
+      { "Content-Type": "application/json", ...headers },
       options?.headers,
     ),
-    body: JSON.stringify(
-      createIncomeTransactionRequestCreateExpenseTransactionRequestCreateInternalTransferTransactionRequest,
-    ),
+    body: JSON.stringify(createFinanceTransactionBody),
   });
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
@@ -4320,7 +4325,14 @@ export const getCreateFinanceTransactionMutationKey = () =>
   ["createFinanceTransaction"] as const;
 
 export const getCreateFinanceTransactionMutationOptions = <
-  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TError = globalThis.Error & {
+    info?:
+      | ProblemDetails
+      | TransactionNotFoundResponse
+      | TransactionConflictResponse
+      | TransactionValidationResponse;
+    status?: number;
+  },
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -4349,9 +4361,9 @@ export const getCreateFinanceTransactionMutationOptions = <
     Awaited<ReturnType<typeof createFinanceTransaction>>,
     CreateFinanceTransactionMutationVariables
   > = (props) => {
-    const { ledgerId, data } = props ?? {};
+    const { ledgerId, data, headers } = props ?? {};
 
-    return createFinanceTransaction(ledgerId, data, fetchOptions);
+    return createFinanceTransaction(ledgerId, data, headers, fetchOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -4360,27 +4372,33 @@ export const getCreateFinanceTransactionMutationOptions = <
 export type CreateFinanceTransactionMutationResult = NonNullable<
   Awaited<ReturnType<typeof createFinanceTransaction>>
 >;
-export type CreateFinanceTransactionMutationBody =
-  | CreateIncomeTransactionRequest
-  | CreateExpenseTransactionRequest
-  | CreateInternalTransferTransactionRequest;
+export type CreateFinanceTransactionMutationBody = CreateFinanceTransactionBody;
 export type CreateFinanceTransactionMutationError = globalThis.Error & {
-  info?: ProblemDetails;
+  info?:
+    | ProblemDetails
+    | TransactionNotFoundResponse
+    | TransactionConflictResponse
+    | TransactionValidationResponse;
   status?: number;
 };
 export type CreateFinanceTransactionMutationVariables = {
   ledgerId: string;
-  data:
-    | CreateIncomeTransactionRequest
-    | CreateExpenseTransactionRequest
-    | CreateInternalTransferTransactionRequest;
+  data: CreateFinanceTransactionBody;
+  headers: CreateFinanceTransactionHeaders;
 };
 
 /**
  * @summary Create a Finance Transaction
  */
 export const useCreateFinanceTransaction = <
-  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TError = globalThis.Error & {
+    info?:
+      | ProblemDetails
+      | TransactionNotFoundResponse
+      | TransactionConflictResponse
+      | TransactionValidationResponse;
+    status?: number;
+  },
   TContext = unknown,
 >(
   options?: {

@@ -23,6 +23,7 @@ import {
   createdAccountReceipt,
   createdCategoryReceipt,
   createdLedgerReceipt,
+  createdTransactionReceipt,
   rejectedNestedProblem,
 } from "../src/test/submission-fixtures.ts";
 
@@ -813,7 +814,18 @@ test("records Quick Entry with keyboard order and refreshes the selected day", a
     submissions += 1;
     submittedBody = route.request().postDataJSON();
     created = true;
-    await route.fulfill({ json: transaction, status: 201 });
+    await page.route(
+      `**/api/finance/ledgers/${transaction.ledgerId}/transactions/${transaction.id}`,
+      (detail) => detail.fulfill({ json: transaction }),
+    );
+    await route.fulfill({
+      json: createdTransactionReceipt(
+        route.request().headers()["idempotency-key"]!,
+        transaction.ledgerId,
+        transaction.id,
+      ),
+      status: 201,
+    });
   });
   await page.goto(
     `/finance/overview?ledger=${financeLedgers[0]!.id}&month=2026-08&date=2026-08-17`,
@@ -1770,7 +1782,14 @@ test("carries a new Ledger through setup, four entries, history, detail, and nav
             ? income
             : transfer;
       entries.unshift(created);
-      await route.fulfill({ json: created, status: 201 });
+      await route.fulfill({
+        json: createdTransactionReceipt(
+          route.request().headers()["idempotency-key"]!,
+          created.ledgerId,
+          created.id,
+        ),
+        status: 201,
+      });
     } else await route.fulfill({ json: { items: entries, nextCursor: null } });
   });
   await page.route("**/api/finance/ledgers/*/transactions?*", async (route) => {
