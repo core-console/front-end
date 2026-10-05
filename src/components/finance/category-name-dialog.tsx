@@ -9,13 +9,11 @@ import {
 
 import {
   getListFinanceCategoriesQueryKey,
-  useCreateFinanceCategory,
   useUpdateFinanceCategory,
 } from "@/api/generated/core-console";
 import {
   CategoryResponse,
   type CategoryResponse as Category,
-  type CreateCategoryRequest,
   type UpdateCategoryRequest,
 } from "@/api/generated/schemas";
 import { reconcileCategoryList } from "@/components/finance/category-list-cache";
@@ -36,6 +34,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useFinanceCreate } from "./use-finance-create";
 
 type CategoryNameDialogProps = {
   category?: Category;
@@ -72,9 +71,15 @@ export function CategoryNameDialog({
       queryKey: getListFinanceCategoriesQueryKey(ledgerId),
     });
   };
-  const createMutation = useCreateFinanceCategory({
-    mutation: { onSuccess: finish },
-  });
+  const create = useFinanceCreate(
+    (result) => {
+      if (!result.category) return;
+      onSaved(result.category);
+      onOpenChange(false);
+    },
+    ledgerId,
+    open && !category,
+  );
   const updateMutation = useUpdateFinanceCategory({
     mutation: {
       onError: (error) => {
@@ -89,27 +94,33 @@ export function CategoryNameDialog({
       onSuccess: finish,
     },
   });
-  const mutation = category ? updateMutation : createMutation;
-  const problem = mutation.isError
-    ? getCategoryProblemFeedback(
-        mutation.error,
-        `The Category could not be ${category ? "renamed" : "created"}. Try again.`,
-      )
-    : null;
-  const serverError = problem?.message ?? "";
+  const mutation = updateMutation;
+  const pending = category ? mutation.isPending : create.pending;
+  const problem =
+    category && mutation.isError
+      ? getCategoryProblemFeedback(
+          mutation.error,
+          `The Category could not be ${category ? "renamed" : "created"}. Try again.`,
+        )
+      : null;
+  const serverError = category
+    ? (problem?.message ?? "")
+    : (create.error ?? "");
   const fieldError =
-    clientError || (problem?.field === "name" ? serverError : "");
-  const generalError = problem?.field ? "" : serverError;
-  const resetCreateMutation = createMutation.reset;
+    clientError ||
+    (problem?.field === "name" || (!category && create.rejected)
+      ? serverError
+      : "");
+  const generalError =
+    problem?.field || (!category && create.rejected) ? "" : serverError;
   const resetUpdateMutation = updateMutation.reset;
 
   useEffect(() => {
     if (!open) return;
     setName(category?.name ?? "");
     setClientError("");
-    resetCreateMutation();
     resetUpdateMutation();
-  }, [category, open, resetCreateMutation, resetUpdateMutation]);
+  }, [category, open, resetUpdateMutation]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -132,15 +143,17 @@ export function CategoryNameDialog({
         ledgerId,
       });
     } else {
-      createMutation.mutate({
-        data: { name: normalizedName } satisfies CreateCategoryRequest,
-        ledgerId,
+      void create.submit({
+        operation: "createFinanceCategory",
+        targetLedgerId: ledgerId,
+        workflow: "category",
+        body: { name: normalizedName },
       });
     }
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen && mutation.isPending) return;
+    if (!nextOpen && pending) return;
     onOpenChange(nextOpen);
   };
 
@@ -149,9 +162,9 @@ export function CategoryNameDialog({
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogContent
-        aria-busy={mutation.isPending}
+        aria-busy={pending}
         finalFocus={finalFocus}
-        showCloseButton={!mutation.isPending}
+        showCloseButton={!pending}
       >
         <DialogHeader>
           <DialogTitle>
@@ -184,6 +197,7 @@ export function CategoryNameDialog({
                 autoFocus
                 id={`${formId}-name`}
                 onChange={(event) => {
+                  create.edited();
                   setName(event.target.value);
                   setClientError("");
                   if (mutation.isError) mutation.reset();
@@ -203,17 +217,34 @@ export function CategoryNameDialog({
               {generalError}
             </p>
           ) : null}
+          {!category &&
+          create.unresolved &&
+          !create.integrityBlocked &&
+          !pending ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={create.startAnother}
+            >
+              Start a separate Category create
+            </Button>
+          ) : null}
           <DialogFooter>
             <Button
-              disabled={mutation.isPending}
+              disabled={pending}
               onClick={() => onOpenChange(false)}
               type="button"
               variant="outline"
             >
               Cancel
             </Button>
-            <Button disabled={mutation.isPending} type="submit">
-              {mutation.isPending
+            <Button
+              disabled={
+                pending || (!category && (create.unresolved || !create.ready))
+              }
+              type="submit"
+            >
+              {pending
                 ? category
                   ? "Renaming…"
                   : "Creating…"

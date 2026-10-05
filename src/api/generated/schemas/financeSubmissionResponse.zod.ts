@@ -9,48 +9,126 @@ import * as zod from "zod";
 
 export const FinanceSubmissionResponse = zod
   .union([
+    zod
+      .union([
+        zod.strictObject({
+          admittedAt: zod.iso.datetime({ offset: true }),
+          commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
+          operation: zod.enum(["createFinanceLedger"]),
+          state: zod.literal("unfinished").meta({ title: "State" }),
+          submissionId: zod.uuid(),
+          targetLedgerId: zod.null(),
+        }),
+        zod.strictObject({
+          admittedAt: zod.iso.datetime({ offset: true }),
+          commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
+          operation: zod.enum(["createFinanceAccount"]),
+          state: zod.literal("unfinished").meta({ title: "State" }),
+          submissionId: zod.uuid(),
+          targetLedgerId: zod.uuid(),
+        }),
+        zod.strictObject({
+          admittedAt: zod.iso.datetime({ offset: true }),
+          commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
+          operation: zod.enum(["createFinanceCategory"]),
+          state: zod.literal("unfinished").meta({ title: "State" }),
+          submissionId: zod.uuid(),
+          targetLedgerId: zod.uuid(),
+        }),
+      ])
+      .and(
+        zod.strictObject({
+          state: zod.enum(["unfinished"]),
+        }),
+      ),
     zod.strictObject({
-      admittedAt: zod.iso.datetime({ offset: true }),
-      commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
-      operation: zod
-        .literal("createFinanceLedger")
-        .meta({ title: "Operation" }),
-      state: zod.enum(["unfinished"]),
-      submissionId: zod.uuid(),
-      targetLedgerId: zod.null(),
-    }),
-    zod.strictObject({
-      receipt: zod.strictObject({
-        admittedAt: zod.iso.datetime({ offset: true }),
-        commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
-        operation: zod
-          .literal("createFinanceLedger")
-          .meta({ title: "Operation" }),
-        outcome: zod.union([
-          zod.strictObject({
-            kind: zod.literal("created").meta({ title: "Kind" }),
-            resource: zod.strictObject({
-              id: zod.uuid(),
-              type: zod.literal("ledger").meta({ title: "Type" }),
+      receipt: zod.union([
+        zod.strictObject({
+          admittedAt: zod.iso.datetime({ offset: true }),
+          commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
+          operation: zod.enum(["createFinanceLedger"]),
+          outcome: zod.union([
+            zod.strictObject({
+              kind: zod.literal("created").meta({ title: "Kind" }),
+              resource: zod.strictObject({
+                id: zod.uuid(),
+                type: zod.literal("ledger").meta({ title: "Type" }),
+              }),
             }),
-          }),
-          zod.strictObject({
-            kind: zod.literal("rejected").meta({ title: "Kind" }),
-            problem: zod.strictObject({
-              code: zod
-                .literal("finance_ledger_name_conflict")
-                .meta({ title: "Code" }),
-              detail: zod.string(),
-              status: zod.literal(409).meta({ title: "Status" }),
-              title: zod.string(),
-              type: zod.string(),
+            zod.strictObject({
+              kind: zod.literal("rejected").meta({ title: "Kind" }),
+              problem: zod.strictObject({
+                code: zod
+                  .literal("finance_ledger_name_conflict")
+                  .meta({ title: "Code" }),
+                detail: zod.string(),
+                status: zod.literal(409).meta({ title: "Status" }),
+                title: zod.string(),
+                type: zod.string(),
+              }),
             }),
-          }),
-        ]),
-        resolvedAt: zod.iso.datetime({ offset: true }),
-        submissionId: zod.uuid(),
-        targetLedgerId: zod.null(),
-      }),
+          ]),
+          resolvedAt: zod.iso.datetime({ offset: true }),
+          submissionId: zod.uuid(),
+          targetLedgerId: zod.null(),
+        }),
+        zod.strictObject({
+          admittedAt: zod.iso.datetime({ offset: true }),
+          commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
+          operation: zod.enum(["createFinanceAccount"]),
+          outcome: zod.union([
+            zod.strictObject({
+              kind: zod.literal("created").meta({ title: "Kind" }),
+              resource: zod.strictObject({
+                id: zod.uuid(),
+                type: zod.literal("account").meta({ title: "Type" }),
+              }),
+            }),
+            zod.strictObject({
+              kind: zod.literal("rejected").meta({ title: "Kind" }),
+              problem: zod.strictObject({
+                code: zod.literal("validation_error").meta({ title: "Code" }),
+                detail: zod.string(),
+                status: zod.literal(422).meta({ title: "Status" }),
+                title: zod.string(),
+                type: zod.string(),
+              }),
+            }),
+          ]),
+          resolvedAt: zod.iso.datetime({ offset: true }),
+          submissionId: zod.uuid(),
+          targetLedgerId: zod.uuid(),
+        }),
+        zod.strictObject({
+          admittedAt: zod.iso.datetime({ offset: true }),
+          commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
+          operation: zod.enum(["createFinanceCategory"]),
+          outcome: zod.union([
+            zod.strictObject({
+              kind: zod.literal("created").meta({ title: "Kind" }),
+              resource: zod.strictObject({
+                id: zod.uuid(),
+                type: zod.literal("category").meta({ title: "Type" }),
+              }),
+            }),
+            zod.strictObject({
+              kind: zod.literal("rejected").meta({ title: "Kind" }),
+              problem: zod.strictObject({
+                code: zod
+                  .literal("finance_category_name_conflict")
+                  .meta({ title: "Code" }),
+                detail: zod.string(),
+                status: zod.literal(409).meta({ title: "Status" }),
+                title: zod.string(),
+                type: zod.string(),
+              }),
+            }),
+          ]),
+          resolvedAt: zod.iso.datetime({ offset: true }),
+          submissionId: zod.uuid(),
+          targetLedgerId: zod.uuid(),
+        }),
+      ]),
       state: zod.enum(["terminal"]),
     }),
   ])

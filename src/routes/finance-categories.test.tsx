@@ -1,8 +1,9 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+  getGetCurrentUserMockHandler,
   getListFinanceCategoriesMockHandler,
   getListFinanceCategoriesMockHandler503,
   getListFinanceLedgersMockHandler,
@@ -18,7 +19,14 @@ import {
 } from "@/api/generated/core-console.msw";
 import type { CategoryResponse } from "@/api/generated/schemas";
 import { server } from "@/mocks/server";
+import {
+  createdCategoryReceipt,
+  rejectedNestedProblem,
+  submissionTestUser,
+} from "@/test/submission-fixtures";
 import { renderRoute } from "@/test/render";
+
+beforeEach(() => server.use(getGetCurrentUserMockHandler(submissionTestUser)));
 
 const ledger = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -214,12 +222,13 @@ describe("Finance Categories destination", () => {
     server.use(
       getListFinanceLedgersMockHandler([ledger]),
       getListFinanceCategoriesMockHandler(categories),
-      getCreateFinanceCategoryMockHandler409({
-        type: "about:blank",
-        title: "Conflict",
-        status: 409,
-        code: "finance_category_name_conflict",
-      }),
+      getCreateFinanceCategoryMockHandler409(({ request }) =>
+        rejectedNestedProblem(
+          "createFinanceCategory",
+          request.headers.get("Idempotency-Key")!,
+          ledger.id,
+        ),
+      ),
     );
     renderRoute(`/finance/categories?ledger=${ledger.id}`);
 
@@ -258,10 +267,14 @@ describe("Finance Categories destination", () => {
     } as const;
     server.use(
       getListFinanceLedgersMockHandler([ledger]),
-      getListFinanceCategoriesMockHandler([]),
-      getCreateFinanceCategoryMockHandler(async () => {
+      getListFinanceCategoriesMockHandler(() => [createdCategory]),
+      getCreateFinanceCategoryMockHandler(async ({ request }) => {
         await pendingCreate;
-        return createdCategory;
+        return createdCategoryReceipt(
+          request.headers.get("Idempotency-Key")!,
+          ledger.id,
+          createdCategory.id,
+        );
       }),
     );
     renderRoute(`/finance/categories?ledger=${ledger.id}`);
@@ -301,7 +314,7 @@ describe("Finance Categories destination", () => {
     );
   });
 
-  it("reconciles a confirmed create in backend name order before refresh", async () => {
+  it("keeps confirmed Category creation separate from current-list refresh", async () => {
     const user = userEvent.setup();
     let listRequests = 0;
     let releaseRefresh!: () => void;
@@ -321,7 +334,13 @@ describe("Finance Categories destination", () => {
         if (listRequests > 1) await pendingRefresh;
         return listRequests === 1 ? [strasz] : [strasse, strasz];
       }),
-      getCreateFinanceCategoryMockHandler(strasse),
+      getCreateFinanceCategoryMockHandler(({ request }) =>
+        createdCategoryReceipt(
+          request.headers.get("Idempotency-Key")!,
+          ledger.id,
+          strasse.id,
+        ),
+      ),
     );
     renderRoute(`/finance/categories?ledger=${ledger.id}`);
 
@@ -339,13 +358,17 @@ describe("Finance Categories destination", () => {
     );
 
     await waitFor(() => expect(listRequests).toBe(2));
+    expect(
+      await screen.findByText("Category created:", { exact: false }),
+    ).toBeInTheDocument();
+    releaseRefresh();
+    await screen.findByRole("article", { name: "Straße" });
     const active = screen.getByRole("region", { name: "Active Categories" });
     expect(
       within(active)
         .getAllByRole("article")
         .map((row) => row.getAttribute("aria-label")),
     ).toEqual(["Straße", "Strasz"]);
-    releaseRefresh();
   });
 
   it("keeps a conflicting rename open with its entered name", async () => {
@@ -909,11 +932,11 @@ describe("Finance Categories destination", () => {
       getCreateFinanceCategoryMockHandler(async ({ request }) => {
         createRequests += 1;
         requestBody = await request.json();
-        return {
-          id: categories[0]!.id,
-          name: backendValidName,
-          status: "active",
-        };
+        return createdCategoryReceipt(
+          request.headers.get("Idempotency-Key")!,
+          ledger.id,
+          categories[0]!.id,
+        );
       }),
     );
     renderRoute(`/finance/categories?ledger=${ledger.id}`);
@@ -943,7 +966,7 @@ describe("Finance Categories destination", () => {
       within(dialog).getByRole("button", { name: "Create category" }),
     );
 
-    expect(createRequests).toBe(1);
+    await waitFor(() => expect(createRequests).toBe(1));
     expect(requestBody).toEqual({ name: backendValidName });
   });
 
@@ -976,7 +999,7 @@ describe("Finance Categories destination", () => {
     );
 
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
-      "The Category could not be created. Try again.",
+      "The Category outcome is unknown.",
     );
     expect(dialog).not.toHaveTextContent(/constraint internals/i);
   });

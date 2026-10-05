@@ -2,6 +2,10 @@ import {
   LedgerCreatedReceipt,
   LedgerRejectedReceipt,
   LedgerTerminalProblem,
+  AccountCreatedReceipt,
+  CategoryCreatedReceipt,
+  AccountTerminalProblem,
+  CategoryTerminalProblem,
 } from "../api/generated/schemas/index.ts";
 
 export const submissionTestUser = {
@@ -20,6 +24,61 @@ export function createdLedgerReceipt(submissionId: string, ledgerId: string) {
     admittedAt: "2026-10-03T00:00:00Z",
     resolvedAt: "2026-10-03T00:00:01Z",
     outcome: { kind: "created", resource: { type: "ledger", id: ledgerId } },
+  });
+}
+
+export function createdAccountReceipt(
+  submissionId: string,
+  ledgerId: string,
+  accountId: string,
+) {
+  return AccountCreatedReceipt.parse({
+    ...createdLedgerReceipt(submissionId, accountId),
+    operation: "createFinanceAccount",
+    targetLedgerId: ledgerId,
+    outcome: { kind: "created", resource: { type: "account", id: accountId } },
+  });
+}
+
+export function createdCategoryReceipt(
+  submissionId: string,
+  ledgerId: string,
+  categoryId: string,
+) {
+  return CategoryCreatedReceipt.parse({
+    ...createdLedgerReceipt(submissionId, categoryId),
+    operation: "createFinanceCategory",
+    targetLedgerId: ledgerId,
+    outcome: {
+      kind: "created",
+      resource: { type: "category", id: categoryId },
+    },
+  });
+}
+
+export function rejectedNestedProblem(
+  operation: "createFinanceAccount" | "createFinanceCategory",
+  submissionId: string,
+  ledgerId: string,
+) {
+  const account = operation === "createFinanceAccount";
+  const problem = {
+    type: "about:blank",
+    title: account ? "Validation Error" : "Conflict",
+    status: account ? 422 : 409,
+    code: account ? "validation_error" : "finance_category_name_conflict",
+    detail: account
+      ? "The Account command was rejected."
+      : "A Category with this name already exists.",
+  };
+  return (account ? AccountTerminalProblem : CategoryTerminalProblem).parse({
+    ...problem,
+    submissionReceipt: {
+      ...createdLedgerReceipt(submissionId, ledgerId),
+      operation,
+      targetLedgerId: ledgerId,
+      outcome: { kind: "rejected", problem },
+    },
   });
 }
 

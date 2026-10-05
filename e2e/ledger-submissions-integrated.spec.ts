@@ -77,7 +77,7 @@ test("recovers an actual T02 PostgreSQL commit after its response receipt is los
     .fill("T03 real recovery");
   await page.getByRole("button", { name: "Create Ledger" }).click();
   const recovery = page.getByRole("region", {
-    name: "Ledger submission recovery",
+    name: "Finance submission recovery",
   });
   await expect(
     recovery.getByRole("status", {

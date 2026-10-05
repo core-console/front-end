@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { CreateFinanceLedgerBody } from "@/api/generated/schemas";
+import {
+  CreateFinanceLedgerBody,
+  CreateFinanceAccountBody,
+  CreateFinanceCategoryBody,
+} from "@/api/generated/schemas";
 import { resolveApiBaseUrl } from "@/config/env";
 import {
   equalJson,
@@ -29,30 +33,100 @@ const commandShape = {
   localSchemaVersion: z.literal(1),
   submissionId: z.uuidv4(),
   commandVersion: z.literal("1"),
+  preparedAt: z.iso.datetime(),
+  integrityBlocked: z.boolean(),
+};
+const ledgerCommand = z.strictObject({
   operation: z.literal("createFinanceLedger"),
   endpoint: z.literal("/finance/ledgers"),
   targetLedgerId: z.null(),
   body: CreateFinanceLedgerBody,
-  preparedAt: z.iso.datetime(),
   workflow: z.enum(["onboarding", "additional"]),
-  integrityBlocked: z.boolean(),
-};
-const recordSchema = z
-  .discriminatedUnion("state", [
-    z.strictObject({ ...commandShape, state: z.literal("unresolved") }),
+});
+// OpenAPI maxLength counts Unicode code points; generated JS .max counts UTF-16 units.
+const nestedCreateName = z.string().refine((value) => [...value].length <= 100);
+const accountCommand = z.strictObject({
+  operation: z.literal("createFinanceAccount"),
+  endpoint: z.string(),
+  targetLedgerId: z.uuid(),
+  body: CreateFinanceAccountBody.extend({
+    name: nestedCreateName,
+  }),
+  workflow: z.literal("account"),
+});
+const categoryCommand = z.strictObject({
+  operation: z.literal("createFinanceCategory"),
+  endpoint: z.string(),
+  targetLedgerId: z.uuid(),
+  body: CreateFinanceCategoryBody.extend({
+    name: nestedCreateName,
+  }),
+  workflow: z.literal("category"),
+});
+export type CreateSubmissionCommand =
+  | Omit<z.infer<typeof ledgerCommand>, "endpoint">
+  | Omit<z.infer<typeof accountCommand>, "endpoint">
+  | Omit<z.infer<typeof categoryCommand>, "endpoint">;
+function recordsFor<T extends z.ZodRawShape>(shape: T) {
+  return z.discriminatedUnion("state", [
     z.strictObject({
       ...commandShape,
+      ...shape,
+      state: z.literal("unresolved"),
+    }),
+    z.strictObject({
+      ...commandShape,
+      ...shape,
       state: z.literal("resolved"),
       resolution: submissionResolutionSchema,
     }),
+  ]);
+}
+const recordSchema = z
+  .discriminatedUnion("operation", [
+    recordsFor(ledgerCommand.shape),
+    recordsFor(accountCommand.shape),
+    recordsFor(categoryCommand.shape),
   ])
+  .refine(
+    (record) => record.endpoint === endpointFor(record),
+    "Submission endpoint does not match its operation and scope.",
+  )
   .refine(
     (record) =>
       record.state === "unresolved" ||
       validResolution(record, record.resolution),
     "Submission evidence does not match its command.",
   );
-export type LedgerSubmission = z.infer<typeof recordSchema>;
+export type FinanceSubmission = z.infer<typeof recordSchema>;
+
+export function submissionLabel(record: Pick<FinanceSubmission, "operation">) {
+  switch (record.operation) {
+    case "createFinanceLedger":
+      return "Ledger";
+    case "createFinanceAccount":
+      return "Account";
+    case "createFinanceCategory":
+      return "Category";
+  }
+}
+
+export function rejectionMessage(record: FinanceSubmission) {
+  return record.operation === "createFinanceAccount"
+    ? "The Account command was rejected. Review the draft before creating a new submission."
+    : `A ${submissionLabel(record)} with this name already exists.`;
+}
+
+function endpointFor(command: CreateSubmissionCommand) {
+  switch (command.operation) {
+    case "createFinanceLedger":
+      return "/finance/ledgers";
+    case "createFinanceAccount":
+      return `/finance/ledgers/${command.targetLedgerId}/accounts`;
+    case "createFinanceCategory":
+      return `/finance/ledgers/${command.targetLedgerId}/categories`;
+  }
+}
 
 const key = (record: SubmissionNamespace & { submissionId: string }) => [
   record.apiBaseUrl,
@@ -65,7 +139,7 @@ async function openJournal(): Promise<IDBDatabase> {
     if (!globalThis.indexedDB) {
       reject(
         new SubmissionRecoveryError(
-          "Browser storage is unavailable. Enable IndexedDB before creating a Ledger.",
+          "Browser storage is unavailable. Enable IndexedDB before creating in Finance.",
         ),
       );
       return;
@@ -157,7 +231,7 @@ async function transaction<T>(
   });
 }
 
-function parseStored(value: unknown): LedgerSubmission {
+function parseStored(value: unknown): FinanceSubmission {
   const parsed = recordSchema.safeParse(value);
   if (!parsed.success)
     throw new SubmissionRecoveryError(
@@ -183,18 +257,27 @@ export async function prepareLedgerSubmission(
   namespace: SubmissionNamespace,
   body: { name: string },
   workflow: "onboarding" | "additional",
-): Promise<LedgerSubmission> {
+): Promise<FinanceSubmission> {
+  return prepareSubmission(namespace, {
+    operation: "createFinanceLedger",
+    targetLedgerId: null,
+    body,
+    workflow,
+  });
+}
+
+export async function prepareSubmission(
+  namespace: SubmissionNamespace,
+  command: CreateSubmissionCommand,
+): Promise<FinanceSubmission> {
   const record = recordSchema.parse({
     ...namespaceSchema.parse(namespace),
     localSchemaVersion: 1,
     submissionId: crypto.randomUUID(),
     commandVersion: "1",
-    operation: "createFinanceLedger",
-    endpoint: "/finance/ledgers",
-    targetLedgerId: null,
-    body: structuredClone(body),
+    ...structuredClone(command),
+    endpoint: endpointFor(command),
     preparedAt: new Date().toISOString(),
-    workflow,
     state: "unresolved",
     integrityBlocked: false,
   });
@@ -213,7 +296,7 @@ export async function prepareLedgerSubmission(
 
 export async function readSubmissions(
   namespace: SubmissionNamespace,
-): Promise<LedgerSubmission[]> {
+): Promise<FinanceSubmission[]> {
   namespaceSchema.parse({
     apiBaseUrl: namespace.apiBaseUrl,
     ownerId: namespace.ownerId,
@@ -232,7 +315,7 @@ export async function readSubmissions(
 
 export async function readSubmission(
   identity: SubmissionNamespace & { submissionId: string },
-): Promise<LedgerSubmission | null> {
+): Promise<FinanceSubmission | null> {
   namespaceSchema.parse({
     apiBaseUrl: identity.apiBaseUrl,
     ownerId: identity.ownerId,
@@ -246,11 +329,11 @@ export async function readSubmission(
 }
 
 async function updateExisting(
-  identity: LedgerSubmission,
-  update: (current: LedgerSubmission) => LedgerSubmission | null,
-): Promise<LedgerSubmission | null> {
+  identity: FinanceSubmission,
+  update: (current: FinanceSubmission) => FinanceSubmission | null,
+): Promise<FinanceSubmission | null> {
   let failure: unknown;
-  const result = await transaction<LedgerSubmission | null>(
+  const result = await transaction<FinanceSubmission | null>(
     "readwrite",
     (store, result) => {
       const request = store.get(key(identity));
@@ -264,7 +347,12 @@ async function updateExisting(
           if (
             !equalJson(current.body, identity.body) ||
             current.commandVersion !== identity.commandVersion ||
-            current.operation !== identity.operation
+            current.operation !== identity.operation ||
+            current.targetLedgerId !== identity.targetLedgerId ||
+            current.endpoint !== identity.endpoint ||
+            current.workflow !== identity.workflow ||
+            current.preparedAt !== identity.preparedAt ||
+            current.localSchemaVersion !== identity.localSchemaVersion
           )
             throw new SubmissionRecoveryError(
               "The retained command changed. Recovery is blocked.",
@@ -287,7 +375,7 @@ async function updateExisting(
 }
 
 export async function resolveSubmission(
-  record: LedgerSubmission,
+  record: FinanceSubmission,
   resolution: SubmissionResolution,
 ) {
   return updateExisting(record, (current) => {
@@ -306,7 +394,7 @@ export async function resolveSubmission(
   });
 }
 
-export async function blockConflictingSubmission(record: LedgerSubmission) {
+export async function blockConflictingSubmission(record: FinanceSubmission) {
   return updateExisting(record, (current) =>
     current.state === "unresolved"
       ? { ...current, integrityBlocked: true }
@@ -314,7 +402,7 @@ export async function blockConflictingSubmission(record: LedgerSubmission) {
   );
 }
 
-export async function acknowledgeSubmission(record: LedgerSubmission) {
+export async function acknowledgeSubmission(record: FinanceSubmission) {
   return updateExisting(record, (current) => {
     if (current.state !== "resolved")
       throw new SubmissionRecoveryError(

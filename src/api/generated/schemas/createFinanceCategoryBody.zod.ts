@@ -9,11 +9,9 @@ import * as zod from "zod";
 
 export const createFinanceCategoryBodyNameMax = 100;
 
-export const CreateFinanceCategoryBody = zod
-  .strictObject({
-    name: zod.string().max(createFinanceCategoryBodyNameMax),
-  })
-  .describe("Explicit creation state for one Finance Category.");
+export const CreateFinanceCategoryBody = zod.strictObject({
+  name: zod.string().max(createFinanceCategoryBodyNameMax),
+});
 
 export type CreateFinanceCategoryBody = zod.input<
   typeof CreateFinanceCategoryBody

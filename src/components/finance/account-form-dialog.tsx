@@ -3,12 +3,11 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import {
   getListFinanceAccountsQueryKey,
-  useCreateFinanceAccount,
   useUpdateFinanceAccount,
 } from "@/api/generated/core-console";
 import {
   AccountResponse,
-  CreateAccountRequest,
+  CreateFinanceAccountBody,
   FinanceRequestDate,
   UpdateAccountRequest,
   type AccountResponse as Account,
@@ -34,6 +33,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useFinanceCreate } from "./use-finance-create";
 import {
   NativeSelect,
   NativeSelectOption,
@@ -53,7 +53,7 @@ type FormErrors = Partial<
 >;
 
 const plainDecimalPattern = /^-?\d+(?:\.\d+)?$/;
-const CreateAccountRequestWithoutName = CreateAccountRequest.omit({
+const CreateAccountRequestWithoutName = CreateFinanceAccountBody.omit({
   name: true,
 });
 const UpdateAccountRequestWithoutName = UpdateAccountRequest.omit({
@@ -114,9 +114,15 @@ export function AccountFormDialog({
       queryKey: getListFinanceAccountsQueryKey(ledgerId),
     });
   };
-  const createMutation = useCreateFinanceAccount({
-    mutation: { onSuccess: finish },
-  });
+  const create = useFinanceCreate(
+    (result) => {
+      if (!result.account) return;
+      onSaved(result.account);
+      onOpenChange(false);
+    },
+    ledgerId,
+    open && !account,
+  );
   const updateMutation = useUpdateFinanceAccount({
     mutation: {
       onError: (error) => {
@@ -134,17 +140,20 @@ export function AccountFormDialog({
       onSuccess: finish,
     },
   });
-  const mutation = account ? updateMutation : createMutation;
-  const problemFeedback = mutation.isError
-    ? getAccountProblemFeedback(
-        mutation.error,
-        `The Account could not be ${account ? "updated" : "created"}. Try again.`,
-      )
-    : null;
-  const serverError = problemFeedback?.field
-    ? null
-    : (problemFeedback?.message ?? null);
-  const resetCreateMutation = createMutation.reset;
+  const mutation = updateMutation;
+  const pending = account ? mutation.isPending : create.pending;
+  const problemFeedback =
+    account && mutation.isError
+      ? getAccountProblemFeedback(
+          mutation.error,
+          `The Account could not be ${account ? "updated" : "created"}. Try again.`,
+        )
+      : null;
+  const serverError = !account
+    ? create.error
+    : problemFeedback?.field
+      ? null
+      : (problemFeedback?.message ?? null);
   const resetUpdateMutation = updateMutation.reset;
 
   useEffect(() => {
@@ -155,15 +164,8 @@ export function AccountFormDialog({
     setOpeningBalance(account?.openingBalance.amount ?? zeroAmount);
     setTrackingStartDate(account?.trackingStartDate ?? localDateValue());
     setErrors({});
-    resetCreateMutation();
     resetUpdateMutation();
-  }, [
-    account,
-    initialCurrency,
-    open,
-    resetCreateMutation,
-    resetUpdateMutation,
-  ]);
+  }, [account, initialCurrency.code, open, resetUpdateMutation]);
 
   const selectedCurrency =
     currencies.find((currency) => currency.code === currencyCode) ??
@@ -171,11 +173,13 @@ export function AccountFormDialog({
   const formId = account ? "edit-account" : "create-account";
 
   const clearFieldError = (key: keyof FormErrors) => {
+    create.edited();
     setErrors((current) => withoutError(current, key));
     if (mutation.isError) mutation.reset();
   };
 
   const handleCurrencyChange = (nextCode: CurrencyResponse["code"]) => {
+    create.edited();
     const nextCurrency = currencies.find(
       (currency) => currency.code === nextCode,
     );
@@ -236,8 +240,11 @@ export function AccountFormDialog({
         ledgerId,
       });
     } else {
-      createMutation.mutate({
-        data: {
+      void create.submit({
+        operation: "createFinanceAccount",
+        targetLedgerId: ledgerId,
+        workflow: "account",
+        body: {
           ...CreateAccountRequestWithoutName.parse({
             currency: currencyCode,
             nature,
@@ -245,8 +252,7 @@ export function AccountFormDialog({
             trackingStartDate,
           }),
           name: normalizedName,
-        } satisfies CreateAccountRequest,
-        ledgerId,
+        },
       });
     }
   };
@@ -325,9 +331,10 @@ export function AccountFormDialog({
                   </FieldLabel>
                   <NativeSelect
                     id="create-account-nature"
-                    onChange={(event) =>
-                      setNature(event.target.value as Account["nature"])
-                    }
+                    onChange={(event) => {
+                      create.edited();
+                      setNature(event.target.value as Account["nature"]);
+                    }}
                     value={nature}
                   >
                     <NativeSelectOption value="asset">Asset</NativeSelectOption>
@@ -431,17 +438,34 @@ export function AccountFormDialog({
               {serverError}
             </p>
           ) : null}
+          {!account &&
+          create.unresolved &&
+          !create.integrityBlocked &&
+          !pending ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={create.startAnother}
+            >
+              Start a separate Account create
+            </Button>
+          ) : null}
           <DialogFooter>
             <Button
-              disabled={mutation.isPending}
+              disabled={pending}
               onClick={() => onOpenChange(false)}
               type="button"
               variant="outline"
             >
               Cancel
             </Button>
-            <Button disabled={mutation.isPending} type="submit">
-              {mutation.isPending
+            <Button
+              disabled={
+                pending || (!account && (create.unresolved || !create.ready))
+              }
+              type="submit"
+            >
+              {pending
                 ? account
                   ? "Saving…"
                   : "Creating…"

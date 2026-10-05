@@ -3,7 +3,8 @@
 The [backend protocol](../../back-end/docs/finance-create-submission-protocol.md)
 is the sole normative authority. This note describes frontend implementation
 and verification seams for [frontend #40](https://github.com/core-console/front-end/issues/40).
-The implementation currently integrates Ledger creates only. Follow the
+T03 introduced Ledger creates; [T05](finance-account-category-submission-t05.md)
+now extends the shared machinery to Account and Category forms. Follow the
 [README contract synchronization and generation workflow](../README.md#validation)
 for backend contract changes.
 
@@ -35,7 +36,7 @@ per-record repair.
 ## Evidence and workflow ownership
 
 `submission-evidence.ts` parses generated receipt/error schemas and correlates
-the captured immutable command. `ledger-submissions.tsx` handles Current User,
+the captured immutable command. `finance-submissions.tsx` handles Current User,
 fresh lookup, explicit original-command retry, durable resolution, and separate
 Ledger-list refresh. Lookup never dispatches a create; retry rereads the durable
 command and confirms its original user/API namespace. Only correlated terminal
@@ -107,7 +108,8 @@ operation, and scope. Later adapters must preserve object-versus-array identity,
 field presence, array order, and exact Money strings without hand-editing
 generated artifacts.
 
-The journal currently admits only Ledger v1. Later adapters must extend the
+T03 admitted only Ledger v1; T05 extends this same journal additively with Account
+and Category v1. Later adapters must extend the
 validated operation/endpoint/scope/body and evidence unions together, preserving
 the common compound namespace and conditional transition mechanisms. Extend
 migration, old-tab, storage-failure, lifecycle, and multi-tab coverage with those

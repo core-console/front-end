@@ -111,13 +111,15 @@ The current backend-owned Finance v1 OpenAPI contract is synchronized into
 Fetch clients, TanStack Query hooks, Zod schemas, MSW handlers, and Faker
 fixtures under `src/api/generated/`.
 
-The synchronized producer is backend T02 at
-`64667936120d47c6c7635812628f5c4667834ade`. Ledger creates use durable browser
-preparation, correlated receipts, and known-submission lookup. Other create
-workflows retain their preceding contracts. This partial integration is not
+The synchronized producer is backend T04 at
+`4e8aba43f04a7888d8a1038f6534e96528046ede`. Ledger, Account, and Category creates
+use shared durable browser preparation, correlated evidence, and known-submission
+lookup. Transaction and Balance Adjustment creates retain their preceding contracts.
+This partial integration is not
 the all-five production activation gate. See the
 [T03 integration note](docs/finance-ledger-submission-t03.md) for recovery seams
-and validation.
+and the [T05 integration note](docs/finance-account-category-submission-t05.md)
+for cumulative contract, Money, lifecycle, and browser qualification facts.
 
 Synchronize future committed backend contract changes through the existing
 `pnpm api:update` workflow described above. Do not hand-edit the snapshot or

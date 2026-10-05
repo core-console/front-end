@@ -1,8 +1,9 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+  getGetCurrentUserMockHandler,
   getListFinanceAccountsMockHandler,
   getListFinanceAccountsMockHandler503,
   getListFinanceCurrenciesMockHandler,
@@ -20,6 +21,10 @@ import {
 } from "@/api/generated/core-console.msw";
 import type { AccountResponse } from "@/api/generated/schemas";
 import { server } from "@/mocks/server";
+import {
+  createdAccountReceipt,
+  submissionTestUser,
+} from "@/test/submission-fixtures";
 import { renderRoute } from "@/test/render";
 
 const ledger = {
@@ -64,6 +69,8 @@ const accounts = [
     status: "active",
   },
 ] satisfies AccountResponse[];
+
+beforeEach(() => server.use(getGetCurrentUserMockHandler(submissionTestUser)));
 
 describe("Finance Accounts destination", () => {
   it("organizes backend-ordered Accounts by lifecycle and Nature with exact Money", async () => {
@@ -1053,7 +1060,7 @@ describe("Finance Accounts destination", () => {
     ).toBeVisible();
   });
 
-  it("reconciles a created Account in backend order before refresh completes", async () => {
+  it("resolves Account creation before reading its current resource list", async () => {
     const user = userEvent.setup();
     let listRequests = 0;
     let releaseRefresh!: () => void;
@@ -1095,8 +1102,12 @@ describe("Finance Accounts destination", () => {
           currentBalance: { amount: "2500", currency: "JPY" },
           trackingStartDate: "2026-09-10",
         } satisfies AccountResponse;
-        listedAccounts = [created];
-        return created;
+        listedAccounts = [created, existingLiability];
+        return createdAccountReceipt(
+          request.headers.get("Idempotency-Key")!,
+          ledger.id,
+          created.id,
+        );
       }),
     );
     renderRoute(`/finance/accounts?ledger=${ledger.id}`);
@@ -1132,6 +1143,7 @@ describe("Finance Accounts destination", () => {
       within(dialog).getByRole("button", { name: "Create account" }),
     );
 
+    await waitFor(() => expect(requestBody).toBeDefined());
     expect(requestBody).toEqual({
       currency: "JPY",
       name: "Travel cash",
@@ -1139,6 +1151,8 @@ describe("Finance Accounts destination", () => {
       openingBalance: { amount: "002500", currency: "JPY" },
       trackingStartDate: "2026-09-10",
     });
+    await screen.findByText("Account created:", { exact: false });
+    releaseRefresh();
     expect(
       await screen.findByRole("article", { name: "Travel cash" }),
     ).toBeVisible();
@@ -1148,9 +1162,12 @@ describe("Finance Accounts destination", () => {
         .getAllByRole("article")
         .map((row) => row.getAttribute("aria-label")),
     ).toEqual(["Travel cash", "Zebra card"]);
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Travel cash created.",
-    );
+    expect(
+      screen
+        .getAllByRole("status")
+        .map((element) => element.textContent)
+        .join(" "),
+    ).toContain("Travel cash created.");
     expect(createButton).toHaveFocus();
     expect(
       screen.queryByRole("dialog", { name: "Create account" }),
@@ -1169,9 +1186,13 @@ describe("Finance Accounts destination", () => {
         { code: "USD", minorUnit: 2 },
       ]),
       getListFinanceAccountsMockHandler([]),
-      getCreateFinanceAccountMockHandler(() => {
+      getCreateFinanceAccountMockHandler(({ request }) => {
         createRequests += 1;
-        return accounts[0]!;
+        return createdAccountReceipt(
+          request.headers.get("Idempotency-Key")!,
+          ledger.id,
+          accounts[0]!.id,
+        );
       }),
     );
     renderRoute(`/finance/accounts?ledger=${ledger.id}`);
@@ -1248,7 +1269,7 @@ describe("Finance Accounts destination", () => {
     );
 
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
-      "Check the Account fields and try again.",
+      "The Account outcome is unknown.",
     );
     expect(dialog).not.toHaveTextContent(/internal persistence/i);
     expect(name).toHaveValue("Long-term reserve");
@@ -1275,7 +1296,11 @@ describe("Finance Accounts destination", () => {
         requestBody = await request.json();
         const created = { ...accounts[2]!, name: backendValidName };
         listedAccounts = [created];
-        return created;
+        return createdAccountReceipt(
+          request.headers.get("Idempotency-Key")!,
+          ledger.id,
+          created.id,
+        );
       }),
     );
     renderRoute(`/finance/accounts?ledger=${ledger.id}`);
@@ -1311,7 +1336,7 @@ describe("Finance Accounts destination", () => {
       within(dialog).getByRole("button", { name: "Create account" }),
     );
 
-    expect(createRequests).toBe(1);
+    await waitFor(() => expect(createRequests).toBe(1));
     expect(requestBody).toMatchObject({ name: backendValidName });
     expect(
       await screen.findByRole("article", { name: backendValidName }),

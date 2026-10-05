@@ -419,6 +419,9 @@ describe("generated Finance API boundary", () => {
         "#/components/schemas/SubmissionNonterminalProblem",
         "#/components/schemas/LedgerConflictResponse",
         "#/components/schemas/LedgerValidationResponse",
+        "#/components/schemas/AccountValidationResponse",
+        "#/components/schemas/CategoryConflictResponse",
+        "#/components/schemas/CategoryValidationResponse",
       ]).toContain(
         response.content?.["application/problem+json"]?.schema?.$ref,
       );

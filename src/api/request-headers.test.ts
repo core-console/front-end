@@ -96,7 +96,11 @@ it.each(cases)(
     await requests[operationId]!(
       ...pathArguments,
       {},
-      ...(operationId === "createFinanceLedger"
+      ...([
+        "createFinanceLedger",
+        "createFinanceAccount",
+        "createFinanceCategory",
+      ].includes(operationId)
         ? [
             {
               "Idempotency-Key": "11111111-1111-4111-8111-111111111111",

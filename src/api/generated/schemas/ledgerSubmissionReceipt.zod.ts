@@ -10,7 +10,7 @@ import * as zod from "zod";
 export const LedgerSubmissionReceipt = zod.strictObject({
   admittedAt: zod.iso.datetime({ offset: true }),
   commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
-  operation: zod.literal("createFinanceLedger").meta({ title: "Operation" }),
+  operation: zod.enum(["createFinanceLedger"]),
   outcome: zod.union([
     zod.strictObject({
       kind: zod.literal("created").meta({ title: "Kind" }),

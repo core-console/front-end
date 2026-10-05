@@ -110,7 +110,7 @@ describe("Ledger submitted recovery", () => {
       name: "Ledger outcome unknown: Household",
     });
     await within(
-      screen.getByRole("region", { name: "Ledger submission recovery" }),
+      screen.getByRole("region", { name: "Finance submission recovery" }),
     ).findByText(/Recovery could not complete/);
     expect(sent).toHaveLength(1);
     await waitFor(() =>
@@ -338,7 +338,7 @@ describe("Ledger submitted recovery", () => {
     );
     const { user } = await createFirst();
     await within(
-      screen.getByRole("region", { name: "Ledger submission recovery" }),
+      screen.getByRole("region", { name: "Finance submission recovery" }),
     ).findByText(/Browser storage write failed/);
     expect((await readSubmissions(namespace))[0]?.state).toBe("unresolved");
     put.mockRestore();
@@ -444,7 +444,7 @@ describe("Ledger submitted recovery", () => {
       );
       renderRoute("/finance/accounts");
       const recovery = await screen.findByRole("region", {
-        name: "Ledger submission recovery",
+        name: "Finance submission recovery",
       });
       await within(recovery).findByText(/Recovery could not complete/);
       expect(recovery).not.toHaveTextContent(
@@ -462,7 +462,7 @@ describe("Ledger submitted recovery", () => {
     );
     await createFirst();
     const recovery = screen.getByRole("region", {
-      name: "Ledger submission recovery",
+      name: "Finance submission recovery",
     });
     await within(recovery).findByText(/The Ledger outcome is unknown/);
     const [record] = await readSubmissions(namespace);

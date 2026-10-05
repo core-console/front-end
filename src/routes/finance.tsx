@@ -13,8 +13,8 @@ import { useListFinanceLedgers } from "@/api/generated/core-console";
 import { LedgerResponse } from "@/api/generated/schemas";
 import { LedgerNameDialog } from "@/components/finance/ledger-name-dialog";
 import { LedgerOnboarding } from "@/components/finance/ledger-onboarding";
-import { LedgerSubmissionsProvider } from "@/components/finance/ledger-submissions";
-import { LedgerSubmissionRecovery } from "@/components/finance/ledger-submission-recovery";
+import { FinanceSubmissionsProvider } from "@/components/finance/finance-submissions";
+import { FinanceSubmissionRecovery } from "@/components/finance/finance-submission-recovery";
 import { resolveOverviewDate } from "@/components/finance/overview-date";
 import {
   addressedLedgerValue,
@@ -161,9 +161,9 @@ function LedgerMenu({
 
 export function Component() {
   return (
-    <LedgerSubmissionsProvider>
+    <FinanceSubmissionsProvider>
       <FinanceContent />
-    </LedgerSubmissionsProvider>
+    </FinanceSubmissionsProvider>
   );
 }
 
@@ -414,7 +414,7 @@ function FinanceContent() {
         </span>
       </p>
 
-      <LedgerSubmissionRecovery />
+      <FinanceSubmissionRecovery ledgers={ledgersQuery.data ?? []} />
 
       {ledgersQuery.isPending ? (
         <p

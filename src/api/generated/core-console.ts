@@ -24,15 +24,22 @@ import type {
 import { env } from "../../config/env";
 
 import type {
+  AccountCreatedReceipt,
   AccountResponse,
+  AccountValidationResponse,
   BalanceAdjustmentContextResponse,
   BalanceAdjustmentResultResponse,
+  CategoryConflictResponse,
+  CategoryCreatedReceipt,
   CategoryResponse,
+  CategoryValidationResponse,
   CorrectAccountSemanticsRequest,
-  CreateAccountRequest,
   CreateBalanceAdjustmentRequest,
-  CreateCategoryRequest,
   CreateExpenseTransactionRequest,
+  CreateFinanceAccountBody,
+  CreateFinanceAccountHeaders,
+  CreateFinanceCategoryBody,
+  CreateFinanceCategoryHeaders,
   CreateFinanceLedgerBody,
   CreateFinanceLedgerHeaders,
   CreateIncomeTransactionRequest,
@@ -58,6 +65,7 @@ import type {
   ReplaceExpenseTransactionRequest,
   ReplaceIncomeTransactionRequest,
   ReplaceInternalTransferTransactionRequest,
+  SubmissionNonterminalProblem,
   TransactionHistoryPageResponse,
   UpdateAccountRequest,
   UpdateCategoryRequest,
@@ -1164,8 +1172,13 @@ export function useListFinanceAccounts<
 }
 
 export type createFinanceAccountResponse201 = {
-  data: AccountResponse;
+  data: AccountCreatedReceipt;
   status: 201;
+};
+
+export type createFinanceAccountResponse400 = {
+  data: ProblemDetails;
+  status: 400;
 };
 
 export type createFinanceAccountResponse403 = {
@@ -1178,8 +1191,13 @@ export type createFinanceAccountResponse404 = {
   status: 404;
 };
 
+export type createFinanceAccountResponse409 = {
+  data: SubmissionNonterminalProblem;
+  status: 409;
+};
+
 export type createFinanceAccountResponse422 = {
-  data: ProblemDetails;
+  data: AccountValidationResponse;
   status: 422;
 };
 
@@ -1198,8 +1216,10 @@ export type createFinanceAccountResponseSuccess =
     headers: Headers;
   };
 export type createFinanceAccountResponseError = (
+  | createFinanceAccountResponse400
   | createFinanceAccountResponse403
   | createFinanceAccountResponse404
+  | createFinanceAccountResponse409
   | createFinanceAccountResponse422
   | createFinanceAccountResponse500
   | createFinanceAccountResponse503
@@ -1212,12 +1232,13 @@ export const getCreateFinanceAccountUrl = (ledgerId: string) => {
 };
 
 /**
- * Creates one account-relative position inside an owned Finance Ledger.
+ * Admits an Account v1 command and returns its immutable terminal receipt.
  * @summary Create a Finance Account
  */
 export const createFinanceAccount = async (
   ledgerId: string,
-  createAccountRequest: CreateAccountRequest,
+  createFinanceAccountBody: CreateFinanceAccountBody,
+  headers: CreateFinanceAccountHeaders,
   options?: RequestInit,
 ): Promise<createFinanceAccountResponseSuccess> => {
   const getHeaders = (
@@ -1242,10 +1263,10 @@ export const createFinanceAccount = async (
     ...options,
     method: "POST",
     headers: getHeaders(
-      { "Content-Type": "application/json" },
+      { "Content-Type": "application/json", ...headers },
       options?.headers,
     ),
-    body: JSON.stringify(createAccountRequest),
+    body: JSON.stringify(createFinanceAccountBody),
   });
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
@@ -1275,7 +1296,11 @@ export const getCreateFinanceAccountMutationKey = () =>
   ["createFinanceAccount"] as const;
 
 export const getCreateFinanceAccountMutationOptions = <
-  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TError = globalThis.Error & {
+    info?:
+      ProblemDetails | SubmissionNonterminalProblem | AccountValidationResponse;
+    status?: number;
+  },
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1304,9 +1329,9 @@ export const getCreateFinanceAccountMutationOptions = <
     Awaited<ReturnType<typeof createFinanceAccount>>,
     CreateFinanceAccountMutationVariables
   > = (props) => {
-    const { ledgerId, data } = props ?? {};
+    const { ledgerId, data, headers } = props ?? {};
 
-    return createFinanceAccount(ledgerId, data, fetchOptions);
+    return createFinanceAccount(ledgerId, data, headers, fetchOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1315,21 +1340,27 @@ export const getCreateFinanceAccountMutationOptions = <
 export type CreateFinanceAccountMutationResult = NonNullable<
   Awaited<ReturnType<typeof createFinanceAccount>>
 >;
-export type CreateFinanceAccountMutationBody = CreateAccountRequest;
+export type CreateFinanceAccountMutationBody = CreateFinanceAccountBody;
 export type CreateFinanceAccountMutationError = globalThis.Error & {
-  info?: ProblemDetails;
+  info?:
+    ProblemDetails | SubmissionNonterminalProblem | AccountValidationResponse;
   status?: number;
 };
 export type CreateFinanceAccountMutationVariables = {
   ledgerId: string;
-  data: CreateAccountRequest;
+  data: CreateFinanceAccountBody;
+  headers: CreateFinanceAccountHeaders;
 };
 
 /**
  * @summary Create a Finance Account
  */
 export const useCreateFinanceAccount = <
-  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TError = globalThis.Error & {
+    info?:
+      ProblemDetails | SubmissionNonterminalProblem | AccountValidationResponse;
+    status?: number;
+  },
   TContext = unknown,
 >(
   options?: {
@@ -2852,8 +2883,13 @@ export function useListFinanceCategories<
 }
 
 export type createFinanceCategoryResponse201 = {
-  data: CategoryResponse;
+  data: CategoryCreatedReceipt;
   status: 201;
+};
+
+export type createFinanceCategoryResponse400 = {
+  data: ProblemDetails;
+  status: 400;
 };
 
 export type createFinanceCategoryResponse403 = {
@@ -2867,12 +2903,12 @@ export type createFinanceCategoryResponse404 = {
 };
 
 export type createFinanceCategoryResponse409 = {
-  data: ProblemDetails;
+  data: CategoryConflictResponse;
   status: 409;
 };
 
 export type createFinanceCategoryResponse422 = {
-  data: ProblemDetails;
+  data: CategoryValidationResponse;
   status: 422;
 };
 
@@ -2891,6 +2927,7 @@ export type createFinanceCategoryResponseSuccess =
     headers: Headers;
   };
 export type createFinanceCategoryResponseError = (
+  | createFinanceCategoryResponse400
   | createFinanceCategoryResponse403
   | createFinanceCategoryResponse404
   | createFinanceCategoryResponse409
@@ -2906,12 +2943,13 @@ export const getCreateFinanceCategoryUrl = (ledgerId: string) => {
 };
 
 /**
- * Creates one neutral Category inside an owned Finance Ledger.
+ * Admits a Category v1 command and returns its immutable terminal receipt.
  * @summary Create a Finance Category
  */
 export const createFinanceCategory = async (
   ledgerId: string,
-  createCategoryRequest: CreateCategoryRequest,
+  createFinanceCategoryBody: CreateFinanceCategoryBody,
+  headers: CreateFinanceCategoryHeaders,
   options?: RequestInit,
 ): Promise<createFinanceCategoryResponseSuccess> => {
   const getHeaders = (
@@ -2936,10 +2974,10 @@ export const createFinanceCategory = async (
     ...options,
     method: "POST",
     headers: getHeaders(
-      { "Content-Type": "application/json" },
+      { "Content-Type": "application/json", ...headers },
       options?.headers,
     ),
-    body: JSON.stringify(createCategoryRequest),
+    body: JSON.stringify(createFinanceCategoryBody),
   });
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
@@ -2969,7 +3007,11 @@ export const getCreateFinanceCategoryMutationKey = () =>
   ["createFinanceCategory"] as const;
 
 export const getCreateFinanceCategoryMutationOptions = <
-  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TError = globalThis.Error & {
+    info?:
+      ProblemDetails | CategoryConflictResponse | CategoryValidationResponse;
+    status?: number;
+  },
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -2998,9 +3040,9 @@ export const getCreateFinanceCategoryMutationOptions = <
     Awaited<ReturnType<typeof createFinanceCategory>>,
     CreateFinanceCategoryMutationVariables
   > = (props) => {
-    const { ledgerId, data } = props ?? {};
+    const { ledgerId, data, headers } = props ?? {};
 
-    return createFinanceCategory(ledgerId, data, fetchOptions);
+    return createFinanceCategory(ledgerId, data, headers, fetchOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -3009,21 +3051,26 @@ export const getCreateFinanceCategoryMutationOptions = <
 export type CreateFinanceCategoryMutationResult = NonNullable<
   Awaited<ReturnType<typeof createFinanceCategory>>
 >;
-export type CreateFinanceCategoryMutationBody = CreateCategoryRequest;
+export type CreateFinanceCategoryMutationBody = CreateFinanceCategoryBody;
 export type CreateFinanceCategoryMutationError = globalThis.Error & {
-  info?: ProblemDetails;
+  info?: ProblemDetails | CategoryConflictResponse | CategoryValidationResponse;
   status?: number;
 };
 export type CreateFinanceCategoryMutationVariables = {
   ledgerId: string;
-  data: CreateCategoryRequest;
+  data: CreateFinanceCategoryBody;
+  headers: CreateFinanceCategoryHeaders;
 };
 
 /**
  * @summary Create a Finance Category
  */
 export const useCreateFinanceCategory = <
-  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TError = globalThis.Error & {
+    info?:
+      ProblemDetails | CategoryConflictResponse | CategoryValidationResponse;
+    status?: number;
+  },
   TContext = unknown,
 >(
   options?: {

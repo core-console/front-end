@@ -19,7 +19,12 @@ import {
   TransactionHistoryPageResponse,
   UserResponse,
 } from "../src/api/generated/schemas/index.ts";
-import { createdLedgerReceipt } from "../src/test/submission-fixtures.ts";
+import {
+  createdAccountReceipt,
+  createdCategoryReceipt,
+  createdLedgerReceipt,
+  rejectedNestedProblem,
+} from "../src/test/submission-fixtures.ts";
 
 const accessibilityTags = [
   "wcag2a",
@@ -1659,7 +1664,14 @@ test("carries a new Ledger through setup, four entries, history, detail, and nav
       const next =
         accounts.length === 0 ? financeAccounts[0]! : financeAccounts[2]!;
       accounts.push(next);
-      await route.fulfill({ json: next, status: 201 });
+      await route.fulfill({
+        json: createdAccountReceipt(
+          route.request().headers()["idempotency-key"]!,
+          new URL(route.request().url()).pathname.split("/")[4]!,
+          next.id,
+        ),
+        status: 201,
+      });
     } else {
       const isPersonal = route.request().url().includes(financeLedgers[0]!.id);
       await route.fulfill({ json: isPersonal ? accounts : [] });
@@ -1668,7 +1680,14 @@ test("carries a new Ledger through setup, four entries, history, detail, and nav
   await page.route("**/api/finance/ledgers/*/categories", async (route) => {
     if (route.request().method() === "POST") {
       categories.push(financeCategories[0]!);
-      await route.fulfill({ json: financeCategories[0], status: 201 });
+      await route.fulfill({
+        json: createdCategoryReceipt(
+          route.request().headers()["idempotency-key"]!,
+          new URL(route.request().url()).pathname.split("/")[4]!,
+          financeCategories[0]!.id,
+        ),
+        status: 201,
+      });
     } else await route.fulfill({ json: categories });
   });
   await page.route(
@@ -2250,8 +2269,14 @@ test("recovers Category lifecycle conflicts and preserves locked Account semanti
   });
   await page.route("**/api/finance/ledgers/*/categories", async (route) => {
     if (route.request().method() === "POST") {
+      const terminal = rejectedNestedProblem(
+        "createFinanceCategory",
+        route.request().headers()["idempotency-key"]!,
+        financeLedgers[0]!.id,
+      );
       await route.fulfill({
         json: {
+          ...terminal,
           code: "finance_category_name_conflict",
           detail: "database constraint internal secret 7fca",
           status: 409,
@@ -2350,9 +2375,11 @@ test("recovers Category lifecycle conflicts and preserves locked Account semanti
   await page
     .getByRole("menuitem", { name: "Unarchive Subscriptions restored" })
     .click();
-  await expect(categoryRegion.getByRole("status")).toContainText(
-    "Subscriptions restored unarchived.",
-  );
+  await expect(
+    categoryRegion
+      .getByRole("status")
+      .filter({ hasText: "Subscriptions restored unarchived." }),
+  ).toContainText("Subscriptions restored unarchived.");
   await expect(restoredActions).toBeFocused();
   expect(unarchiveAttempts).toBe(2);
 

@@ -12,16 +12,24 @@ import { useLocation } from "react-router";
 
 import {
   createFinanceLedger,
+  createFinanceAccount,
+  createFinanceCategory,
   getCurrentUser,
   getFinanceSubmission,
   getGetCurrentUserQueryKey,
   getListFinanceLedgersQueryKey,
   listFinanceLedgers,
+  listFinanceAccounts,
+  listFinanceCategories,
+  getListFinanceAccountsQueryKey,
+  getListFinanceCategoriesQueryKey,
   useGetCurrentUser,
 } from "@/api/generated/core-console";
 import {
   FinanceSubmissionResponse,
   LedgerResponse,
+  AccountResponse,
+  CategoryResponse,
   MeResponse,
 } from "@/api/generated/schemas";
 import { env } from "@/config/env";
@@ -38,32 +46,34 @@ import {
   blockConflictingSubmission,
   journalChangedEvent,
   normalizedApiBaseUrl,
-  prepareLedgerSubmission,
+  prepareSubmission,
   readSubmission,
   readSubmissions,
   resolveSubmission,
   submissionDatabaseName,
   SubmissionRecoveryError,
-  type LedgerSubmission,
+  type FinanceSubmission,
   type SubmissionNamespace,
+  submissionLabel,
+  rejectionMessage,
 } from "./submission-journal";
 
 import {
-  LedgerSubmissionContext,
+  FinanceSubmissionContext,
   type SubmitResult,
   type SubmissionContext,
-} from "./ledger-submission-context";
+} from "./finance-submission-context";
 
 const namespaceKey = (namespace: SubmissionNamespace | null) =>
   namespace ? `${namespace.apiBaseUrl}|${namespace.ownerId}` : "";
-const submissionToken = (record: LedgerSubmission) =>
+const submissionToken = (record: FinanceSubmission) =>
   JSON.stringify([record.apiBaseUrl, record.ownerId, record.submissionId]);
 const messageFor = (error: unknown) =>
   error instanceof SubmissionRecoveryError
     ? error.message
     : "Recovery could not complete. Check the outcome again; the original submission is retained.";
 
-export function LedgerSubmissionsProvider({ children }: PropsWithChildren) {
+export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient();
   const location = useLocation();
   const currentUser = useGetCurrentUser({
@@ -85,7 +95,7 @@ export function LedgerSubmissionsProvider({ children }: PropsWithChildren) {
   }, [namespace]);
   const [view, setView] = useState<{
     key: string;
-    records: LedgerSubmission[];
+    records: FinanceSubmission[];
     storageError: string | null;
     messages: Record<string, string>;
   }>({ key: "", records: [], storageError: null, messages: {} });
@@ -98,7 +108,7 @@ export function LedgerSubmissionsProvider({ children }: PropsWithChildren) {
     [],
   );
   const showMessage = useCallback(
-    (record: LedgerSubmission, message: string) => {
+    (record: FinanceSubmission, message: string) => {
       if (matches(record))
         setView((previous) => {
           if (
@@ -186,46 +196,76 @@ export function LedgerSubmissionsProvider({ children }: PropsWithChildren) {
   );
 
   const refresh = useCallback(
-    async (record: LedgerSubmission): Promise<LedgerResponse | undefined> => {
+    async (
+      record: FinanceSubmission,
+    ): Promise<
+      Pick<SubmitResult, "ledger" | "account" | "category" | "message">
+    > => {
+      const label = submissionLabel(record);
       try {
         await assertOwner(record);
-        const response = await listFinanceLedgers({ cache: "no-store" });
-        const ledgers = LedgerResponse.array().parse(response.data);
-        if (!matches(record)) return;
-        queryClient.setQueryData(getListFinanceLedgersQueryKey(), response);
-        if (
-          record.state === "resolved" &&
-          record.resolution.kind === "receipt" &&
-          record.resolution.receipt.outcome.kind === "created"
-        ) {
-          const id = record.resolution.receipt.outcome.resource.id;
-          const ledger = ledgers.find((value) => value.id === id);
-          if (!ledger)
-            showMessage(
-              record,
-              "Ledger creation is confirmed. The Ledger is currently unavailable; it will not be recreated.",
+        let resource: Pick<SubmitResult, "ledger" | "account" | "category"> =
+          {};
+        const outcome =
+          record.state === "resolved" && record.resolution.kind === "receipt"
+            ? record.resolution.receipt.outcome
+            : null;
+        if (outcome?.kind !== "created") return resource;
+        const id = outcome.resource.id;
+        switch (record.operation) {
+          case "createFinanceLedger": {
+            const response = await listFinanceLedgers({ cache: "no-store" });
+            const values = LedgerResponse.array().parse(response.data);
+            if (!matches(record)) return {};
+            queryClient.setQueryData(getListFinanceLedgersQueryKey(), response);
+            resource = { ledger: values.find((value) => value.id === id) };
+            break;
+          }
+          case "createFinanceAccount": {
+            const response = await listFinanceAccounts(record.targetLedgerId, {
+              cache: "no-store",
+            });
+            const values = AccountResponse.array().parse(response.data);
+            if (!matches(record)) return {};
+            queryClient.setQueryData(
+              getListFinanceAccountsQueryKey(record.targetLedgerId),
+              response,
             );
-          else
-            showMessage(
-              record,
-              "Ledger creation is confirmed. Your Ledger list is current.",
+            resource = { account: values.find((value) => value.id === id) };
+            break;
+          }
+          case "createFinanceCategory": {
+            const response = await listFinanceCategories(
+              record.targetLedgerId,
+              { cache: "no-store" },
             );
-          return ledger;
+            const values = CategoryResponse.array().parse(response.data);
+            if (!matches(record)) return {};
+            queryClient.setQueryData(
+              getListFinanceCategoriesQueryKey(record.targetLedgerId),
+              response,
+            );
+            resource = { category: values.find((value) => value.id === id) };
+            break;
+          }
         }
+        const message = Object.values(resource).some(Boolean)
+          ? `${label} creation is confirmed. Your ${label} list is current.`
+          : `${label} creation is confirmed. The ${label} is currently unavailable; it will not be recreated.`;
+        showMessage(record, message);
+        return { ...resource, message };
       } catch {
-        showMessage(
-          record,
-          "Ledger creation is confirmed. Your Ledger list could not refresh. Retry the list refresh; do not create again.",
-        );
+        const message = `${label} creation is confirmed. Your ${label} list could not refresh. Retry the list refresh; do not create again.`;
+        showMessage(record, message);
+        return { message };
       }
-      return undefined;
     },
     [assertOwner, matches, queryClient, showMessage],
   );
 
   const settle = useCallback(
     async (
-      record: LedgerSubmission,
+      record: FinanceSubmission,
       resolution: SubmissionResolution,
     ): Promise<SubmitResult> => {
       const resolved = await resolveSubmission(record, resolution);
@@ -236,21 +276,24 @@ export function LedgerSubmissionsProvider({ children }: PropsWithChildren) {
         resolved.resolution.kind === "receipt" &&
         resolved.resolution.receipt.outcome.kind === "created"
       ) {
-        return { record: resolved, ledger: await refresh(resolved) };
+        const refreshed = await refresh(resolved);
+        return resolved.operation === "createFinanceLedger"
+          ? { record: resolved, ledger: refreshed.ledger }
+          : { record: resolved, ...refreshed };
       }
       return {
         record: resolved,
         message:
           resolution.kind === "notAdmitted"
-            ? "This command was not admitted. Correct the name and create a new submission."
-            : "A Ledger with this name already exists.",
+            ? "This command was not admitted. Correct the draft and create a new submission."
+            : rejectionMessage(resolved),
       };
     },
     [load, refresh],
   );
 
   const dispatch = useCallback(
-    async (identity: LedgerSubmission): Promise<SubmitResult> => {
+    async (identity: FinanceSubmission): Promise<SubmitResult> => {
       await assertOwner(identity);
       const record = await readSubmission(identity);
       if (!record)
@@ -265,11 +308,25 @@ export function LedgerSubmissionsProvider({ children }: PropsWithChildren) {
       await assertOwner(record);
       let resolution: SubmissionResolution | null;
       try {
-        const response = await createFinanceLedger(record.body, {
+        const headers = {
           "Idempotency-Key": record.submissionId,
           "Finance-Command-Version": record.commandVersion,
           "Finance-Submission-Owner": record.ownerId,
-        });
+        };
+        const response =
+          record.operation === "createFinanceLedger"
+            ? await createFinanceLedger(record.body, headers)
+            : record.operation === "createFinanceAccount"
+              ? await createFinanceAccount(
+                  record.targetLedgerId,
+                  record.body,
+                  headers,
+                )
+              : await createFinanceCategory(
+                  record.targetLedgerId,
+                  record.body,
+                  headers,
+                );
         resolution = createResponseResolution(record, response.data);
         if (!resolution)
           throw new SubmissionRecoveryError(
@@ -279,8 +336,7 @@ export function LedgerSubmissionsProvider({ children }: PropsWithChildren) {
         resolution = errorResolution(record, errorBody(error));
         if (!resolution) {
           const problem = nonterminalProblem(error);
-          let message =
-            "The Ledger outcome is unknown. Check the outcome or retry the original submission. Do not submit the draft again.";
+          let message = `The ${submissionLabel(record)} outcome is unknown. Check the outcome or retry the original submission. Do not submit the draft again.`;
           if (problem.success) {
             const code = problem.data.code;
             if (
@@ -314,7 +370,7 @@ export function LedgerSubmissionsProvider({ children }: PropsWithChildren) {
   );
 
   const run = useCallback(
-    (record: LedgerSubmission, action: () => Promise<void>) => {
+    (record: FinanceSubmission, action: () => Promise<void>) => {
       const token = submissionToken(record);
       const existing = running.current.get(token);
       if (existing) return existing;
@@ -335,7 +391,7 @@ export function LedgerSubmissionsProvider({ children }: PropsWithChildren) {
   );
 
   const lookup = useCallback(
-    async (identity: LedgerSubmission) =>
+    async (identity: FinanceSubmission) =>
       run(identity, async () => {
         await assertOwner(identity);
         const record = await readSubmission(identity);
@@ -413,20 +469,16 @@ export function LedgerSubmissionsProvider({ children }: PropsWithChildren) {
     view.key === activeKey
       ? view
       : { records: [], storageError: null, messages: {} };
-  const submit: SubmissionContext["submit"] = async (
-    name,
-    workflow,
-    prepared,
-  ) => {
+  const submit: SubmissionContext["submit"] = async (command, prepared) => {
     const owner = active.current;
     if (!owner)
       throw new SubmissionRecoveryError(
-        "Current User is unavailable. Restore access before creating a Ledger.",
+        "Current User is unavailable. Restore access before creating in Finance.",
       );
     await assertOwner(owner);
     // Existing corrupt/incompatible records block preparation without erasing evidence.
     await load(owner);
-    const record = await prepareLedgerSubmission(owner, { name }, workflow);
+    const record = await prepareSubmission(owner, command);
     if (matches(owner)) prepared(record.submissionId);
     try {
       return await dispatch(record);
@@ -437,7 +489,7 @@ export function LedgerSubmissionsProvider({ children }: PropsWithChildren) {
     }
   };
   return (
-    <LedgerSubmissionContext
+    <FinanceSubmissionContext
       value={{
         partitionKey: activeKey,
         ready: Boolean(namespace) && !visible.storageError,
@@ -460,7 +512,7 @@ export function LedgerSubmissionsProvider({ children }: PropsWithChildren) {
             await acknowledgeSubmission(record);
             await load(record);
           }),
-        refreshLedgerList: (record) =>
+        refreshResourceList: (record) =>
           run(record, async () => {
             await refresh(record);
           }),
@@ -468,6 +520,6 @@ export function LedgerSubmissionsProvider({ children }: PropsWithChildren) {
       }}
     >
       {children}
-    </LedgerSubmissionContext>
+    </FinanceSubmissionContext>
   );
 }

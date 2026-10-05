@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   prepareLedgerSubmission,
+  prepareSubmission,
   readSubmissions,
   readSubmission,
   resolveSubmission,
@@ -118,5 +119,66 @@ describe("durable Finance submissions", () => {
     expect(() =>
       normalizedApiBaseUrl("https://user:secret@api.example/api"),
     ).toThrow();
+  });
+
+  it("retains exact Account Money and original Ledger scope in the shared journal", async () => {
+    const body = {
+      name: "Cash",
+      nature: "liability" as const,
+      currency: "CNY" as const,
+      openingBalance: {
+        amount: "-9007199254740993.01",
+        currency: "CNY" as const,
+      },
+      trackingStartDate: "2026-10-05",
+    };
+    const record = await prepareSubmission(namespace, {
+      operation: "createFinanceAccount",
+      targetLedgerId: "11111111-1111-4111-8111-111111111111",
+      body,
+      workflow: "account",
+    });
+    body.openingBalance.amount = "0";
+    expect(await readSubmission(record)).toMatchObject({
+      operation: "createFinanceAccount",
+      targetLedgerId: "11111111-1111-4111-8111-111111111111",
+      endpoint:
+        "/finance/ledgers/11111111-1111-4111-8111-111111111111/accounts",
+      body: { openingBalance: { amount: "-9007199254740993.01" } },
+      state: "unresolved",
+    });
+  });
+
+  it("keeps existing Ledger v1 records while nested records resolve and are acknowledged", async () => {
+    const ledger = await prepareLedgerSubmission(
+      namespace,
+      { name: "Existing" },
+      "additional",
+    );
+    const category = await prepareSubmission(namespace, {
+      operation: "createFinanceCategory",
+      targetLedgerId: "11111111-1111-4111-8111-111111111111",
+      body: { name: "Travel" },
+      workflow: "category",
+    });
+    const problem = {
+      type: "about:blank",
+      title: "Validation Error",
+      code: "validation_error" as const,
+      status: 422 as const,
+      errors: [],
+      commandValidationRejection: {
+        kind: "definitivelyNotAdmitted" as const,
+        ownerId: category.ownerId,
+        submissionId: category.submissionId,
+        operation: "createFinanceCategory" as const,
+        commandVersion: "1" as const,
+        targetLedgerId: category.targetLedgerId!,
+        attemptedBody: category.body,
+      },
+    };
+    await resolveSubmission(category, { kind: "notAdmitted", problem });
+    await acknowledgeSubmission(category);
+    expect(await readSubmissions(namespace)).toEqual([ledger]);
   });
 });

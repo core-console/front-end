@@ -10,8 +10,8 @@ import * as zod from "zod";
 export const LedgerSubmissionUnfinished = zod.strictObject({
   admittedAt: zod.iso.datetime({ offset: true }),
   commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
-  operation: zod.literal("createFinanceLedger").meta({ title: "Operation" }),
-  state: zod.enum(["unfinished"]),
+  operation: zod.enum(["createFinanceLedger"]),
+  state: zod.literal("unfinished").meta({ title: "State" }),
   submissionId: zod.uuid(),
   targetLedgerId: zod.null(),
 });

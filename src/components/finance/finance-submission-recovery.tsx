@@ -1,17 +1,23 @@
+import { submissionLabel, rejectionMessage } from "./submission-journal";
 import { Link } from "react-router";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { useLedgerSubmissions } from "./ledger-submission-context";
-export function LedgerSubmissionRecovery() {
-  const journal = useLedgerSubmissions();
+import { useFinanceSubmissions } from "./finance-submission-context";
+import type { LedgerResponse } from "@/api/generated/schemas";
+export function FinanceSubmissionRecovery({
+  ledgers,
+}: {
+  ledgers: LedgerResponse[];
+}) {
+  const journal = useFinanceSubmissions();
   return (
     <section
-      aria-label="Ledger submission recovery"
+      aria-label="Finance submission recovery"
       className="flex flex-col gap-3"
     >
       {!journal.ready && !journal.storageError ? (
         <p role="status" className="text-sm text-muted-foreground">
-          Current User is unavailable or loading. Ledger creation and recovery
+          Current User is unavailable or loading. Finance creation and recovery
           require an active user.
         </p>
       ) : null}
@@ -29,7 +35,7 @@ export function LedgerSubmissionRecovery() {
         </Alert>
       ) : null}
       {journal.records.length ? (
-        <h2 className="text-base font-semibold">Ledger submissions</h2>
+        <h2 className="text-base font-semibold">Finance submissions</h2>
       ) : null}
       {journal.records.map((record) => {
         const pending = journal.busy.has(
@@ -43,14 +49,18 @@ export function LedgerSubmissionRecovery() {
           record.state === "resolved" ? record.resolution : null;
         const outcome =
           resolution?.kind === "receipt" ? resolution.receipt.outcome : null;
+        const label = submissionLabel(record);
+        const originalLedger = ledgers.find(
+          (ledger) => ledger.id === record.targetLedgerId,
+        );
         const title =
           resolution?.kind === "notAdmitted"
             ? "Command not admitted"
             : outcome?.kind === "created"
-              ? "Ledger created"
+              ? `${label} created`
               : outcome?.kind === "rejected"
-                ? "Ledger create rejected"
-                : "Ledger outcome unknown";
+                ? `${label} create rejected`
+                : `${label} outcome unknown`;
         return (
           <Alert
             key={record.submissionId}
@@ -70,10 +80,23 @@ export function LedgerSubmissionRecovery() {
                     ? "Submission identity conflict. Recovery is blocked; do not create a replacement."
                     : resolution
                       ? outcome?.kind === "rejected"
-                        ? "A Ledger with this name already exists. Corrected content needs a new submission."
+                        ? `${rejectionMessage(record)} Corrected content needs a new submission.`
                         : "The outcome is saved. Acknowledge it to remove this browser recovery record."
-                      : "The original command is saved in this browser. Checking its outcome does not create a Ledger.")}
+                      : `The original command is saved in this browser. Checking its outcome does not create a ${label}.`)}
               </p>
+              {record.operation === "createFinanceAccount" ? (
+                <p className="[overflow-wrap:anywhere]">
+                  Opening balance: {record.body.openingBalance.amount}{" "}
+                  {record.body.openingBalance.currency}; {record.body.nature};
+                  tracking from {record.body.trackingStartDate}.
+                </p>
+              ) : null}
+              {record.targetLedgerId ? (
+                <p className="[overflow-wrap:anywhere]">
+                  Original Ledger:{" "}
+                  {originalLedger?.name ?? record.targetLedgerId}
+                </p>
+              ) : null}
               <div className="flex flex-wrap items-center gap-2 pt-2">
                 {record.state === "unresolved" ? (
                   <>
@@ -99,17 +122,28 @@ export function LedgerSubmissionRecovery() {
                       <>
                         <Link
                           className="underline underline-offset-4"
-                          to={`/finance/overview?ledger=${outcome.resource.id}`}
+                          to={
+                            record.operation === "createFinanceLedger"
+                              ? `/finance/overview?ledger=${outcome.resource.id}`
+                              : `/finance/${record.operation === "createFinanceAccount" ? "accounts" : "categories"}?ledger=${record.targetLedgerId}`
+                          }
                         >
-                          Open Ledger
+                          Open{" "}
+                          {record.operation === "createFinanceLedger"
+                            ? "Ledger"
+                            : record.operation === "createFinanceAccount"
+                              ? "Accounts"
+                              : "Categories"}
                         </Link>
                         <Button
                           disabled={pending}
-                          onClick={() => void journal.refreshLedgerList(record)}
+                          onClick={() =>
+                            void journal.refreshResourceList(record)
+                          }
                           size="sm"
                           variant="outline"
                         >
-                          Refresh Ledger list
+                          Refresh {label} list
                         </Button>
                       </>
                     ) : null}

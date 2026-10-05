@@ -1,6 +1,14 @@
 import { z } from "zod";
 
 import {
+  AccountCreatedReceipt,
+  AccountSubmissionReceipt,
+  AccountTerminalProblem,
+  AccountValidationProblem,
+  CategoryCreatedReceipt,
+  CategorySubmissionReceipt,
+  CategoryTerminalProblem,
+  CategoryValidationProblem,
   LedgerCreatedReceipt,
   LedgerSubmissionReceipt,
   LedgerTerminalProblem,
@@ -8,14 +16,35 @@ import {
   SubmissionNonterminalProblem,
 } from "@/api/generated/schemas";
 
+const receiptSchema = z.union([
+  LedgerSubmissionReceipt,
+  AccountSubmissionReceipt,
+  CategorySubmissionReceipt,
+]);
+const createdReceiptSchema = z.union([
+  LedgerCreatedReceipt,
+  AccountCreatedReceipt,
+  CategoryCreatedReceipt,
+]);
+const terminalProblemSchema = z.union([
+  LedgerTerminalProblem,
+  AccountTerminalProblem,
+  CategoryTerminalProblem,
+]);
+const validationProblemSchema = z.union([
+  LedgerValidationProblem,
+  AccountValidationProblem,
+  CategoryValidationProblem,
+]);
+
 export const submissionResolutionSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("receipt"),
-    receipt: LedgerSubmissionReceipt,
+    receipt: receiptSchema,
   }),
   z.strictObject({
     kind: z.literal("notAdmitted"),
-    problem: LedgerValidationProblem,
+    problem: validationProblemSchema,
   }),
 ]);
 export type SubmissionResolution = z.infer<typeof submissionResolutionSchema>;
@@ -25,8 +54,8 @@ type SubmittedCommand = {
   submissionId: string;
   commandVersion: string;
   operation: string;
-  targetLedgerId: null;
-  body: { name: string };
+  targetLedgerId: string | null;
+  body: unknown;
   integrityBlocked: boolean;
 };
 
@@ -60,7 +89,7 @@ export function correlates(
     submissionId: string;
     commandVersion: string;
     operation: string;
-    targetLedgerId: null;
+    targetLedgerId: string | null;
   },
 ): boolean {
   return (
@@ -95,7 +124,7 @@ export function createResponseResolution(
   command: SubmittedCommand,
   data: unknown,
 ): SubmissionResolution | null {
-  const receipt = LedgerCreatedReceipt.safeParse(data);
+  const receipt = createdReceiptSchema.safeParse(data);
   if (!receipt.success) return null;
   const resolution = { kind: "receipt", receipt: receipt.data } as const;
   return validResolution(command, resolution) ? resolution : null;
@@ -105,7 +134,7 @@ export function errorResolution(
   command: SubmittedCommand,
   data: unknown,
 ): SubmissionResolution | null {
-  const terminal = LedgerTerminalProblem.safeParse(data);
+  const terminal = terminalProblemSchema.safeParse(data);
   if (terminal.success) {
     const resolution = {
       kind: "receipt",
@@ -113,7 +142,7 @@ export function errorResolution(
     } as const;
     return validResolution(command, resolution) ? resolution : null;
   }
-  const invalid = LedgerValidationProblem.safeParse(data);
+  const invalid = validationProblemSchema.safeParse(data);
   if (invalid.success) {
     const resolution = { kind: "notAdmitted", problem: invalid.data } as const;
     return validResolution(command, resolution) ? resolution : null;

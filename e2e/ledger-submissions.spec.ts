@@ -196,7 +196,7 @@ async function beginCreate(page: Page, additional: boolean) {
     page.getByRole("status", { name: "Ledger outcome unknown: Household" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("region", { name: "Ledger submission recovery" }),
+    page.getByRole("region", { name: "Finance submission recovery" }),
   ).toContainText("The Ledger outcome is unknown.");
 }
 
@@ -254,7 +254,7 @@ for (const additional of [false, true]) {
     expect(api.posts).toHaveLength(1);
     await page.reload();
     const recovery = page.getByRole("region", {
-      name: "Ledger submission recovery",
+      name: "Finance submission recovery",
     });
     await expect(recovery).toContainText(
       "The original submission is unfinished.",
@@ -348,7 +348,7 @@ test("recovers an unresolved Ledger across a persistent Chromium profile restart
     const reopenedErrors = captureErrors(reopened);
     await reopened.goto("http://127.0.0.1:4173/finance/accounts");
     await expect(
-      reopened.getByRole("region", { name: "Ledger submission recovery" }),
+      reopened.getByRole("region", { name: "Finance submission recovery" }),
     ).toContainText("The original submission is unfinished.");
     expect(resumed.posts).toHaveLength(0);
     await reopened
@@ -439,7 +439,7 @@ test("recovers durable preparation when its page terminates before transport dis
   const resumedErrors = captureErrors(resumed);
   await resumed.goto("/finance/accounts");
   await expect(
-    resumed.getByRole("region", { name: "Ledger submission recovery" }),
+    resumed.getByRole("region", { name: "Finance submission recovery" }),
   ).toContainText("The original submission is unfinished.");
   expect(api.posts).toHaveLength(0);
   api.allowRetry();
@@ -514,7 +514,7 @@ test("an acknowledged submission stays removed when a stale tab receives a delay
   const otherErrors = captureErrors(second);
   await second.goto("/finance/accounts");
   await expect(
-    second.getByRole("region", { name: "Ledger submission recovery" }),
+    second.getByRole("region", { name: "Finance submission recovery" }),
   ).toContainText("The original submission is unfinished.");
   api.allowRetry();
   let releaseFirst!: () => void;
