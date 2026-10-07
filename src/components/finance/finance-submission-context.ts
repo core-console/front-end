@@ -20,6 +20,7 @@ export type SubmitResult = {
 };
 export type SubmissionContext = {
   partitionKey: string;
+  isCurrentNamespace: () => boolean;
   ready: boolean;
   records: FinanceSubmission[];
   storageError: string | null;

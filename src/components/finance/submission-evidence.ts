@@ -20,6 +20,12 @@ import {
   TransactionMissingTerminalProblem,
   TransactionInvalidTerminalProblem,
   TransactionValidationProblem,
+  AdjustmentSubmissionReceipt,
+  AdjustmentSuccessReceipt,
+  AdjustmentConflictTerminalProblem,
+  AdjustmentMissingTerminalProblem,
+  AdjustmentInvalidTerminalProblem,
+  AdjustmentValidationProblem,
 } from "@/api/generated/schemas";
 
 const receiptSchema = z.union([
@@ -27,12 +33,14 @@ const receiptSchema = z.union([
   AccountSubmissionReceipt,
   CategorySubmissionReceipt,
   TransactionSubmissionReceipt,
+  AdjustmentSubmissionReceipt,
 ]);
-const createdReceiptSchema = z.union([
+const successReceiptSchema = z.union([
   LedgerCreatedReceipt,
   AccountCreatedReceipt,
   CategoryCreatedReceipt,
   TransactionCreatedReceipt,
+  AdjustmentSuccessReceipt,
 ]);
 const terminalProblemSchema = z.union([
   LedgerTerminalProblem,
@@ -41,12 +49,16 @@ const terminalProblemSchema = z.union([
   TransactionArchivedTerminalProblem,
   TransactionMissingTerminalProblem,
   TransactionInvalidTerminalProblem,
+  AdjustmentConflictTerminalProblem,
+  AdjustmentMissingTerminalProblem,
+  AdjustmentInvalidTerminalProblem,
 ]);
 const validationProblemSchema = z.union([
   LedgerValidationProblem,
   AccountValidationProblem,
   CategoryValidationProblem,
   TransactionValidationProblem,
+  AdjustmentValidationProblem,
 ]);
 
 export const submissionResolutionSchema = z.discriminatedUnion("kind", [
@@ -136,7 +148,7 @@ export function createResponseResolution(
   command: SubmittedCommand,
   data: unknown,
 ): SubmissionResolution | null {
-  const receipt = createdReceiptSchema.safeParse(data);
+  const receipt = successReceiptSchema.safeParse(data);
   if (!receipt.success) return null;
   const resolution = { kind: "receipt", receipt: receipt.data } as const;
   return validResolution(command, resolution) ? resolution : null;

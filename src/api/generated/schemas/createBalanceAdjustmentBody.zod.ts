@@ -7,34 +7,28 @@
  */
 import * as zod from "zod";
 
-export const CreateBalanceAdjustmentBody = zod
-  .strictObject({
-    accountId: zod.uuid(),
-    expectedAccountNature: zod.enum(["asset", "liability"]),
-    expectedDerivedBalance: zod
-      .strictObject({
-        amount: zod
-          .string()
-          .describe(
-            "Plain base-10 decimal string. After sign and insignificant leading zeros are normalized, a non-zero value may have at most 131,072 integer digits; currency minor-unit precision applies separately. Values outside this durable PostgreSQL numeric range return 422 validation_error.",
-          ),
-        currency: zod.enum(["CNY", "JPY", "USD"]),
-      })
-      .describe("Exact decimal-string Money supplied by a Finance caller."),
-    note: zod.union([zod.string(), zod.null()]).optional(),
-    targetBalance: zod
-      .strictObject({
-        amount: zod
-          .string()
-          .describe(
-            "Plain base-10 decimal string. After sign and insignificant leading zeros are normalized, a non-zero value may have at most 131,072 integer digits; currency minor-unit precision applies separately. Values outside this durable PostgreSQL numeric range return 422 validation_error.",
-          ),
-        currency: zod.enum(["CNY", "JPY", "USD"]),
-      })
-      .describe("Exact decimal-string Money supplied by a Finance caller."),
-    transactionDate: zod.iso.date(),
-  })
-  .describe("Stale-safe target-balance command for one active Account.");
+export const CreateBalanceAdjustmentBody = zod.strictObject({
+  accountId: zod.uuid(),
+  expectedAccountNature: zod.enum(["asset", "liability"]),
+  expectedDerivedBalance: zod.strictObject({
+    amount: zod
+      .string()
+      .describe(
+        "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+      ),
+    currency: zod.enum(["CNY", "JPY", "USD"]),
+  }),
+  note: zod.union([zod.string(), zod.null()]).optional(),
+  targetBalance: zod.strictObject({
+    amount: zod
+      .string()
+      .describe(
+        "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+      ),
+    currency: zod.enum(["CNY", "JPY", "USD"]),
+  }),
+  transactionDate: zod.iso.date(),
+});
 
 export type CreateBalanceAdjustmentBody = zod.input<
   typeof CreateBalanceAdjustmentBody

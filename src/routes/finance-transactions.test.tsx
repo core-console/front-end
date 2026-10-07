@@ -1,3 +1,7 @@
+import {
+  adjustmentCreateHandler,
+  type AdjustmentFixtureResult,
+} from "@/test/adjustment-handlers";
 import { transactionCreateHandler } from "@/test/transaction-handlers";
 import { submissionTestUser } from "@/test/submission-fixtures";
 import { getGetCurrentUserMockHandler } from "@/api/generated/core-console.msw";
@@ -23,7 +27,6 @@ import {
 } from "@/api/generated/core-console.msw";
 import type {
   BalanceAdjustmentContextResponse,
-  BalanceAdjustmentResultResponse,
   TransactionHistoryPageResponse,
 } from "@/api/generated/schemas";
 import { server } from "@/mocks/server";
@@ -619,7 +622,7 @@ describe("Finance Transactions destination", () => {
     const result = {
       outcome: "created",
       transaction: adjustment,
-    } satisfies BalanceAdjustmentResultResponse;
+    } satisfies AdjustmentFixtureResult;
     server.use(
       getListFinanceLedgersMockHandler([ledger]),
       getListFinanceAccountsMockHandler([...accounts]),
@@ -638,14 +641,11 @@ describe("Finance Transactions destination", () => {
           return HttpResponse.json({ ...context, transactionDate });
         },
       ),
-      http.post(
-        "*/api/finance/ledgers/:ledgerId/balance-adjustments",
-        async ({ request }) => {
-          submittedBody = await request.json();
-          created = true;
-          return HttpResponse.json(result);
-        },
-      ),
+      adjustmentCreateHandler(async ({ request }) => {
+        submittedBody = await request.json();
+        created = true;
+        return HttpResponse.json(result);
+      }),
     );
     renderRoute(`/finance/transactions?ledger=${ledger.id}`);
 
@@ -751,16 +751,13 @@ describe("Finance Transactions destination", () => {
               new URL(request.url).searchParams.get("transactionDate") ?? "",
           } satisfies BalanceAdjustmentContextResponse),
       ),
-      http.post(
-        "*/api/finance/ledgers/:ledgerId/balance-adjustments",
-        async ({ request }) => {
-          submittedBody = await request.json();
-          return HttpResponse.json({
-            outcome: "noChange",
-            transaction: null,
-          } satisfies BalanceAdjustmentResultResponse);
-        },
-      ),
+      adjustmentCreateHandler(async ({ request }) => {
+        submittedBody = await request.json();
+        return HttpResponse.json({
+          outcome: "noChange",
+          transaction: null,
+        } satisfies AdjustmentFixtureResult);
+      }),
     );
     renderRoute(`/finance/transactions?ledger=${ledger.id}`);
 
@@ -833,12 +830,12 @@ describe("Finance Transactions destination", () => {
               new URL(request.url).searchParams.get("transactionDate") ?? "",
           } satisfies BalanceAdjustmentContextResponse),
       ),
-      http.post("*/api/finance/ledgers/:ledgerId/balance-adjustments", () => {
+      adjustmentCreateHandler(() => {
         adjustmentRequests += 1;
         return HttpResponse.json({
           outcome: "noChange",
           transaction: null,
-        } satisfies BalanceAdjustmentResultResponse);
+        } satisfies AdjustmentFixtureResult);
       }),
     );
     renderRoute(`/finance/transactions?ledger=${ledger.id}`);
@@ -954,28 +951,25 @@ describe("Finance Transactions destination", () => {
             });
           },
         ),
-        http.post(
-          "*/api/finance/ledgers/:ledgerId/balance-adjustments",
-          async ({ request }) => {
-            submittedBodies.push(await request.json());
-            if (submittedBodies.length === 1) {
-              return HttpResponse.json(
-                {
-                  code,
-                  detail: "Authoritative adjustment context changed.",
-                  status: 409,
-                  title: "Conflict",
-                  type: "about:blank",
-                },
-                { status: 409 },
-              );
-            }
-            return HttpResponse.json({
-              outcome: "noChange",
-              transaction: null,
-            } satisfies BalanceAdjustmentResultResponse);
-          },
-        ),
+        adjustmentCreateHandler(async ({ request }) => {
+          submittedBodies.push(await request.json());
+          if (submittedBodies.length === 1) {
+            return HttpResponse.json(
+              {
+                code,
+                detail: "Authoritative adjustment context changed.",
+                status: 409,
+                title: "Conflict",
+                type: "about:blank",
+              },
+              { status: 409 },
+            );
+          }
+          return HttpResponse.json({
+            outcome: "noChange",
+            transaction: null,
+          } satisfies AdjustmentFixtureResult);
+        }),
       );
       renderRoute(`/finance/transactions?ledger=${ledger.id}`);
 
@@ -1053,8 +1047,10 @@ describe("Finance Transactions destination", () => {
           transactionDate,
         },
       ]);
-      expect(screen.getByRole("status", { name: "" })).toHaveTextContent(
-        "Balance already matched the target. No Balance Adjustment was created.",
+      await waitFor(() =>
+        expect(screen.getByRole("status", { name: "" })).toHaveTextContent(
+          "Balance already matched the target. No Balance Adjustment was created.",
+        ),
       );
     },
   );
@@ -1099,7 +1095,7 @@ describe("Finance Transactions destination", () => {
           });
         },
       ),
-      http.post("*/api/finance/ledgers/:ledgerId/balance-adjustments", () => {
+      adjustmentCreateHandler(() => {
         adjustmentRequests += 1;
         if (adjustmentRequests === 1) {
           return HttpResponse.json(
@@ -1116,7 +1112,7 @@ describe("Finance Transactions destination", () => {
         return HttpResponse.json({
           outcome: "noChange",
           transaction: null,
-        } satisfies BalanceAdjustmentResultResponse);
+        } satisfies AdjustmentFixtureResult);
       }),
     );
     renderRoute(`/finance/transactions?ledger=${ledger.id}`);
@@ -1241,28 +1237,25 @@ describe("Finance Transactions destination", () => {
           } satisfies BalanceAdjustmentContextResponse);
         },
       ),
-      http.post(
-        "*/api/finance/ledgers/:ledgerId/balance-adjustments",
-        async ({ request }) => {
-          submittedBodies.push(await request.json());
-          if (submittedBodies.length === 1) {
-            return HttpResponse.json(
-              {
-                code: "account_balance_changed",
-                detail: "The balance changed.",
-                status: 409,
-                title: "Conflict",
-                type: "about:blank",
-              },
-              { status: 409 },
-            );
-          }
-          return HttpResponse.json({
-            outcome: "noChange",
-            transaction: null,
-          } satisfies BalanceAdjustmentResultResponse);
-        },
-      ),
+      adjustmentCreateHandler(async ({ request }) => {
+        submittedBodies.push(await request.json());
+        if (submittedBodies.length === 1) {
+          return HttpResponse.json(
+            {
+              code: "account_balance_changed",
+              detail: "The balance changed.",
+              status: 409,
+              title: "Conflict",
+              type: "about:blank",
+            },
+            { status: 409 },
+          );
+        }
+        return HttpResponse.json({
+          outcome: "noChange",
+          transaction: null,
+        } satisfies AdjustmentFixtureResult);
+      }),
     );
     const { queryClient } = renderRoute(
       `/finance/transactions?ledger=${ledger.id}`,
@@ -1387,7 +1380,7 @@ describe("Finance Transactions destination", () => {
           } satisfies BalanceAdjustmentContextResponse);
         },
       ),
-      http.post("*/api/finance/ledgers/:ledgerId/balance-adjustments", () => {
+      adjustmentCreateHandler(() => {
         adjustmentRequests += 1;
         return HttpResponse.json(
           {
@@ -1515,7 +1508,7 @@ describe("Finance Transactions destination", () => {
             ),
           }),
       ),
-      http.post("*/api/finance/ledgers/:ledgerId/balance-adjustments", () => {
+      adjustmentCreateHandler(() => {
         selectedAccountArchived = true;
         return HttpResponse.json(
           {
@@ -1691,18 +1684,15 @@ describe("Finance Transactions destination", () => {
             ),
           }),
       ),
-      http.post(
-        "*/api/finance/ledgers/:ledgerId/balance-adjustments",
-        async () => {
-          requests += 1;
-          await requestGate;
-          created = true;
-          return HttpResponse.json({
-            outcome: "created",
-            transaction: adjustment,
-          } satisfies BalanceAdjustmentResultResponse);
-        },
-      ),
+      adjustmentCreateHandler(async () => {
+        requests += 1;
+        await requestGate;
+        created = true;
+        return HttpResponse.json({
+          outcome: "created",
+          transaction: adjustment,
+        } satisfies AdjustmentFixtureResult);
+      }),
     );
     const { router } = renderRoute(`/finance/transactions?ledger=${ledger.id}`);
 

@@ -41,6 +41,14 @@ export const SubmissionUnfinished = zod
       submissionId: zod.uuid(),
       targetLedgerId: zod.uuid(),
     }),
+    zod.strictObject({
+      admittedAt: zod.iso.datetime({ offset: true }),
+      commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
+      operation: zod.enum(["createBalanceAdjustment"]),
+      state: zod.literal("unfinished").meta({ title: "State" }),
+      submissionId: zod.uuid(),
+      targetLedgerId: zod.uuid(),
+    }),
   ])
   .and(
     zod.strictObject({

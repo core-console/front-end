@@ -1,15 +1,8 @@
-import {
-  useInfiniteQuery,
-  useMutationState,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useMutationState } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 
 import {
-  getGetBalanceAdjustmentContextQueryKey,
-  getGetFinanceOverviewQueryKey,
-  getListFinanceAccountsQueryKey,
   getListFinanceTransactionsQueryKey,
   listFinanceTransactions,
   useListFinanceAccounts,
@@ -24,7 +17,6 @@ import {
   TransactionHistoryPageResponse,
 } from "@/api/generated/schemas";
 import type {
-  BalanceAdjustmentResultResponseOutput,
   FinanceTransactionResponseOutput,
   TransactionHistoryPageResponseOutput,
 } from "@/api/generated/schemas";
@@ -40,7 +32,6 @@ import {
 } from "@/components/finance/finance-route-state";
 import { InternalTransferFormDialog } from "@/components/finance/internal-transfer-form-dialog";
 import { TransactionFormDialog } from "@/components/finance/transaction-form-dialog";
-import { reconcileLedgerTransactionHistories } from "@/components/finance/transaction-history-cache";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -539,7 +530,6 @@ export function TransactionsDestination({
   portable: PortableFinanceState;
   resource: FinanceRouteState["resource"];
 }) {
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [dialogKind, setDialogKind] = useState<RecordTransactionKind | null>(
     null,
@@ -814,36 +804,11 @@ export function TransactionsDestination({
     );
   };
 
-  const recordBalanceAdjustment = async (
-    result: BalanceAdjustmentResultResponseOutput,
-    accountId: string,
-  ) => {
-    if (result.outcome === "created") {
-      reconcileLedgerTransactionHistories(
-        queryClient,
-        ledgerId,
-        result.transaction,
-      );
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: getListFinanceTransactionsQueryKey(ledgerId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: getListFinanceAccountsQueryKey(ledgerId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: getGetFinanceOverviewQueryKey(ledgerId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: getGetBalanceAdjustmentContextQueryKey(ledgerId, accountId),
-        }),
-      ]);
-      setAnnouncement("Balance Adjustment recorded.");
-      return;
-    }
-
+  const recordBalanceAdjustment = async (outcome: "created" | "noChange") => {
     setAnnouncement(
-      "Balance already matched the target. No Balance Adjustment was created.",
+      outcome === "created"
+        ? "Balance Adjustment recorded."
+        : "Balance already matched the target. No Balance Adjustment was created.",
     );
   };
 

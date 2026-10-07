@@ -5,6 +5,7 @@ import {
   CreateFinanceAccountBody,
   CreateFinanceCategoryBody,
   CreateFinanceTransactionBody,
+  CreateBalanceAdjustmentBody,
 } from "@/api/generated/schemas";
 import { resolveApiBaseUrl } from "@/config/env";
 import {
@@ -71,11 +72,19 @@ const transactionCommand = z.strictObject({
   body: CreateFinanceTransactionBody,
   workflow: z.enum(["quickEntry", "transaction", "internalTransfer"]),
 });
+const adjustmentCommand = z.strictObject({
+  operation: z.literal("createBalanceAdjustment"),
+  endpoint: z.string(),
+  targetLedgerId: z.uuid(),
+  body: CreateBalanceAdjustmentBody,
+  workflow: z.literal("balanceAdjustment"),
+});
 export type CreateSubmissionCommand =
   | Omit<z.infer<typeof ledgerCommand>, "endpoint">
   | Omit<z.infer<typeof accountCommand>, "endpoint">
   | Omit<z.infer<typeof categoryCommand>, "endpoint">
-  | Omit<z.infer<typeof transactionCommand>, "endpoint">;
+  | Omit<z.infer<typeof transactionCommand>, "endpoint">
+  | Omit<z.infer<typeof adjustmentCommand>, "endpoint">;
 function recordsFor<T extends z.ZodRawShape>(shape: T) {
   return z.discriminatedUnion("state", [
     z.strictObject({
@@ -97,6 +106,7 @@ const recordSchema = z
     recordsFor(accountCommand.shape),
     recordsFor(categoryCommand.shape),
     recordsFor(transactionCommand.shape),
+    recordsFor(adjustmentCommand.shape),
   ])
   .refine(
     (record) =>
@@ -127,10 +137,14 @@ export function submissionLabel(record: Pick<FinanceSubmission, "operation">) {
       return "Category";
     case "createFinanceTransaction":
       return "Transaction";
+    case "createBalanceAdjustment":
+      return "Balance Adjustment";
   }
 }
 
 export function rejectionMessage(record: FinanceSubmission) {
+  if (record.operation === "createBalanceAdjustment")
+    return "The Balance Adjustment command was rejected. Review current Account context before creating a new submission.";
   if (record.operation === "createFinanceTransaction")
     return "The Transaction command was rejected. Review the draft before creating a new submission.";
   return record.operation === "createFinanceAccount"
@@ -148,10 +162,14 @@ function endpointFor(command: CreateSubmissionCommand) {
       return `/finance/ledgers/${command.targetLedgerId}/categories`;
     case "createFinanceTransaction":
       return `/finance/ledgers/${command.targetLedgerId}/transactions`;
+    case "createBalanceAdjustment":
+      return `/finance/ledgers/${command.targetLedgerId}/balance-adjustments`;
   }
 }
 
 export function submissionDescription(record: FinanceSubmission) {
+  if (record.operation === "createBalanceAdjustment")
+    return `Target ${record.body.targetBalance.amount} ${record.body.targetBalance.currency} · ${record.body.transactionDate}`;
   if (record.operation !== "createFinanceTransaction") return record.body.name;
   const money =
     record.body.kind === "internalTransfer"

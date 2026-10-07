@@ -1,18 +1,13 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
-import {
-  useCreateBalanceAdjustment,
-  useGetBalanceAdjustmentContext,
-} from "@/api/generated/core-console";
+import { useGetBalanceAdjustmentContext } from "@/api/generated/core-console";
 import {
   BalanceAdjustmentContextResponse,
-  BalanceAdjustmentResultResponse,
-  CreateBalanceAdjustmentRequest,
+  CreateBalanceAdjustmentBody,
   FinanceRequestDate,
   ProblemDetails,
   type AccountResponse,
   type BalanceAdjustmentContextResponseOutput,
-  type BalanceAdjustmentResultResponseOutput,
   type CurrencyResponse,
 } from "@/api/generated/schemas";
 import { buildAccountWorkflowLabels } from "@/components/finance/account-identity";
@@ -42,6 +37,7 @@ import {
 } from "@/components/ui/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { useFinanceCreate } from "./use-finance-create";
 
 type AdjustmentField =
   "accountId" | "note" | "targetBalance" | "transactionDate";
@@ -79,10 +75,7 @@ type BalanceAdjustmentFormDialogProps = {
   currencies: CurrencyResponse[];
   initialDate?: string;
   ledgerId: string;
-  onAdjusted: (
-    result: BalanceAdjustmentResultResponseOutput,
-    accountId: string,
-  ) => Promise<void>;
+  onAdjusted: (outcome: "created" | "noChange") => Promise<void>;
   onOpenChange: (open: boolean) => void;
   open: boolean;
   refreshAccounts: () => Promise<AccountRefreshResult>;
@@ -427,7 +420,10 @@ export function BalanceAdjustmentFormDialog({
     refetchContext,
     transactionDate,
   ]);
-  const recoverAccountReference = async (code: AccountRecovery["code"]) => {
+  const recoverAccountReference = async (
+    code: AccountRecovery["code"],
+    isCurrent = () => true,
+  ) => {
     setAccountRecovery({ code, status: "refreshing" });
     let result: AccountRefreshResult;
     try {
@@ -435,6 +431,7 @@ export function BalanceAdjustmentFormDialog({
     } catch {
       result = { status: "error" };
     }
+    if (!isCurrent()) return;
     if (result.status === "error") {
       setAccountRecovery({ code, status: "failed" });
       submittingRef.current = false;
@@ -458,9 +455,24 @@ export function BalanceAdjustmentFormDialog({
     setAccountRecovery(null);
     submittingRef.current = false;
   };
-  const mutation = useCreateBalanceAdjustment({
-    mutation: {
-      onError: async (error) => {
+  const create = useFinanceCreate(
+    async (result) => {
+      if (
+        result.record.state !== "resolved" ||
+        result.record.resolution.kind !== "receipt"
+      )
+        return;
+      const outcome = result.record.resolution.receipt.outcome.kind;
+      if (outcome !== "created" && outcome !== "noChange") return;
+      void onAdjusted(outcome);
+      onOpenChange(false);
+    },
+    ledgerId,
+    open,
+    {
+      operation: "createBalanceAdjustment",
+      onRejected: async (problem, isCurrent) => {
+        const error = { info: problem };
         const code = conflictCode(error);
         const previous = submittedContextRef.current;
         if (code && previous) {
@@ -469,7 +481,7 @@ export function BalanceAdjustmentFormDialog({
         }
         const accountCode = staleAccountCode(error);
         if (accountCode) {
-          await recoverAccountReference(accountCode);
+          await recoverAccountReference(accountCode, isCurrent);
           return;
         }
         submittingRef.current = false;
@@ -478,16 +490,10 @@ export function BalanceAdjustmentFormDialog({
           targetBalance: problemMessage(error),
         }));
       },
-      onSuccess: async (response) => {
-        const result = BalanceAdjustmentResultResponse.parse(response.data);
-        const refresh = onAdjusted(result, accountId);
-        onOpenChange(false);
-        await refresh;
-      },
     },
-  });
+  );
   const workflowPending =
-    mutation.isPending ||
+    create.pending ||
     contextRecovery?.status === "refreshing" ||
     accountRecovery?.status === "refreshing";
   const formId = "record-balance-adjustment";
@@ -499,17 +505,23 @@ export function BalanceAdjustmentFormDialog({
   }, [accounts, focusAccount, workflowPending]);
 
   const clearError = (field: AdjustmentField) => {
+    create.edited();
     setErrors((current) => {
       const next = { ...current };
       delete next[field];
       return next;
     });
-    if (mutation.isError) mutation.reset();
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (submittingRef.current || workflowPending) return;
+    if (
+      submittingRef.current ||
+      workflowPending ||
+      create.unresolved ||
+      !create.ready
+    )
+      return;
 
     const nextErrors: FormErrors = {};
     const trimmedNote = note.trim();
@@ -565,7 +577,7 @@ export function BalanceAdjustmentFormDialog({
     }
     if (!selectedAccount || !context) return;
 
-    const data = CreateBalanceAdjustmentRequest.parse({
+    const data = CreateBalanceAdjustmentBody.parse({
       accountId: selectedAccount.id,
       expectedAccountNature: context.accountNature,
       expectedDerivedBalance: context.derivedComparisonBalance,
@@ -579,7 +591,16 @@ export function BalanceAdjustmentFormDialog({
     setConflictReview(null);
     submittedContextRef.current = context;
     submittingRef.current = true;
-    mutation.mutate({ data, ledgerId });
+    void create
+      .submit({
+        operation: "createBalanceAdjustment",
+        targetLedgerId: ledgerId,
+        body: data,
+        workflow: "balanceAdjustment",
+      })
+      .finally(() => {
+        submittingRef.current = false;
+      });
   };
 
   return (
@@ -610,6 +631,35 @@ export function BalanceAdjustmentFormDialog({
           onSubmit={handleSubmit}
         >
           <FieldGroup>
+            {create.error && !create.rejected ? (
+              <Alert variant="destructive">
+                <AlertTitle>
+                  {create.unresolved && !create.succeeded
+                    ? "Balance Adjustment outcome unknown"
+                    : "Balance Adjustment submission"}
+                </AlertTitle>
+                <AlertDescription>{create.error}</AlertDescription>
+              </Alert>
+            ) : null}
+            {create.unresolved ? (
+              <Alert>
+                <AlertTitle>Original adjustment retained</AlertTitle>
+                <AlertDescription>
+                  {create.succeeded
+                    ? "The outcome is confirmed. Close this dialog to refresh current Finance resources; do not retry the create."
+                    : "Close this dialog to check or retry the original submission in Finance recovery. Its Account, date, target and expected balance and nature remain unchanged."}
+                  <Button
+                    disabled={workflowPending || create.integrityBlocked}
+                    onClick={() => create.startAnother()}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    Intentionally create another adjustment
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : null}
             <Field
               data-disabled={workflowPending}
               data-invalid={Boolean(errors.accountId)}
@@ -920,6 +970,8 @@ export function BalanceAdjustmentFormDialog({
             <Button
               disabled={
                 !context ||
+                !create.ready ||
+                create.unresolved ||
                 workflowPending ||
                 selectedAccount?.status !== "active" ||
                 contextQuery.isRefetchError ||

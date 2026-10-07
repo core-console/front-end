@@ -11,7 +11,6 @@ import {
   AccountResponse,
   CategoryResponse,
   CurrencyResponse,
-  type BalanceAdjustmentResultResponseOutput,
   type FinanceTransactionResponseOutput,
 } from "@/api/generated/schemas";
 import { BalanceAdjustmentFormDialog } from "@/components/finance/balance-adjustment-form-dialog";
@@ -46,10 +45,7 @@ export function OverviewEntry({
 }: {
   date: string;
   ledgerId: string;
-  onAdjusted: (
-    result: BalanceAdjustmentResultResponseOutput,
-    accountId: string,
-  ) => Promise<void>;
+  onAdjusted: (outcome: "created" | "noChange") => Promise<void>;
   onRecorded: (transaction: FinanceTransactionResponseOutput) => Promise<void>;
 }) {
   const [kind, setKind] = useState<"expense" | "income">("expense");

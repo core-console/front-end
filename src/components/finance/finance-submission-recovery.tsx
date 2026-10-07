@@ -63,9 +63,11 @@ export function FinanceSubmissionRecovery({
             ? "Command not admitted"
             : outcome?.kind === "created"
               ? `${label} created`
-              : outcome?.kind === "rejected"
-                ? `${label} create rejected`
-                : `${label} outcome unknown`;
+              : outcome?.kind === "noChange"
+                ? "Balance Adjustment requires no change"
+                : outcome?.kind === "rejected"
+                  ? `${label} create rejected`
+                  : `${label} outcome unknown`;
         return (
           <Alert
             key={record.submissionId}
@@ -92,6 +94,14 @@ export function FinanceSubmissionRecovery({
                   Opening balance: {record.body.openingBalance.amount}{" "}
                   {record.body.openingBalance.currency}; {record.body.nature};
                   tracking from {record.body.trackingStartDate}.
+                </p>
+              ) : null}
+              {record.operation === "createBalanceAdjustment" ? (
+                <p className="[overflow-wrap:anywhere]">
+                  Original Account: {record.body.accountId}; expected balance:{" "}
+                  {record.body.expectedDerivedBalance.amount}{" "}
+                  {record.body.expectedDerivedBalance.currency}; expected
+                  nature: {record.body.expectedAccountNature}.
                 </p>
               ) : null}
               {record.targetLedgerId ? (
@@ -140,17 +150,20 @@ export function FinanceSubmissionRecovery({
                                 ? "Categories"
                                 : "Transactions"}
                         </Link>
-                        <Button
-                          disabled={pending}
-                          onClick={() =>
-                            void journal.refreshResourceList(record)
-                          }
-                          size="sm"
-                          variant="outline"
-                        >
-                          Refresh {label} list
-                        </Button>
                       </>
+                    ) : null}
+                    {outcome?.kind === "created" ||
+                    outcome?.kind === "noChange" ? (
+                      <Button
+                        disabled={pending}
+                        onClick={() => void journal.refreshResourceList(record)}
+                        size="sm"
+                        variant="outline"
+                      >
+                        {record.operation === "createBalanceAdjustment"
+                          ? "Refresh Finance resources"
+                          : `Refresh ${label} list`}
+                      </Button>
                     ) : null}
                     <Button
                       disabled={pending}

@@ -12,15 +12,11 @@ import {
 import { Link, useNavigate } from "react-router";
 
 import {
-  getGetBalanceAdjustmentContextQueryKey,
   getGetFinanceOverviewQueryKey,
-  getListFinanceAccountsQueryKey,
-  getListFinanceTransactionsQueryKey,
   useGetFinanceOverview,
 } from "@/api/generated/core-console";
 import {
   FinanceOverviewResponse,
-  type BalanceAdjustmentResultResponseOutput,
   type FinanceOverviewDayResponse,
   type FinanceOverviewResponse as Overview,
   type FinanceTransactionResponseOutput,
@@ -28,7 +24,6 @@ import {
 import { formatFinanceMoney } from "@/components/finance/finance-money";
 import { OverviewEntry } from "@/components/finance/overview-entry";
 import { OverviewSelectedDay } from "@/components/finance/overview-selected-day";
-import { reconcileLedgerTransactionHistories } from "@/components/finance/transaction-history-cache";
 import { buildFinanceSearch } from "@/components/finance/finance-route-state";
 import {
   adjacentMonth,
@@ -543,39 +538,6 @@ export function OverviewDestination({
         ? "unavailable"
         : "updating";
 
-  const refreshAfterWrite = async (
-    transaction: FinanceTransactionResponseOutput,
-    accountId?: string,
-  ) => {
-    const historyKey = getListFinanceTransactionsQueryKey(ledgerId);
-    const overviewRoot = getGetFinanceOverviewQueryKey(ledgerId);
-    void queryClient.invalidateQueries({
-      queryKey: overviewRoot,
-      refetchType: "none",
-    });
-    await queryClient.cancelQueries({ queryKey: historyKey });
-    reconcileLedgerTransactionHistories(queryClient, ledgerId, transaction);
-    const accountIds =
-      transaction.kind === "internalTransfer"
-        ? [transaction.sourceAccount.id, transaction.destinationAccount.id]
-        : [transaction.account.id];
-    void Promise.allSettled([
-      queryClient.invalidateQueries({ queryKey: historyKey }),
-      queryClient.invalidateQueries({
-        queryKey: getListFinanceAccountsQueryKey(ledgerId),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: overviewRoot,
-      }),
-      ...[...new Set([...accountIds, ...(accountId ? [accountId] : [])])].map(
-        (id) =>
-          queryClient.invalidateQueries({
-            queryKey: getGetBalanceAdjustmentContextQueryKey(ledgerId, id),
-          }),
-      ),
-    ]);
-  };
-
   const recordTransaction = async (
     transaction: FinanceTransactionResponseOutput,
   ) => {
@@ -584,18 +546,12 @@ export function OverviewDestination({
     );
   };
 
-  const recordAdjustment = async (
-    result: BalanceAdjustmentResultResponseOutput,
-    accountId: string,
-  ) => {
-    if (result.outcome === "created") {
-      await refreshAfterWrite(result.transaction, accountId);
-      setAnnouncement("Balance Adjustment recorded.");
-    } else {
-      setAnnouncement(
-        "Balance already matched the target. No Balance Adjustment was created.",
-      );
-    }
+  const recordAdjustment = async (outcome: "created" | "noChange") => {
+    setAnnouncement(
+      outcome === "created"
+        ? "Balance Adjustment recorded."
+        : "Balance already matched the target. No Balance Adjustment was created.",
+    );
   };
 
   const navigateTo = (nextMonth: string, nextDate: string) => {

@@ -8,6 +8,11 @@ import {
 } from "@/api/generated/core-console";
 import { FinanceTransactionResponse } from "@/api/generated/schemas";
 import { getTransactionDeletion } from "./transaction-deletion";
+import {
+  balanceAdjustmentReplacementKey,
+  balanceAdjustmentReplacementPending,
+  balanceAdjustmentReplacementRevision,
+} from "./balance-adjustment-replacement-lock";
 import { reconcileLedgerTransactionHistories } from "./transaction-history-cache";
 import {
   replacementKey,
@@ -21,37 +26,62 @@ import {
 
 export async function refreshSubmittedTransaction(
   queryClient: QueryClient,
-  record: Extract<FinanceSubmission, { operation: "createFinanceTransaction" }>,
-  id: string,
+  record: Extract<
+    FinanceSubmission,
+    { operation: "createFinanceTransaction" | "createBalanceAdjustment" }
+  >,
+  id: string | undefined,
   matches: () => boolean,
   refreshFailed: () => void,
 ) {
   const ledgerId = record.targetLedgerId;
+  const adjustment = record.operation === "createBalanceAdjustment";
   const accountIds = new Set(
-    record.body.kind === "internalTransfer"
-      ? [record.body.sourceAccountId, record.body.destinationAccountId]
-      : [record.body.accountId],
+    record.operation === "createBalanceAdjustment"
+      ? [record.body.accountId]
+      : record.body.kind === "internalTransfer"
+        ? [record.body.sourceAccountId, record.body.destinationAccountId]
+        : [record.body.accountId],
   );
   const historyKey = getListFinanceTransactionsQueryKey(ledgerId);
-  const lockKey = replacementKey(ledgerId, id);
-  const revision = replacementRevision();
+  const lockKey = id
+    ? adjustment
+      ? balanceAdjustmentReplacementKey(ledgerId, id)
+      : replacementKey(ledgerId, id)
+    : "";
+  const pending = () =>
+    adjustment
+      ? balanceAdjustmentReplacementPending(lockKey)
+      : replacementPending(lockKey);
+  const currentRevision = adjustment
+    ? balanceAdjustmentReplacementRevision
+    : replacementRevision;
+  const revision = currentRevision();
   // Invalidation covers current balances, counts and selected-day authority,
   // including when the resource no longer exists. Receipts supply no snapshots.
   const refreshQueries = () => {
-    if (!matches() || replacementPending(lockKey)) return Promise.resolve();
+    if (!matches() || pending()) return Promise.resolve();
     return Promise.allSettled([
-      queryClient.invalidateQueries(
-        { queryKey: historyKey },
-        { throwOnError: true },
-      ),
+      ...(id
+        ? [
+            queryClient.invalidateQueries(
+              { queryKey: historyKey },
+              { throwOnError: true },
+            ),
+          ]
+        : []),
       queryClient.invalidateQueries(
         { queryKey: getListFinanceAccountsQueryKey(ledgerId) },
         { throwOnError: true },
       ),
-      queryClient.invalidateQueries(
-        { queryKey: getGetFinanceOverviewQueryKey(ledgerId) },
-        { throwOnError: true },
-      ),
+      ...(id
+        ? [
+            queryClient.invalidateQueries(
+              { queryKey: getGetFinanceOverviewQueryKey(ledgerId) },
+              { throwOnError: true },
+            ),
+          ]
+        : []),
       ...[...accountIds].map((accountId) =>
         queryClient.invalidateQueries(
           {
@@ -68,10 +98,11 @@ export async function refreshSubmittedTransaction(
         refreshFailed();
     });
   };
-  if (getTransactionDeletion(queryClient, ledgerId, id)) {
+  // noChange has no Transaction identity; refresh current context only.
+  if (!id || getTransactionDeletion(queryClient, ledgerId, id)) {
     return { refreshing: refreshQueries() };
   }
-  if (replacementPending(lockKey))
+  if (pending())
     throw new SubmissionRecoveryError(
       "Transaction replacement is still in progress. Refresh after it completes.",
     );
@@ -83,7 +114,10 @@ export async function refreshSubmittedTransaction(
     if (
       transaction.id !== id ||
       transaction.ledgerId !== ledgerId ||
-      transaction.kind !== record.body.kind
+      transaction.kind !==
+        (record.operation === "createFinanceTransaction"
+          ? record.body.kind
+          : "balanceAdjustment")
     )
       throw new SubmissionRecoveryError(
         "Current Transaction does not match the created identity.",
@@ -100,7 +134,7 @@ export async function refreshSubmittedTransaction(
     if (getTransactionDeletion(queryClient, ledgerId, id)) {
       return { refreshing: refreshQueries() };
     }
-    if (replacementPending(lockKey) || replacementRevision() !== revision)
+    if (pending() || currentRevision() !== revision)
       throw new SubmissionRecoveryError(
         "Transaction changed during refresh. Refresh its current state again.",
       );
@@ -109,8 +143,8 @@ export async function refreshSubmittedTransaction(
     if (
       !matches() ||
       getTransactionDeletion(queryClient, ledgerId, id) ||
-      replacementPending(lockKey) ||
-      replacementRevision() !== revision
+      pending() ||
+      currentRevision() !== revision
     )
       return { refreshing };
     return { transaction, refreshing };

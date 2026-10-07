@@ -9,6 +9,7 @@ import {
 
 import {
   AccountResponse,
+  AdjustmentSubmissionReceipt,
   BalanceAdjustmentContextResponse,
   CategoryResponse,
   CurrencyResponse,
@@ -1766,8 +1767,15 @@ test("carries a new Ledger through setup, four entries, history, detail, and nav
       submitted.push(route.request().postDataJSON());
       entries.unshift(adjustment);
       await route.fulfill({
-        json: { outcome: "created", transaction: adjustment },
-        status: 201,
+        json: AdjustmentSubmissionReceipt.parse({
+          ...createdTransactionReceipt(
+            route.request().headers()["idempotency-key"]!,
+            adjustment.ledgerId,
+            adjustment.id,
+          ),
+          operation: "createBalanceAdjustment",
+        }),
+        status: 200,
       });
     },
   );
@@ -2097,12 +2105,38 @@ test("keeps an Adjustment draft and exact context through a browser conflict", a
             status: 409,
             title: "Conflict",
             type: "about:blank",
+            submissionReceipt: AdjustmentSubmissionReceipt.parse({
+              ...createdTransactionReceipt(
+                route.request().headers()["idempotency-key"]!,
+                financeLedgers[0]!.id,
+                financeLedgers[0]!.id,
+              ),
+              operation: "createBalanceAdjustment",
+              outcome: {
+                kind: "rejected",
+                problem: {
+                  code: "account_balance_changed",
+                  detail: "Authoritative context changed.",
+                  status: 409,
+                  title: "Conflict",
+                  type: "about:blank",
+                },
+              },
+            }),
           },
           status: 409,
         });
       } else {
         await route.fulfill({
-          json: { outcome: "noChange", transaction: null },
+          json: AdjustmentSubmissionReceipt.parse({
+            ...createdTransactionReceipt(
+              route.request().headers()["idempotency-key"]!,
+              financeLedgers[0]!.id,
+              financeLedgers[0]!.id,
+            ),
+            operation: "createBalanceAdjustment",
+            outcome: { kind: "noChange" },
+          }),
         });
       }
     },

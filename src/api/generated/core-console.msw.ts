@@ -18,11 +18,20 @@ import type {
   AccountSubmissionReceipt,
   AccountSubmissionUnfinished,
   AccountValidationResponse,
+  AdjustmentConflictProblem,
+  AdjustmentConflictResponse,
+  AdjustmentCreatedOutcome,
+  AdjustmentInvalidProblem,
+  AdjustmentMissingProblem,
+  AdjustmentNoChangeOutcome,
+  AdjustmentNotFoundResponse,
+  AdjustmentRejectedOutcome,
+  AdjustmentSubmissionReceipt,
+  AdjustmentSubmissionUnfinished,
+  AdjustmentSuccessReceipt,
+  AdjustmentValidationResponse,
   BalanceAdjustmentContextResponse,
-  BalanceAdjustmentCreatedResultResponse,
-  BalanceAdjustmentNoChangeResultResponse,
   BalanceAdjustmentRemovedResultResponse,
-  BalanceAdjustmentResultResponse,
   BalanceAdjustmentTransactionResponse,
   BalanceAdjustmentUpdatedResultResponse,
   CategoryConflictResponse,
@@ -1603,64 +1612,75 @@ export const getUnarchiveFinanceAccountResponseMock503 = (
   ...overrideResponse,
 });
 
-export const getCreateBalanceAdjustmentResponseBalanceAdjustmentCreatedResultResponseMock =
-  (
-    overrideResponse: Partial<BalanceAdjustmentCreatedResultResponse> = {},
-  ): BalanceAdjustmentCreatedResultResponse => ({
-    ...{
-      outcome: faker.helpers.arrayElement(["created"] as const),
-      transaction: {
-        account: {
-          id: faker.string.uuid(),
-          name: faker.string.alpha({ length: { min: 10, max: 20 } }),
-          status: faker.helpers.arrayElement(["active", "archived"] as const),
-        },
-        correctionDelta: { amount: "12.34", currency: "CNY" },
-        id: faker.string.uuid(),
-        kind: faker.helpers.arrayElement(["balanceAdjustment"] as const),
-        ledgerId: faker.string.uuid(),
-        note: faker.helpers.arrayElement([
-          faker.string.alpha({ length: { min: 10, max: 500 } }),
-          null,
-        ]),
-        transactionDate: faker.date.past().toISOString().slice(0, 10),
-      },
-    },
-    ...overrideResponse,
-  });
+export const getCreateBalanceAdjustmentResponseAdjustmentCreatedOutcomeMock = (
+  overrideResponse: Partial<AdjustmentCreatedOutcome> = {},
+): AdjustmentCreatedOutcome => ({
+  ...{
+    kind: "created",
+    resource: { id: faker.string.uuid(), type: "transaction" },
+  },
+  ...overrideResponse,
+});
 
-export const getCreateBalanceAdjustmentResponseBalanceAdjustmentNoChangeResultResponseMock =
-  (
-    overrideResponse: Partial<BalanceAdjustmentNoChangeResultResponse> = {},
-  ): BalanceAdjustmentNoChangeResultResponse => ({
-    ...{
-      outcome: faker.helpers.arrayElement(["noChange"] as const),
-      transaction: null,
-    },
-    ...overrideResponse,
-  });
+export const getCreateBalanceAdjustmentResponseAdjustmentNoChangeOutcomeMock = (
+  overrideResponse: Partial<AdjustmentNoChangeOutcome> = {},
+): AdjustmentNoChangeOutcome => ({
+  ...{ kind: "noChange" },
+  ...overrideResponse,
+});
 
-export const getCreateBalanceAdjustmentResponseMock =
-  (): BalanceAdjustmentResultResponse =>
-    faker.helpers.arrayElement([
-      {
-        ...getCreateBalanceAdjustmentResponseBalanceAdjustmentCreatedResultResponseMock(),
-      },
-      {
-        ...getCreateBalanceAdjustmentResponseBalanceAdjustmentNoChangeResultResponseMock(),
-      },
-    ]);
+export const getCreateBalanceAdjustmentResponseMock = (
+  overrideResponse: Partial<Extract<AdjustmentSuccessReceipt, object>> = {},
+): AdjustmentSuccessReceipt => ({
+  admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  commandVersion: "1",
+  operation: "createBalanceAdjustment",
+  outcome: faker.helpers.arrayElement([
+    { ...getCreateBalanceAdjustmentResponseAdjustmentCreatedOutcomeMock() },
+    { ...getCreateBalanceAdjustmentResponseAdjustmentNoChangeOutcomeMock() },
+  ]),
+  resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  submissionId: faker.string.uuid(),
+  targetLedgerId: faker.string.uuid(),
+  ...overrideResponse,
+});
 
-export const getCreateBalanceAdjustmentResponseMock200 =
-  (): BalanceAdjustmentResultResponse =>
-    faker.helpers.arrayElement([
-      {
-        ...getCreateBalanceAdjustmentResponseBalanceAdjustmentCreatedResultResponseMock(),
-      },
-      {
-        ...getCreateBalanceAdjustmentResponseBalanceAdjustmentNoChangeResultResponseMock(),
-      },
-    ]);
+export const getCreateBalanceAdjustmentResponseMock200 = (
+  overrideResponse: Partial<Extract<AdjustmentSuccessReceipt, object>> = {},
+): AdjustmentSuccessReceipt => ({
+  admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  commandVersion: "1",
+  operation: "createBalanceAdjustment",
+  outcome: faker.helpers.arrayElement([
+    { ...getCreateBalanceAdjustmentResponseAdjustmentCreatedOutcomeMock() },
+    { ...getCreateBalanceAdjustmentResponseAdjustmentNoChangeOutcomeMock() },
+  ]),
+  resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  submissionId: faker.string.uuid(),
+  targetLedgerId: faker.string.uuid(),
+  ...overrideResponse,
+});
+
+export const getCreateBalanceAdjustmentResponseMock400 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
 
 export const getCreateBalanceAdjustmentResponseMock403 = (
   overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
@@ -1683,68 +1703,233 @@ export const getCreateBalanceAdjustmentResponseMock403 = (
   ...overrideResponse,
 });
 
-export const getCreateBalanceAdjustmentResponseMock404 = (
-  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
-): ProblemDetails => ({
-  code: faker.helpers.arrayElement([
-    faker.string.alpha({ length: { min: 10, max: 20 } }),
-    null,
-  ]),
-  detail: faker.helpers.arrayElement([
-    faker.string.alpha({ length: { min: 10, max: 20 } }),
-    null,
-  ]),
-  instance: faker.helpers.arrayElement([
-    faker.string.alpha({ length: { min: 10, max: 20 } }),
-    null,
-  ]),
-  status: faker.number.int({ min: 100, max: 599 }),
-  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
-  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
-  ...overrideResponse,
-});
+export const getCreateBalanceAdjustmentResponseMock404 =
+  (): AdjustmentNotFoundResponse =>
+    faker.helpers.arrayElement([
+      {
+        code: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: faker.helpers.arrayElement([
+          Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            [faker.string.alphanumeric(5)]: {},
+          })),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.number.int({ min: 100, max: 599 }),
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: "finance_account_not_found",
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: 404,
+        submissionReceipt: {
+          admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          commandVersion: "1",
+          operation: "createBalanceAdjustment",
+          outcome: {
+            kind: "rejected",
+            problem: {
+              code: "finance_account_not_found",
+              detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+              status: 404,
+              title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+              type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            },
+          },
+          resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          submissionId: faker.string.uuid(),
+          targetLedgerId: faker.string.uuid(),
+        },
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+    ]);
 
-export const getCreateBalanceAdjustmentResponseMock409 = (
-  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
-): ProblemDetails => ({
-  code: faker.helpers.arrayElement([
-    faker.string.alpha({ length: { min: 10, max: 20 } }),
-    null,
-  ]),
-  detail: faker.helpers.arrayElement([
-    faker.string.alpha({ length: { min: 10, max: 20 } }),
-    null,
-  ]),
-  instance: faker.helpers.arrayElement([
-    faker.string.alpha({ length: { min: 10, max: 20 } }),
-    null,
-  ]),
-  status: faker.number.int({ min: 100, max: 599 }),
-  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
-  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
-  ...overrideResponse,
-});
+export const getCreateBalanceAdjustmentResponseMock409 =
+  (): AdjustmentConflictResponse =>
+    faker.helpers.arrayElement([
+      {
+        code: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: faker.helpers.arrayElement([
+          Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            [faker.string.alphanumeric(5)]: {},
+          })),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.number.int({ min: 100, max: 599 }),
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: faker.helpers.arrayElement([
+          "finance_account_archived",
+          "account_balance_changed",
+          "finance_account_semantics_changed",
+        ] as const),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: 409,
+        submissionReceipt: {
+          admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          commandVersion: "1",
+          operation: "createBalanceAdjustment",
+          outcome: {
+            kind: "rejected",
+            problem: {
+              code: faker.helpers.arrayElement([
+                "finance_account_archived",
+                "account_balance_changed",
+                "finance_account_semantics_changed",
+              ] as const),
+              detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+              status: 409,
+              title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+              type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            },
+          },
+          resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          submissionId: faker.string.uuid(),
+          targetLedgerId: faker.string.uuid(),
+        },
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+    ]);
 
-export const getCreateBalanceAdjustmentResponseMock422 = (
-  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
-): ProblemDetails => ({
-  code: faker.helpers.arrayElement([
-    faker.string.alpha({ length: { min: 10, max: 20 } }),
-    null,
-  ]),
-  detail: faker.helpers.arrayElement([
-    faker.string.alpha({ length: { min: 10, max: 20 } }),
-    null,
-  ]),
-  instance: faker.helpers.arrayElement([
-    faker.string.alpha({ length: { min: 10, max: 20 } }),
-    null,
-  ]),
-  status: faker.number.int({ min: 100, max: 599 }),
-  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
-  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
-  ...overrideResponse,
-});
+export const getCreateBalanceAdjustmentResponseMock422 =
+  (): AdjustmentValidationResponse =>
+    faker.helpers.arrayElement([
+      {
+        code: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: faker.helpers.arrayElement([
+          Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            [faker.string.alphanumeric(5)]: {},
+          })),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.number.int({ min: 100, max: 599 }),
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: "validation_error",
+        commandValidationRejection: {
+          attemptedBody: {
+            [faker.string.alphanumeric(5)]: {},
+          },
+          commandVersion: "1",
+          kind: "definitivelyNotAdmitted",
+          operation: "createBalanceAdjustment",
+          ownerId: faker.string.uuid(),
+          submissionId: faker.string.uuid(),
+          targetLedgerId: faker.string.uuid(),
+        },
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          [faker.string.alphanumeric(5)]: {},
+        })),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: 422,
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: "validation_error",
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: 422,
+        submissionReceipt: {
+          admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          commandVersion: "1",
+          operation: "createBalanceAdjustment",
+          outcome: {
+            kind: "rejected",
+            problem: {
+              code: "validation_error",
+              detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+              status: 422,
+              title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+              type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            },
+          },
+          resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          submissionId: faker.string.uuid(),
+          targetLedgerId: faker.string.uuid(),
+        },
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+    ]);
 
 export const getCreateBalanceAdjustmentResponseMock500 = (
   overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
@@ -4343,6 +4528,23 @@ export const getGetFinanceSubmissionResponseTransactionSubmissionUnfinishedMock 
     ...overrideResponse,
   });
 
+export const getGetFinanceSubmissionResponseAdjustmentSubmissionUnfinishedMock =
+  (
+    overrideResponse: Partial<AdjustmentSubmissionUnfinished> = {},
+  ): AdjustmentSubmissionUnfinished => ({
+    ...{
+      admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      commandVersion: "1",
+      operation: faker.helpers.arrayElement([
+        "createBalanceAdjustment",
+      ] as const),
+      state: "unfinished",
+      submissionId: faker.string.uuid(),
+      targetLedgerId: faker.string.uuid(),
+    },
+    ...overrideResponse,
+  });
+
 export const getGetFinanceSubmissionResponseLedgerCreatedOutcomeMock = (
   overrideResponse: Partial<LedgerCreatedOutcome> = {},
 ): LedgerCreatedOutcome => ({
@@ -4561,6 +4763,99 @@ export const getGetFinanceSubmissionResponseTransactionSubmissionReceiptMock = (
   ...overrideResponse,
 });
 
+export const getGetFinanceSubmissionResponseAdjustmentCreatedOutcomeMock = (
+  overrideResponse: Partial<AdjustmentCreatedOutcome> = {},
+): AdjustmentCreatedOutcome => ({
+  ...{
+    kind: "created",
+    resource: { id: faker.string.uuid(), type: "transaction" },
+  },
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseAdjustmentNoChangeOutcomeMock = (
+  overrideResponse: Partial<AdjustmentNoChangeOutcome> = {},
+): AdjustmentNoChangeOutcome => ({
+  ...{ kind: "noChange" },
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseAdjustmentInvalidProblemMock = (
+  overrideResponse: Partial<AdjustmentInvalidProblem> = {},
+): AdjustmentInvalidProblem => ({
+  ...{
+    code: "validation_error",
+    detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    status: 422,
+    title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  },
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseAdjustmentConflictProblemMock = (
+  overrideResponse: Partial<AdjustmentConflictProblem> = {},
+): AdjustmentConflictProblem => ({
+  ...{
+    code: faker.helpers.arrayElement([
+      "finance_account_archived",
+      "account_balance_changed",
+      "finance_account_semantics_changed",
+    ] as const),
+    detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    status: 409,
+    title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  },
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseAdjustmentMissingProblemMock = (
+  overrideResponse: Partial<AdjustmentMissingProblem> = {},
+): AdjustmentMissingProblem => ({
+  ...{
+    code: "finance_account_not_found",
+    detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    status: 404,
+    title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  },
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseAdjustmentRejectedOutcomeMock = (
+  overrideResponse: Partial<AdjustmentRejectedOutcome> = {},
+): AdjustmentRejectedOutcome => ({
+  ...{
+    kind: "rejected",
+    problem: faker.helpers.arrayElement([
+      { ...getGetFinanceSubmissionResponseAdjustmentInvalidProblemMock() },
+      { ...getGetFinanceSubmissionResponseAdjustmentConflictProblemMock() },
+      { ...getGetFinanceSubmissionResponseAdjustmentMissingProblemMock() },
+    ]),
+  },
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseAdjustmentSubmissionReceiptMock = (
+  overrideResponse: Partial<AdjustmentSubmissionReceipt> = {},
+): AdjustmentSubmissionReceipt => ({
+  ...{
+    admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+    commandVersion: "1",
+    operation: faker.helpers.arrayElement(["createBalanceAdjustment"] as const),
+    outcome: faker.helpers.arrayElement([
+      { ...getGetFinanceSubmissionResponseAdjustmentCreatedOutcomeMock() },
+      { ...getGetFinanceSubmissionResponseAdjustmentNoChangeOutcomeMock() },
+      { ...getGetFinanceSubmissionResponseAdjustmentRejectedOutcomeMock() },
+    ]),
+    resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+    submissionId: faker.string.uuid(),
+    targetLedgerId: faker.string.uuid(),
+  },
+  ...overrideResponse,
+});
+
 export const getGetFinanceSubmissionResponseFinanceSubmissionTerminalMock = (
   overrideResponse: Partial<FinanceSubmissionTerminal> = {},
 ): FinanceSubmissionTerminal => ({
@@ -4570,6 +4865,7 @@ export const getGetFinanceSubmissionResponseFinanceSubmissionTerminalMock = (
       { ...getGetFinanceSubmissionResponseAccountSubmissionReceiptMock() },
       { ...getGetFinanceSubmissionResponseCategorySubmissionReceiptMock() },
       { ...getGetFinanceSubmissionResponseTransactionSubmissionReceiptMock() },
+      { ...getGetFinanceSubmissionResponseAdjustmentSubmissionReceiptMock() },
     ]),
     state: faker.helpers.arrayElement(["terminal"] as const),
   },
@@ -4593,6 +4889,9 @@ export const getGetFinanceSubmissionResponseMock =
           {
             ...getGetFinanceSubmissionResponseTransactionSubmissionUnfinishedMock(),
           },
+          {
+            ...getGetFinanceSubmissionResponseAdjustmentSubmissionUnfinishedMock(),
+          },
         ]),
         state: faker.helpers.arrayElement(["unfinished"] as const),
       },
@@ -4615,6 +4914,9 @@ export const getGetFinanceSubmissionResponseMock200 =
           },
           {
             ...getGetFinanceSubmissionResponseTransactionSubmissionUnfinishedMock(),
+          },
+          {
+            ...getGetFinanceSubmissionResponseAdjustmentSubmissionUnfinishedMock(),
           },
         ]),
         state: faker.helpers.arrayElement(["unfinished"] as const),
@@ -7509,12 +7811,10 @@ export const getUnarchiveFinanceAccountMockHandler503 = (
 
 export const getCreateBalanceAdjustmentMockHandler = (
   overrideResponse?:
-    | BalanceAdjustmentResultResponse
+    | AdjustmentSuccessReceipt
     | ((
         info: Parameters<Parameters<typeof http.post>[1]>[0],
-      ) =>
-        | Promise<BalanceAdjustmentResultResponse>
-        | BalanceAdjustmentResultResponse),
+      ) => Promise<AdjustmentSuccessReceipt> | AdjustmentSuccessReceipt),
   options?: RequestHandlerOptions,
 ) => {
   return http.post(
@@ -7535,12 +7835,10 @@ export const getCreateBalanceAdjustmentMockHandler = (
 
 export const getCreateBalanceAdjustmentMockHandler200 = (
   overrideResponse?:
-    | BalanceAdjustmentResultResponse
+    | AdjustmentSuccessReceipt
     | ((
         info: Parameters<Parameters<typeof http.post>[1]>[0],
-      ) =>
-        | Promise<BalanceAdjustmentResultResponse>
-        | BalanceAdjustmentResultResponse),
+      ) => Promise<AdjustmentSuccessReceipt> | AdjustmentSuccessReceipt),
   options?: RequestHandlerOptions,
 ) => {
   return http.post(
@@ -7553,6 +7851,33 @@ export const getCreateBalanceAdjustmentMockHandler200 = (
             : overrideResponse
           : getCreateBalanceAdjustmentResponseMock200(),
         { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
+export const getCreateBalanceAdjustmentMockHandler400 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/balance-adjustments",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateBalanceAdjustmentResponseMock400(),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/problem+json" },
+        },
       );
     },
     options,
@@ -7588,10 +7913,10 @@ export const getCreateBalanceAdjustmentMockHandler403 = (
 
 export const getCreateBalanceAdjustmentMockHandler404 = (
   overrideResponse?:
-    | ProblemDetails
+    | AdjustmentNotFoundResponse
     | ((
         info: Parameters<Parameters<typeof http.post>[1]>[0],
-      ) => Promise<ProblemDetails> | ProblemDetails),
+      ) => Promise<AdjustmentNotFoundResponse> | AdjustmentNotFoundResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.post(
@@ -7615,10 +7940,10 @@ export const getCreateBalanceAdjustmentMockHandler404 = (
 
 export const getCreateBalanceAdjustmentMockHandler409 = (
   overrideResponse?:
-    | ProblemDetails
+    | AdjustmentConflictResponse
     | ((
         info: Parameters<Parameters<typeof http.post>[1]>[0],
-      ) => Promise<ProblemDetails> | ProblemDetails),
+      ) => Promise<AdjustmentConflictResponse> | AdjustmentConflictResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.post(
@@ -7642,10 +7967,11 @@ export const getCreateBalanceAdjustmentMockHandler409 = (
 
 export const getCreateBalanceAdjustmentMockHandler422 = (
   overrideResponse?:
-    | ProblemDetails
+    | AdjustmentValidationResponse
     | ((
         info: Parameters<Parameters<typeof http.post>[1]>[0],
-      ) => Promise<ProblemDetails> | ProblemDetails),
+      ) =>
+        Promise<AdjustmentValidationResponse> | AdjustmentValidationResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.post(

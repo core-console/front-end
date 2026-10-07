@@ -6,11 +6,16 @@ type ReplacementSession = {
 };
 const sessions = new Map<string, ReplacementSession>();
 const listeners = new Set<() => void>();
+let revision = 0;
 
 export const balanceAdjustmentReplacementKey = (
   ledgerId: string,
   transactionId: string,
 ) => JSON.stringify([ledgerId, transactionId]);
+
+export const balanceAdjustmentReplacementPending = (key: string) =>
+  sessions.has(key);
+export const balanceAdjustmentReplacementRevision = () => revision;
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
@@ -28,6 +33,7 @@ export function claimBalanceAdjustmentReplacement(key: string) {
     transactionMissingObserved: false,
   };
   sessions.set(key, session);
+  revision += 1;
   notify();
   return session;
 }
@@ -44,6 +50,7 @@ export function releaseBalanceAdjustmentReplacement(
 ) {
   if (sessions.get(session.key) !== session) return;
   sessions.delete(session.key);
+  revision += 1;
   notify();
 }
 

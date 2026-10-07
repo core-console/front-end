@@ -111,16 +111,16 @@ The current backend-owned Finance v1 OpenAPI contract is synchronized into
 Fetch clients, TanStack Query hooks, Zod schemas, MSW handlers, and Faker
 fixtures under `src/api/generated/`.
 
-The synchronized producer is backend T06 at
-`cc6b7d035b92e3c695ec67524235a9648184623c`. Ledger, Account, Category, Income,
-Expense, and Internal Transfer creates
-use shared durable browser preparation, correlated evidence, and known-submission
-lookup. Balance Adjustment create retains its preceding contract.
-This partial integration is not
-the all-five production activation gate. See the
-[T03 integration note](docs/finance-ledger-submission-t03.md) for recovery seams
-the [T05 integration note](docs/finance-account-category-submission-t05.md),
-and the [T07 integration note](docs/finance-transaction-submission-t07.md)
+The synchronized producer is backend T08 at
+`6ed5b384ebea3c7179a19b339da1585c5a538730`. All five Finance create
+operations use shared durable browser preparation, correlated evidence, and
+known-submission lookup. Balance Adjustment supports both created Transaction
+identity and terminal noChange without a resource. This cumulative integration
+is not the production activation gate. See the
+[T03 integration note](docs/finance-ledger-submission-t03.md),
+[T05 integration note](docs/finance-account-category-submission-t05.md),
+[T07 integration note](docs/finance-transaction-submission-t07.md), and
+[T09 integration note](docs/finance-adjustment-submission-t09.md)
 for cumulative contract, Money, lifecycle, and browser qualification facts.
 
 Synchronize future committed backend contract changes through the existing

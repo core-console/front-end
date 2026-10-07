@@ -143,6 +143,58 @@ export const FinanceSubmissionTerminal = zod.strictObject({
       submissionId: zod.uuid(),
       targetLedgerId: zod.uuid(),
     }),
+    zod.strictObject({
+      admittedAt: zod.iso.datetime({ offset: true }),
+      commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
+      operation: zod.enum(["createBalanceAdjustment"]),
+      outcome: zod.union([
+        zod.strictObject({
+          kind: zod.literal("created").meta({ title: "Kind" }),
+          resource: zod.strictObject({
+            id: zod.uuid(),
+            type: zod.literal("transaction").meta({ title: "Type" }),
+          }),
+        }),
+        zod.strictObject({
+          kind: zod.literal("noChange").meta({ title: "Kind" }),
+        }),
+        zod.strictObject({
+          kind: zod.literal("rejected").meta({ title: "Kind" }),
+          problem: zod.union([
+            zod.strictObject({
+              code: zod.literal("validation_error").meta({ title: "Code" }),
+              detail: zod.string(),
+              status: zod.literal(422).meta({ title: "Status" }),
+              title: zod.string(),
+              type: zod.string(),
+            }),
+            zod.strictObject({
+              code: zod.enum([
+                "finance_account_archived",
+                "account_balance_changed",
+                "finance_account_semantics_changed",
+              ]),
+              detail: zod.string(),
+              status: zod.literal(409).meta({ title: "Status" }),
+              title: zod.string(),
+              type: zod.string(),
+            }),
+            zod.strictObject({
+              code: zod
+                .literal("finance_account_not_found")
+                .meta({ title: "Code" }),
+              detail: zod.string(),
+              status: zod.literal(404).meta({ title: "Status" }),
+              title: zod.string(),
+              type: zod.string(),
+            }),
+          ]),
+        }),
+      ]),
+      resolvedAt: zod.iso.datetime({ offset: true }),
+      submissionId: zod.uuid(),
+      targetLedgerId: zod.uuid(),
+    }),
   ]),
   state: zod.enum(["terminal"]),
 });

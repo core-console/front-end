@@ -18,7 +18,8 @@ import {
 import {
   AccountReferenceResponse,
   AccountResponse,
-  BalanceAdjustmentResultResponse,
+  AdjustmentSuccessReceipt,
+  FinanceSubmissionResponse,
   CorrectAccountSemanticsRequest,
   CreateFinanceTransactionBody,
   CreateUserRequest,
@@ -245,7 +246,7 @@ describe("generated Finance API boundary", () => {
 
     expect(FinanceOverviewResponse.parse(overview)).toEqual(overview);
     expect(TransactionHistoryPageResponse.parse(history)).toEqual(history);
-    expect(BalanceAdjustmentResultResponse.parse(createAdjustment)).toEqual(
+    expect(AdjustmentSuccessReceipt.parse(createAdjustment)).toEqual(
       createAdjustment,
     );
     expect(
@@ -378,17 +379,28 @@ describe("generated Finance API boundary", () => {
   });
 
   it("keeps Balance Adjustment outcomes discriminated", () => {
+    const receipt = {
+      admittedAt: "2026-10-06T00:00:00Z",
+      resolvedAt: "2026-10-06T00:00:01Z",
+      commandVersion: "1",
+      submissionId: transactionId,
+      targetLedgerId: ledgerId,
+      operation: "createBalanceAdjustment",
+    };
     expect(
-      BalanceAdjustmentResultResponse.parse({
-        outcome: "created",
-        transaction: adjustment,
-      }).outcome,
+      AdjustmentSuccessReceipt.parse({
+        ...receipt,
+        outcome: {
+          kind: "created",
+          resource: { type: "transaction", id: transactionId },
+        },
+      }).outcome.kind,
     ).toBe("created");
     expect(
-      BalanceAdjustmentResultResponse.parse({
-        outcome: "noChange",
-        transaction: null,
-      }).outcome,
+      AdjustmentSuccessReceipt.parse({
+        ...receipt,
+        outcome: { kind: "noChange" },
+      }).outcome.kind,
     ).toBe("noChange");
     expect(
       ReplaceBalanceAdjustmentResultResponse.parse({
@@ -402,6 +414,74 @@ describe("generated Finance API boundary", () => {
         transaction: null,
       }).outcome,
     ).toBe("removed");
+  });
+
+  it("enforces every operation/resource/noChange combination in the cumulative lookup union", () => {
+    const operations = [
+      "createFinanceLedger",
+      "createFinanceAccount",
+      "createFinanceCategory",
+      "createFinanceTransaction",
+      "createBalanceAdjustment",
+    ];
+    const resources = [
+      "ledger",
+      "account",
+      "category",
+      "transaction",
+      "transaction",
+    ];
+    for (const [index, operation] of operations.entries()) {
+      const receipt = {
+        operation,
+        commandVersion: "1",
+        submissionId: transactionId,
+        targetLedgerId: index === 0 ? null : ledgerId,
+        admittedAt: "2026-10-06T00:00:00Z",
+        resolvedAt: "2026-10-06T00:00:01Z",
+      };
+      const accepts = (outcome: unknown) =>
+        FinanceSubmissionResponse.safeParse({
+          state: "terminal",
+          receipt: { ...receipt, outcome },
+        }).success;
+      for (const type of ["ledger", "account", "category", "transaction"])
+        expect(
+          accepts({ kind: "created", resource: { type, id: transactionId } }),
+        ).toBe(type === resources[index]);
+      expect(accepts({ kind: "created" })).toBe(false);
+      expect(accepts({ kind: "noChange" })).toBe(
+        operation === "createBalanceAdjustment",
+      );
+      expect(
+        accepts({
+          kind: "noChange",
+          resource: { type: "transaction", id: transactionId },
+        }),
+      ).toBe(false);
+      expect(
+        accepts({
+          kind: "rejected",
+          problem: {
+            type: "about:blank",
+            title: "Rejected",
+            detail: "Rejected",
+            code:
+              operation === "createFinanceLedger"
+                ? "finance_ledger_name_conflict"
+                : operation === "createFinanceCategory"
+                  ? "finance_category_name_conflict"
+                  : "validation_error",
+            status:
+              operation === "createFinanceLedger" ||
+              operation === "createFinanceCategory"
+                ? 409
+                : 422,
+          },
+        }),
+      ).toBe(true);
+      expect(accepts({ kind: "rejected" })).toBe(false);
+    }
   });
 
   it("keeps every declared Finance error on the Problem Details boundary", () => {
@@ -425,6 +505,9 @@ describe("generated Finance API boundary", () => {
         "#/components/schemas/TransactionNotFoundResponse",
         "#/components/schemas/TransactionConflictResponse",
         "#/components/schemas/TransactionValidationResponse",
+        "#/components/schemas/AdjustmentNotFoundResponse",
+        "#/components/schemas/AdjustmentConflictResponse",
+        "#/components/schemas/AdjustmentValidationResponse",
       ]).toContain(
         response.content?.["application/problem+json"]?.schema?.$ref,
       );

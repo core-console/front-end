@@ -15,6 +15,7 @@ import {
   createFinanceAccount,
   createFinanceCategory,
   createFinanceTransaction,
+  createBalanceAdjustment,
   getCurrentUser,
   getFinanceSubmission,
   getGetCurrentUserQueryKey,
@@ -104,10 +105,21 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
   const running = useRef(new Map<string, Promise<void>>());
   const matches = useCallback(
-    (owner: SubmissionNamespace) =>
-      namespaceKey(active.current) === namespaceKey(owner) &&
-      normalizedApiBaseUrl(env.VITE_API_BASE_URL) === owner.apiBaseUrl,
-    [],
+    (owner: SubmissionNamespace) => {
+      const current = queryClient.getQueryData<
+        Awaited<ReturnType<typeof getCurrentUser>>
+      >(getGetCurrentUserQueryKey());
+      // Query updates precede React's namespace layout effect. Close that gap
+      // before completing a form or projecting the previous owner's resources.
+      const user = MeResponse.safeParse(current?.data);
+      return (
+        namespaceKey(active.current) === namespaceKey(owner) &&
+        normalizedApiBaseUrl(env.VITE_API_BASE_URL) === owner.apiBaseUrl &&
+        user.success &&
+        user.data.id === owner.ownerId
+      );
+    },
+    [queryClient],
   );
   const showMessage = useCallback(
     (record: FinanceSubmission, message: string) => {
@@ -222,7 +234,30 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
           record.state === "resolved" && record.resolution.kind === "receipt"
             ? record.resolution.receipt.outcome
             : null;
-        if (outcome?.kind !== "created") return resource;
+        if (outcome?.kind !== "created" && outcome?.kind !== "noChange")
+          return resource;
+        if (record.operation === "createBalanceAdjustment") {
+          resource = await refreshSubmittedTransaction(
+            queryClient,
+            record,
+            outcome.kind === "created" ? outcome.resource.id : undefined,
+            () => matches(record),
+            () =>
+              showMessage(
+                record,
+                "Balance Adjustment outcome is confirmed. Current Finance resources could not refresh. Retry the resource refresh; do not submit again.",
+              ),
+          );
+          const message =
+            outcome.kind === "noChange"
+              ? "The original balance already matched the target. No Transaction was created. Later balance changes do not change this outcome."
+              : resource.transaction
+                ? "Balance Adjustment creation is confirmed. View Transactions for its current state."
+                : "Balance Adjustment creation is confirmed. The Transaction is currently unavailable; it will not be recreated.";
+          showMessage(record, message);
+          return { ...resource, message };
+        }
+        if (outcome.kind !== "created") return resource;
         const id = outcome.resource.id;
         switch (record.operation) {
           case "createFinanceTransaction": {
@@ -287,7 +322,10 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
         showMessage(record, message);
         return { ...resource, message };
       } catch {
-        const message = `${label} creation is confirmed. Your ${label} list could not refresh. Retry the list refresh; do not create again.`;
+        const message =
+          record.operation === "createBalanceAdjustment"
+            ? "Balance Adjustment outcome is confirmed. Current Finance resources could not refresh. Retry the resource refresh; do not submit again."
+            : `${label} creation is confirmed. Your ${label} list could not refresh. Retry the list refresh; do not create again.`;
         showMessage(record, message);
         return { message };
       }
@@ -306,7 +344,8 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
       if (
         resolved.state === "resolved" &&
         resolved.resolution.kind === "receipt" &&
-        resolved.resolution.receipt.outcome.kind === "created"
+        (resolved.resolution.receipt.outcome.kind === "created" ||
+          resolved.resolution.receipt.outcome.kind === "noChange")
       ) {
         const refreshed = await refresh(resolved);
         return resolved.operation === "createFinanceLedger"
@@ -360,11 +399,17 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
                     record.body,
                     headers,
                   )
-                : await createFinanceTransaction(
-                    record.targetLedgerId,
-                    record.body,
-                    headers,
-                  );
+                : record.operation === "createBalanceAdjustment"
+                  ? await createBalanceAdjustment(
+                      record.targetLedgerId,
+                      record.body,
+                      headers,
+                    )
+                  : await createFinanceTransaction(
+                      record.targetLedgerId,
+                      record.body,
+                      headers,
+                    );
         resolution = createResponseResolution(record, response.data);
         if (!resolution)
           throw new SubmissionRecoveryError(
@@ -409,6 +454,19 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
 
   const transactionRetry = useMutation({
     mutationKey: ["createFinanceTransaction"],
+    mutationFn: async ({
+      record,
+    }: {
+      ledgerId: string;
+      record: FinanceSubmission;
+    }) => {
+      const result = await dispatch(record);
+      await result.refreshing;
+      return result;
+    },
+  });
+  const adjustmentRetry = useMutation({
+    mutationKey: ["createBalanceAdjustment"],
     mutationFn: async ({
       record,
     }: {
@@ -544,6 +602,7 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
     <FinanceSubmissionContext
       value={{
         partitionKey: activeKey,
+        isCurrentNamespace: () => Boolean(namespace && matches(namespace)),
         ready: Boolean(namespace) && !visible.storageError,
         ...visible,
         busy,
@@ -560,7 +619,12 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
                     ledgerId: record.targetLedgerId,
                     record,
                   })
-                : await dispatch(record);
+                : record.operation === "createBalanceAdjustment"
+                  ? await adjustmentRetry.mutateAsync({
+                      ledgerId: record.targetLedgerId,
+                      record,
+                    })
+                  : await dispatch(record);
             if (result.message) showMessage(record, result.message);
           });
         },

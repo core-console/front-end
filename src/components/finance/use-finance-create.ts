@@ -10,13 +10,13 @@ const emptyAttempt = {
   pending: false,
   submittedId: null as string | null,
   terminal: false,
-  created: false,
+  succeeded: false,
   rejected: false,
   error: null as string | null,
 };
 
 export function useFinanceCreate(
-  onCreated: (
+  onSucceeded: (
     result: SubmitResult,
     isCurrent: () => boolean,
   ) => void | Promise<void>,
@@ -67,19 +67,22 @@ export function useFinanceCreate(
     Boolean(visible.submittedId) &&
     !visible.terminal &&
     stored?.state !== "resolved";
-  const locked =
-    unresolved ||
-    visible.created ||
+  const succeeded =
+    visible.succeeded ||
     (stored?.state === "resolved" &&
       stored.resolution.kind === "receipt" &&
-      stored.resolution.receipt.outcome.kind === "created");
+      (stored.resolution.receipt.outcome.kind === "created" ||
+        stored.resolution.receipt.outcome.kind === "noChange"));
+  const locked = unresolved || succeeded;
 
   const submit = async (command: CreateSubmissionCommand) => {
     const workflowSession = session.current;
     if (!enabled || workflowSession.pending || locked || !journal.ready) return;
     const revision = workflowSession.revision;
     const isCurrent = () =>
-      workflowSession.mounted && revision === workflowSession.revision;
+      workflowSession.mounted &&
+      revision === workflowSession.revision &&
+      journal.isCurrentNamespace();
     const key = attemptKey;
     workflowSession.pending = true;
     setAttempt({ key, ...emptyAttempt, pending: true });
@@ -96,17 +99,18 @@ export function useFinanceCreate(
                 terminal: false,
               }));
           });
-          if (!workflowSession.mounted) {
+          if (!workflowSession.mounted || !journal.isCurrentNamespace()) {
             await result.refreshing;
             return;
           }
           setAttempt((previous) => ({
             ...previous,
             terminal: result.record.state === "resolved",
-            created:
+            succeeded:
               result.record.state === "resolved" &&
               result.record.resolution.kind === "receipt" &&
-              result.record.resolution.receipt.outcome.kind === "created",
+              (result.record.resolution.receipt.outcome.kind === "created" ||
+                result.record.resolution.receipt.outcome.kind === "noChange"),
             rejected:
               result.record.state === "resolved" &&
               result.record.resolution.kind === "receipt" &&
@@ -117,10 +121,14 @@ export function useFinanceCreate(
             (result.ledger ||
               result.account ||
               result.category ||
-              result.transaction) &&
+              result.transaction ||
+              (result.record.state === "resolved" &&
+                result.record.resolution.kind === "receipt" &&
+                result.record.resolution.receipt.outcome.kind ===
+                  "noChange")) &&
             isCurrent()
           ) {
-            await onCreated(result, isCurrent);
+            await onSucceeded(result, isCurrent);
             if (options?.continueAfterCreated && isCurrent()) {
               setAttempt({ key, ...emptyAttempt, pending: true });
               workflowSession.revision += 1;
@@ -137,14 +145,15 @@ export function useFinanceCreate(
               isCurrent,
             );
           if (
-            command.operation === "createFinanceTransaction" &&
-            command.workflow !== "quickEntry"
+            command.operation === "createBalanceAdjustment" ||
+            (command.operation === "createFinanceTransaction" &&
+              command.workflow !== "quickEntry")
           )
             await result.refreshing;
         },
       });
     } catch (failure) {
-      if (workflowSession.mounted)
+      if (workflowSession.mounted && journal.isCurrentNamespace())
         setAttempt((previous) => ({
           ...previous,
           error:
@@ -154,7 +163,7 @@ export function useFinanceCreate(
         }));
     } finally {
       workflowSession.pending = false;
-      if (workflowSession.mounted)
+      if (workflowSession.mounted && journal.isCurrentNamespace())
         setAttempt((previous) => ({ ...previous, pending: false }));
     }
   };
@@ -167,6 +176,7 @@ export function useFinanceCreate(
   return {
     pending: visible.pending,
     unresolved: Boolean(locked),
+    succeeded: Boolean(succeeded),
     integrityBlocked: stored?.integrityBlocked ?? false,
     error: visible.error,
     rejected:

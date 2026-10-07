@@ -1,3 +1,7 @@
+import {
+  adjustmentCreateHandler,
+  type AdjustmentFixtureResult,
+} from "@/test/adjustment-handlers";
 import { transactionCreateHandler } from "@/test/transaction-handlers";
 import { submissionTestUser } from "@/test/submission-fixtures";
 import { getGetCurrentUserMockHandler } from "@/api/generated/core-console.msw";
@@ -27,7 +31,6 @@ import {
 } from "@/api/generated/core-console";
 import {
   type FinanceOverviewResponse,
-  type BalanceAdjustmentResultResponse,
   type BalanceAdjustmentContextResponse,
   type TransactionHistoryPageResponse,
 } from "@/api/generated/schemas";
@@ -1300,24 +1303,21 @@ describe("Finance Overview", () => {
               new URL(request.url).searchParams.get("transactionDate") ?? "",
           } satisfies BalanceAdjustmentContextResponse),
       ),
-      http.post(
-        "*/api/finance/ledgers/:ledgerId/balance-adjustments",
-        async ({ request }) => {
-          const body = (await request.json()) as {
-            targetBalance: { amount: string };
-          };
-          if (body.targetBalance.amount === "20.00")
-            return HttpResponse.json({
-              outcome: "noChange",
-              transaction: null,
-            } satisfies BalanceAdjustmentResultResponse);
-          created = true;
+      adjustmentCreateHandler(async ({ request }) => {
+        const body = (await request.json()) as {
+          targetBalance: { amount: string };
+        };
+        if (body.targetBalance.amount === "20.00")
           return HttpResponse.json({
-            outcome: "created",
-            transaction: adjustment,
-          } satisfies BalanceAdjustmentResultResponse);
-        },
-      ),
+            outcome: "noChange",
+            transaction: null,
+          } satisfies AdjustmentFixtureResult);
+        created = true;
+        return HttpResponse.json({
+          outcome: "created",
+          transaction: adjustment,
+        } satisfies AdjustmentFixtureResult);
+      }),
     );
     renderRoute(
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-17`,

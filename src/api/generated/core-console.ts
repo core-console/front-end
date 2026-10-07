@@ -27,14 +27,18 @@ import type {
   AccountCreatedReceipt,
   AccountResponse,
   AccountValidationResponse,
+  AdjustmentConflictResponse,
+  AdjustmentNotFoundResponse,
+  AdjustmentSuccessReceipt,
+  AdjustmentValidationResponse,
   BalanceAdjustmentContextResponse,
-  BalanceAdjustmentResultResponse,
   CategoryConflictResponse,
   CategoryCreatedReceipt,
   CategoryResponse,
   CategoryValidationResponse,
   CorrectAccountSemanticsRequest,
-  CreateBalanceAdjustmentRequest,
+  CreateBalanceAdjustmentBody,
+  CreateBalanceAdjustmentHeaders,
   CreateFinanceAccountBody,
   CreateFinanceAccountHeaders,
   CreateFinanceCategoryBody,
@@ -2232,8 +2236,13 @@ export const useUnarchiveFinanceAccount = <
 };
 
 export type createBalanceAdjustmentResponse200 = {
-  data: BalanceAdjustmentResultResponse;
+  data: AdjustmentSuccessReceipt;
   status: 200;
+};
+
+export type createBalanceAdjustmentResponse400 = {
+  data: ProblemDetails;
+  status: 400;
 };
 
 export type createBalanceAdjustmentResponse403 = {
@@ -2242,17 +2251,17 @@ export type createBalanceAdjustmentResponse403 = {
 };
 
 export type createBalanceAdjustmentResponse404 = {
-  data: ProblemDetails;
+  data: AdjustmentNotFoundResponse;
   status: 404;
 };
 
 export type createBalanceAdjustmentResponse409 = {
-  data: ProblemDetails;
+  data: AdjustmentConflictResponse;
   status: 409;
 };
 
 export type createBalanceAdjustmentResponse422 = {
-  data: ProblemDetails;
+  data: AdjustmentValidationResponse;
   status: 422;
 };
 
@@ -2271,6 +2280,7 @@ export type createBalanceAdjustmentResponseSuccess =
     headers: Headers;
   };
 export type createBalanceAdjustmentResponseError = (
+  | createBalanceAdjustmentResponse400
   | createBalanceAdjustmentResponse403
   | createBalanceAdjustmentResponse404
   | createBalanceAdjustmentResponse409
@@ -2286,12 +2296,13 @@ export const getCreateBalanceAdjustmentUrl = (ledgerId: string) => {
 };
 
 /**
- * Create only the required non-zero account-relative correction delta.
+ * Admits an Adjustment v1 command and returns immutable success evidence.
  * @summary Create a Balance Adjustment
  */
 export const createBalanceAdjustment = async (
   ledgerId: string,
-  createBalanceAdjustmentRequest: CreateBalanceAdjustmentRequest,
+  createBalanceAdjustmentBody: CreateBalanceAdjustmentBody,
+  headers: CreateBalanceAdjustmentHeaders,
   options?: RequestInit,
 ): Promise<createBalanceAdjustmentResponseSuccess> => {
   const getHeaders = (
@@ -2316,10 +2327,10 @@ export const createBalanceAdjustment = async (
     ...options,
     method: "POST",
     headers: getHeaders(
-      { "Content-Type": "application/json" },
+      { "Content-Type": "application/json", ...headers },
       options?.headers,
     ),
-    body: JSON.stringify(createBalanceAdjustmentRequest),
+    body: JSON.stringify(createBalanceAdjustmentBody),
   });
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
@@ -2349,7 +2360,14 @@ export const getCreateBalanceAdjustmentMutationKey = () =>
   ["createBalanceAdjustment"] as const;
 
 export const getCreateBalanceAdjustmentMutationOptions = <
-  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TError = globalThis.Error & {
+    info?:
+      | ProblemDetails
+      | AdjustmentNotFoundResponse
+      | AdjustmentConflictResponse
+      | AdjustmentValidationResponse;
+    status?: number;
+  },
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -2378,9 +2396,9 @@ export const getCreateBalanceAdjustmentMutationOptions = <
     Awaited<ReturnType<typeof createBalanceAdjustment>>,
     CreateBalanceAdjustmentMutationVariables
   > = (props) => {
-    const { ledgerId, data } = props ?? {};
+    const { ledgerId, data, headers } = props ?? {};
 
-    return createBalanceAdjustment(ledgerId, data, fetchOptions);
+    return createBalanceAdjustment(ledgerId, data, headers, fetchOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -2389,22 +2407,33 @@ export const getCreateBalanceAdjustmentMutationOptions = <
 export type CreateBalanceAdjustmentMutationResult = NonNullable<
   Awaited<ReturnType<typeof createBalanceAdjustment>>
 >;
-export type CreateBalanceAdjustmentMutationBody =
-  CreateBalanceAdjustmentRequest;
+export type CreateBalanceAdjustmentMutationBody = CreateBalanceAdjustmentBody;
 export type CreateBalanceAdjustmentMutationError = globalThis.Error & {
-  info?: ProblemDetails;
+  info?:
+    | ProblemDetails
+    | AdjustmentNotFoundResponse
+    | AdjustmentConflictResponse
+    | AdjustmentValidationResponse;
   status?: number;
 };
 export type CreateBalanceAdjustmentMutationVariables = {
   ledgerId: string;
-  data: CreateBalanceAdjustmentRequest;
+  data: CreateBalanceAdjustmentBody;
+  headers: CreateBalanceAdjustmentHeaders;
 };
 
 /**
  * @summary Create a Balance Adjustment
  */
 export const useCreateBalanceAdjustment = <
-  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TError = globalThis.Error & {
+    info?:
+      | ProblemDetails
+      | AdjustmentNotFoundResponse
+      | AdjustmentConflictResponse
+      | AdjustmentValidationResponse;
+    status?: number;
+  },
   TContext = unknown,
 >(
   options?: {
