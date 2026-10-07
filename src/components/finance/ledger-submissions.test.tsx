@@ -99,7 +99,9 @@ describe("Ledger submitted recovery", () => {
       }),
     );
     const { user, name, router } = await createFirst();
-    await screen.findByText(/The Ledger outcome is unknown/);
+    await within(
+      screen.getByRole("region", { name: "Finance submission recovery" }),
+    ).findByText(/The Ledger outcome is unknown/);
     await user.clear(name);
     await user.type(name, "Separate edited draft");
     expect(

@@ -90,17 +90,22 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
   );
   const activeKey = namespaceKey(namespace);
   const active = useRef<SubmissionNamespace | null>(namespace);
+  const loadRevision = useRef(0);
   useLayoutEffect(() => {
     active.current = namespace;
     return () => {
       active.current = null;
+      loadRevision.current += 1;
     };
   }, [namespace]);
   const [view, setView] = useState<{
     key: string;
     records: FinanceSubmission[];
     storageError: string | null;
-    messages: Record<string, string>;
+    messages: Record<
+      string,
+      { state: FinanceSubmission["state"]; text: string }
+    >;
   }>({ key: "", records: [], storageError: null, messages: {} });
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
   const running = useRef(new Map<string, Promise<void>>());
@@ -147,7 +152,7 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
               ...(previous.key === namespaceKey(record)
                 ? previous.messages
                 : {}),
-              [record.submissionId]: message,
+              [record.submissionId]: { state: record.state, text: message },
             },
           };
         });
@@ -156,9 +161,16 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
   );
   const load = useCallback(
     async (owner: SubmissionNamespace) => {
+      // A completed IndexedDB read can be delivered after a newer read or
+      // acknowledgement. Only the latest read may publish its snapshot.
+      const revision = matches(owner) ? ++loadRevision.current : null;
       try {
         const records = await readSubmissions(owner);
-        if (matches(owner))
+        if (
+          revision !== null &&
+          matches(owner) &&
+          revision === loadRevision.current
+        )
           setView((previous) => ({
             key: namespaceKey(owner),
             records,
@@ -166,20 +178,23 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
             messages: Object.fromEntries(
               Object.entries(
                 previous.key === namespaceKey(owner) ? previous.messages : {},
-              ).filter(([id]) => {
+              ).filter(([id, message]) => {
                 const current = records.find(
                   (record) => record.submissionId === id,
                 );
-                const prior = previous.records.find(
-                  (record) => record.submissionId === id,
-                );
-                return current && current.state === prior?.state;
+                // Feedback may arrive before the first snapshot of a prepared
+                // or resolved command. Correlate it to its own durable state.
+                return current && current.state === message.state;
               }),
             ),
           }));
         return records;
       } catch (error) {
-        if (matches(owner))
+        if (
+          revision !== null &&
+          matches(owner) &&
+          revision === loadRevision.current
+        )
           setView({
             key: namespaceKey(owner),
             records: [],
@@ -559,10 +574,13 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
     const activate = () => {
       if (document.visibilityState === "visible") void recover();
     };
-    const channel =
-      typeof BroadcastChannel !== "undefined"
-        ? new BroadcastChannel(submissionDatabaseName)
-        : null;
+    let channel: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== "undefined")
+        channel = new BroadcastChannel(submissionDatabaseName);
+    } catch {
+      /* Activation and explicit recovery reread storage without notifications. */
+    }
     if (channel) channel.onmessage = reread;
     window.addEventListener(journalChangedEvent, reread);
     window.addEventListener("focus", activate);
@@ -605,6 +623,12 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
         isCurrentNamespace: () => Boolean(namespace && matches(namespace)),
         ready: Boolean(namespace) && !visible.storageError,
         ...visible,
+        messages: Object.fromEntries(
+          Object.entries(visible.messages).map(([id, message]) => [
+            id,
+            message.text,
+          ]),
+        ),
         busy,
         submit,
         lookup,

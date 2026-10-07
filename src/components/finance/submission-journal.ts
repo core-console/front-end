@@ -271,7 +271,15 @@ async function transaction<T>(
       /* onabort supplies the transaction result */
     };
     try {
-      action(tx.objectStore(storeName), (result) => {
+      const store = tx.objectStore(storeName);
+      if (
+        !equalJson(store.keyPath, ["apiBaseUrl", "ownerId", "submissionId"]) ||
+        store.autoIncrement
+      )
+        throw new SubmissionRecoveryError(
+          "Browser recovery storage is incompatible. Update or reload Core Console without clearing site data.",
+        );
+      action(store, (result) => {
         value = result;
       });
     } catch (error) {

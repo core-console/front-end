@@ -157,7 +157,12 @@ async function openEntry(entry: (typeof entries)[number]) {
   }
   const form =
     entry.origin === "quick"
-      ? await screen.findByRole("form", { name: "Quick Entry" })
+      ? await screen.findByRole(
+          "form",
+          { name: "Quick Entry" },
+          // Overview is lazy-loaded; wait for its public workflow to be ready.
+          { timeout: 5000 },
+        )
       : await screen.findByRole("dialog");
   if (entry.origin === "quick" && entry.kind === "income")
     await user.click(within(form).getByRole("button", { name: /^Income$/ }));
@@ -484,9 +489,11 @@ describe.each(transactionTestKinds)("%s evidence", (kind) => {
     await waitFor(async () =>
       expect((await readSubmissions(namespace))[0]?.state).toBe("resolved"),
     );
-    await user.click(
-      screen.getByRole("button", { name: "Acknowledge outcome" }),
-    );
+    const acknowledgement = await screen.findByRole("button", {
+      name: "Acknowledge outcome",
+    });
+    await waitFor(() => expect(acknowledgement).toBeEnabled());
+    await user.click(acknowledgement);
     await waitFor(async () =>
       expect(await readSubmissions(namespace)).toEqual([]),
     );
