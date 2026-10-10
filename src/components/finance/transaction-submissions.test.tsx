@@ -147,7 +147,7 @@ async function openEntry(entry: (typeof entries)[number]) {
     );
   } else if (entry.origin === "overview") {
     const trigger = await screen.findByRole("button", {
-      name: "Other transaction actions",
+      name: "其他 Transaction 操作",
     });
     await waitFor(() => expect(trigger).toBeEnabled());
     await user.click(trigger);
@@ -159,15 +159,17 @@ async function openEntry(entry: (typeof entries)[number]) {
     entry.origin === "quick"
       ? await screen.findByRole(
           "form",
-          { name: "Quick Entry" },
+          { name: "快速记账" },
           // Overview is lazy-loaded; wait for its public workflow to be ready.
           { timeout: 5000 },
         )
       : await screen.findByRole("dialog");
   if (entry.origin === "quick" && entry.kind === "income")
-    await user.click(within(form).getByRole("button", { name: /^Income$/ }));
+    await user.click(within(form).getByRole("button", { name: "收入" }));
   await user.type(
-    within(form).getByLabelText("Amount", { exact: true }),
+    within(form).getByLabelText(entry.origin === "quick" ? "金额" : "Amount", {
+      exact: true,
+    }),
     money.amount,
   );
   if (entry.kind === "internalTransfer")
@@ -185,7 +187,9 @@ async function openEntry(entry: (typeof entries)[number]) {
       target: { value: date },
     });
   await user.type(
-    within(form).getByLabelText("Note", { exact: true }),
+    within(form).getByLabelText(entry.origin === "quick" ? "备注" : "Note", {
+      exact: true,
+    }),
     "Immutable note",
   );
   return { user, form, ...rendered };
@@ -193,9 +197,16 @@ async function openEntry(entry: (typeof entries)[number]) {
 function recordButton(
   form: HTMLElement,
   kind: (typeof transactionTestKinds)[number],
+  quick = false,
 ) {
   return within(form).getByRole("button", {
-    name: kind === "internalTransfer" ? "Record transfer" : `Record ${kind}`,
+    name: quick
+      ? kind === "income"
+        ? "记录收入"
+        : "记录支出"
+      : kind === "internalTransfer"
+        ? "Record transfer"
+        : `Record ${kind}`,
   });
 }
 
@@ -231,11 +242,18 @@ describe.each(entries)("$origin $kind submissions", (entry) => {
       ),
     );
     const { user, form } = await openEntry(entry);
-    await user.click(recordButton(form, entry.kind));
-    await waitFor(() => expect(recordButton(form, entry.kind)).toBeDisabled());
+    await user.click(recordButton(form, entry.kind, entry.origin === "quick"));
     await waitFor(() =>
       expect(
-        within(form).getByLabelText("Note", { exact: true }),
+        recordButton(form, entry.kind, entry.origin === "quick"),
+      ).toBeDisabled(),
+    );
+    await waitFor(() =>
+      expect(
+        within(form).getByLabelText(
+          entry.origin === "quick" ? "备注" : "Note",
+          { exact: true },
+        ),
       ).toBeEnabled(),
     );
     expect(posts[0]).toMatchObject({
@@ -243,14 +261,22 @@ describe.each(entries)("$origin $kind submissions", (entry) => {
       owner: submissionTestUser.id,
       version: "1",
     });
-    const note = within(form).getByLabelText("Note", { exact: true });
+    const note = within(form).getByLabelText(
+      entry.origin === "quick" ? "备注" : "Note",
+      { exact: true },
+    );
     await user.clear(note);
     await user.type(note, "New transient draft");
     replay = true;
     if (entry.origin !== "quick")
       await user.click(within(form).getByRole("button", { name: "Cancel" }));
     await user.click(
-      screen.getByRole("button", { name: "Retry original submission" }),
+      screen.getByRole("button", {
+        name:
+          entry.origin === "quick"
+            ? "重试原始提交"
+            : "Retry original submission",
+      }),
     );
     await waitFor(async () =>
       expect((await readSubmissions(namespace))[0]?.state).toBe("resolved"),
@@ -258,21 +284,25 @@ describe.each(entries)("$origin $kind submissions", (entry) => {
     expect(posts[1]).toEqual(posts[0]);
     if (entry.origin === "quick") {
       expect(note).toHaveValue("New transient draft");
-      expect(recordButton(form, entry.kind)).toBeDisabled();
+      expect(
+        recordButton(form, entry.kind, entry.origin === "quick"),
+      ).toBeDisabled();
       await user.click(
         within(form).getByRole("button", {
-          name: "Start a separate Transaction create",
+          name: "另建一笔 Transaction",
         }),
       );
       await user.clear(note);
       await user.type(note, "Immutable note");
-      await user.click(recordButton(form, entry.kind));
+      await user.click(
+        recordButton(form, entry.kind, entry.origin === "quick"),
+      );
     } else {
       const trigger = screen.getAllByRole("button", {
         name:
           entry.origin === "transactions"
             ? "Record transaction"
-            : "Other transaction actions",
+            : "其他 Transaction 操作",
       })[0]!;
       await waitFor(() => expect(trigger).toBeEnabled());
       await user.click(trigger);
@@ -324,26 +354,38 @@ describe.each(entries)("$origin $kind submissions", (entry) => {
       }),
     );
     const { user, form } = await openEntry(entry);
-    await user.click(recordButton(form, entry.kind));
+    await user.click(recordButton(form, entry.kind, entry.origin === "quick"));
     await waitFor(() =>
       expect(within(form).getByRole("alert")).toHaveTextContent(
-        "outcome is unknown",
+        entry.origin === "quick" ? "结果未知" : "outcome is unknown",
       ),
     );
-    expect(recordButton(form, entry.kind)).toBeDisabled();
+    expect(
+      recordButton(form, entry.kind, entry.origin === "quick"),
+    ).toBeDisabled();
     if (entry.origin !== "quick")
       await user.click(within(form).getByRole("button", { name: "Cancel" }));
-    await user.click(screen.getByRole("button", { name: "Check outcome" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: entry.origin === "quick" ? "查询结果" : "Check outcome",
+      }),
+    );
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Check outcome" }),
+        screen.getByRole("button", {
+          name: entry.origin === "quick" ? "查询结果" : "Check outcome",
+        }),
       ).toBeEnabled(),
     );
     expect(posts).toBe(1);
     expect((await readSubmissions(namespace))[0]?.state).toBe("unresolved");
-    expect(recordButton(form, entry.kind)).toBeDisabled();
     expect(
-      screen.queryByRole("button", { name: "Acknowledge outcome" }),
+      recordButton(form, entry.kind, entry.origin === "quick"),
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("button", {
+        name: entry.origin === "quick" ? "确认结果" : "Acknowledge outcome",
+      }),
     ).not.toBeInTheDocument();
   });
 
@@ -365,23 +407,38 @@ describe.each(entries)("$origin $kind submissions", (entry) => {
       }),
     );
     const { user, form } = await openEntry(entry);
-    await user.click(recordButton(form, entry.kind));
+    await user.click(recordButton(form, entry.kind, entry.origin === "quick"));
     await waitFor(() =>
       expect(within(form).getByRole("alert")).toHaveTextContent(
-        "could not refresh",
+        entry.origin === "quick" ? "无法刷新" : "could not refresh",
       ),
     );
-    expect(recordButton(form, entry.kind)).toBeDisabled();
-    expect(within(form).getByLabelText("Amount", { exact: true })).toHaveValue(
-      money.amount,
-    );
     expect(
-      screen.queryByRole("button", { name: "Retry original submission" }),
+      recordButton(form, entry.kind, entry.origin === "quick"),
+    ).toBeDisabled();
+    expect(
+      within(form).getByLabelText(
+        entry.origin === "quick" ? "金额" : "Amount",
+        { exact: true },
+      ),
+    ).toHaveValue(money.amount);
+    expect(
+      screen.queryByRole("button", {
+        name:
+          entry.origin === "quick"
+            ? "重试原始提交"
+            : "Retry original submission",
+      }),
     ).not.toBeInTheDocument();
     if (entry.origin !== "quick")
       await user.click(within(form).getByRole("button", { name: "Cancel" }));
     expect(
-      screen.getByRole("button", { name: "Refresh Transaction list" }),
+      screen.getByRole("button", {
+        name:
+          entry.origin === "quick"
+            ? "刷新 Transaction 列表"
+            : "Refresh Transaction list",
+      }),
     ).toBeEnabled();
   });
 });
@@ -519,10 +576,10 @@ it("blocks dispatch when durable preparation fails", async () => {
     }),
   );
   const { user, form } = await openEntry({ kind: "expense", origin: "quick" });
-  await user.click(recordButton(form, "expense"));
+  await user.click(recordButton(form, "expense", true));
   await waitFor(() =>
     expect(within(form).getByRole("alert")).toHaveTextContent(
-      "storage write failed",
+      "浏览器存储写入失败",
     ),
   );
   expect(posts).toBe(0);
@@ -545,15 +602,15 @@ it("does not retire terminal evidence when its local resolution write fails", as
     ),
   );
   const { user, form } = await openEntry({ kind: "expense", origin: "quick" });
-  await user.click(recordButton(form, "expense"));
+  await user.click(recordButton(form, "expense", true));
   await waitFor(() =>
     expect(within(form).getByRole("alert")).toHaveTextContent(
-      "storage write failed",
+      "浏览器存储写入失败",
     ),
   );
   expect((await readSubmissions(namespace))[0]?.state).toBe("unresolved");
   expect(
-    screen.queryByRole("button", { name: "Acknowledge outcome" }),
+    screen.queryByRole("button", { name: "确认结果" }),
   ).not.toBeInTheDocument();
 });
 
@@ -564,6 +621,130 @@ function gate() {
   });
   return { promise, release };
 }
+
+it.each(["expense", "income"] as const)(
+  "keeps Chinese %s validation associated with visible fields and preserves the draft",
+  async (kind) => {
+    let posts = 0;
+    server.use(
+      http.post("*/api/finance/ledgers/:ledgerId/transactions", () => {
+        posts += 1;
+        return HttpResponse.json({});
+      }),
+    );
+    const { user, form } = await openEntry({ kind, origin: "quick" });
+    const amount = within(form).getByRole("textbox", { name: "金额" });
+    const note = within(form).getByRole("textbox", { name: "备注" });
+    const account = within(form).getByRole("combobox", { name: "Account" });
+    const category = within(form).getByRole("combobox", { name: "Category" });
+    expect(form).toHaveAttribute("lang", "zh-CN");
+    expect(amount).toHaveAccessibleDescription(
+      "金额币种：USD，由所选 Account 决定。 本次 Transaction 日期：2026年10月5日星期一",
+    );
+    expect(note).toHaveAttribute("placeholder", "选填");
+    expect(
+      within(category).getByRole("option", { name: "未分类" }),
+    ).toHaveValue("");
+    expect(
+      within(category).getByRole("option", {
+        name: `Travel，Category 标识 ${categories[1].id}`,
+      }),
+    ).toBeVisible();
+    await user.clear(amount);
+    await user.type(amount, "0");
+    await user.click(recordButton(form, kind, true));
+    expect(amount).toHaveFocus();
+    expect(amount).toHaveAccessibleErrorMessage(
+      "请输入大于零的普通十进制金额。",
+    );
+    expect(within(form).getByRole("alert")).toHaveTextContent(
+      "请输入大于零的普通十进制金额。",
+    );
+    expect(note).toHaveValue("Immutable note");
+    expect(category).toHaveValue(categories[1].id);
+    await user.clear(amount);
+    await user.type(amount, "12.345");
+    await user.click(recordButton(form, kind, true));
+    expect(amount).toHaveAccessibleErrorMessage("USD 金额最多支持 2 位小数。");
+    await user.selectOptions(account, accounts[2].id);
+    await user.click(recordButton(form, kind, true));
+    expect(amount).toHaveAccessibleErrorMessage("JPY 金额不能包含小数。");
+    await user.clear(amount);
+    await user.type(amount, "12");
+    fireEvent.change(note, { target: { value: "文".repeat(501) } });
+    await user.click(recordButton(form, kind, true));
+    expect(note).toHaveFocus();
+    expect(note).toHaveAccessibleErrorMessage("备注不能超过 500 个字符。");
+    expect(amount).toHaveValue("12");
+    expect(posts).toBe(0);
+  },
+);
+
+it.each([
+  [
+    "finance_account_archived",
+    "Account",
+    "Account",
+    "Cash",
+    "请选择其他启用的 Account",
+  ],
+  [
+    "finance_category_not_found",
+    "Category",
+    "Category",
+    "Travel",
+    "请选择其他启用的 Category 或未分类",
+  ],
+] as const)(
+  "announces a Chinese correlated %s rejection and focuses its retained selection",
+  async (code, field, domain, name, guidance) => {
+    server.use(
+      http.post(
+        "*/api/finance/ledgers/:ledgerId/transactions",
+        ({ request }) => {
+          const rejection = {
+            ...problem,
+            code,
+            status: code.endsWith("not_found") ? 404 : 409,
+          };
+          return HttpResponse.json(
+            {
+              ...rejection,
+              submissionReceipt: rejectedTransactionReceipt(
+                request.headers.get("Idempotency-Key")!,
+                ledger.id,
+                rejection,
+              ),
+            },
+            { status: rejection.status },
+          );
+        },
+      ),
+    );
+    const { user, form } = await openEntry({
+      kind: "expense",
+      origin: "quick",
+    });
+    await user.click(recordButton(form, "expense", true));
+    const selection = within(form).getByRole("combobox", { name: field });
+    await waitFor(() => expect(selection).toHaveFocus());
+    expect(selection).toHaveAccessibleErrorMessage(
+      new RegExp(`所选 ${domain}.*${name}.*${guidance}`),
+    );
+    expect(
+      within(selection).getByRole("option", { name: /不可用/ }),
+    ).toBeDisabled();
+    expect(within(form).getByRole("textbox", { name: "金额" })).toHaveValue(
+      money.amount,
+    );
+    expect(within(form).getByRole("textbox", { name: "备注" })).toHaveValue(
+      "Immutable note",
+    );
+    expect(
+      screen.getByRole("status", { name: /^Transaction 创建被拒绝:/ }),
+    ).toHaveAttribute("lang", "zh-CN");
+  },
+);
 
 it.each(["user", "replacement", "deletion"] as const)(
   "does not project a delayed current resource across %s state",
@@ -699,7 +880,7 @@ it("keeps the retargeted Quick Entry draft when a delayed original create comple
     kind: "expense",
     origin: "quick",
   });
-  await user.click(recordButton(form, "expense"));
+  await user.click(recordButton(form, "expense", true));
   await started.promise;
   await act(async () =>
     router.navigate(
@@ -711,15 +892,15 @@ it("keeps the retargeted Quick Entry draft when a delayed original create comple
     expect((await readSubmissions(namespace))[0]?.state).toBe("resolved"),
   );
   await waitFor(() =>
-    expect(within(form).getByLabelText("Note", { exact: true })).toBeEnabled(),
+    expect(within(form).getByLabelText("备注", { exact: true })).toBeEnabled(),
   );
-  expect(within(form).getByLabelText("Amount", { exact: true })).toHaveValue(
+  expect(within(form).getByLabelText("金额", { exact: true })).toHaveValue(
     money.amount,
   );
-  expect(within(form).getByLabelText("Note", { exact: true })).toHaveValue(
+  expect(within(form).getByLabelText("备注", { exact: true })).toHaveValue(
     "Immutable note",
   );
-  expect(recordButton(form, "expense")).toBeDisabled();
+  expect(recordButton(form, "expense", true)).toBeDisabled();
   expect((await readSubmissions(namespace))[0]).toMatchObject({
     body: { transactionDate: date },
   });

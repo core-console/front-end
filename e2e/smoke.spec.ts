@@ -636,7 +636,7 @@ test("enables Other transaction actions at full contrast and preserves keyboard 
   );
   await page.goto("/finance/overview");
   const trigger = page.getByRole("button", {
-    name: "Other transaction actions",
+    name: "其他 Transaction 操作",
     exact: true,
   });
   await expect(trigger).toBeDisabled();
@@ -702,9 +702,7 @@ test("keeps the seven-day Finance Calendar usable in the expanded 1024px shell",
     name: "2026-08 Finance calendar",
   });
   await expect(calendar).toBeVisible();
-  await expect(
-    overview.getByRole("form", { name: "Quick Entry" }),
-  ).toBeVisible();
+  await expect(overview.getByRole("form", { name: "快速记账" })).toBeVisible();
   await expect(
     overview
       .getByRole("region", { name: "Selected-day activity" })
@@ -743,7 +741,7 @@ test("keeps the seven-day Finance Calendar usable in the expanded 1024px shell",
 
 test("records Quick Entry with keyboard order and refreshes the selected day", async ({
   page,
-}) => {
+}, testInfo) => {
   const errors = collectBrowserErrors(page);
   await page.setViewportSize({ height: 900, width: 1024 });
   await mockOverviewDetails(page);
@@ -831,13 +829,30 @@ test("records Quick Entry with keyboard order and refreshes the selected day", a
   await page.goto(
     `/finance/overview?ledger=${financeLedgers[0]!.id}&month=2026-08&date=2026-08-17`,
   );
-  const form = page.getByRole("form", { name: "Quick Entry" });
-  const amount = form.getByRole("textbox", { name: "Amount" });
+  const form = page.getByRole("form", { name: "快速记账" });
+  const amount = form.getByRole("textbox", { name: "金额" });
   const account = form.getByRole("combobox", { name: "Account" });
   const category = form.getByRole("combobox", { name: "Category" });
-  const note = form.getByRole("textbox", { name: "Note" });
+  const note = form.getByRole("textbox", { name: "备注" });
   await expect(form).toBeVisible();
+  await expectLanguage(form, "zh-CN");
+  await expectLanguage(form.getByText("Account", { exact: true }), "en");
+  await expectLanguage(form.getByText("Category", { exact: true }), "en");
+  await expect(amount).toHaveAccessibleDescription(
+    /金额币种：CNY.*本次 Transaction 日期：2026年8月17日/,
+  );
   await expect(amount).not.toBeFocused();
+  await amount.fill("0");
+  await form.getByRole("button", { name: "记录支出" }).click();
+  await expect(amount).toBeFocused();
+  await expect(amount).toHaveAccessibleErrorMessage(
+    "请输入大于零的普通十进制金额。",
+  );
+  await expect(form.getByRole("alert")).toHaveText(
+    "请输入大于零的普通十进制金额。",
+  );
+  await expectNoAccessibilityViolations(page, form, testInfo);
+  await amount.clear();
   await amount.focus();
   await page.keyboard.type("12.34");
   await page.keyboard.press("Tab");
@@ -867,6 +882,8 @@ test("records Quick Entry with keyboard order and refreshes the selected day", a
   await expect(amount).toHaveValue("");
   await expect(amount).toBeFocused();
   await expect(note).toHaveValue("");
+  await expect(page.getByText("已记录支出。", { exact: true })).toBeAttached();
+  await expectNoAccessibilityViolations(page, form, testInfo);
   await expect(category).toHaveValue(financeCategories[0]!.id);
   await expect(
     page.getByRole("button", { name: /2026-08-17.*1 transaction.*Expense/ }),
@@ -1136,11 +1153,11 @@ test("drills into the selected Overview month and restores context with Back", a
   await expect(drilldown).toHaveAttribute("href", historyUrl);
   await expectLanguage(drilldown, "zh-CN");
   const quickEntry = page.getByRole("region", {
-    name: "Quick Entry",
+    name: "快速记账",
     exact: true,
   });
   await quickEntry
-    .getByRole("textbox", { name: "Amount", exact: true })
+    .getByRole("textbox", { name: "金额", exact: true })
     .fill("88.00");
   await expectNoAccessibilityViolations(page, summary, testInfo);
   await drilldown.focus();
@@ -1235,7 +1252,7 @@ test("drills into the selected Overview month and restores context with Back", a
     page.getByRole("button", { name: /^2026-08-31,/ }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(
-    quickEntry.getByRole("textbox", { name: "Amount", exact: true }),
+    quickEntry.getByRole("textbox", { name: "金额", exact: true }),
   ).toHaveValue("");
   await page.goBack();
   await expect(page).toHaveURL(julyUrl);
@@ -3033,7 +3050,7 @@ test("restores Overview dialog invokers and announces detail deletion on return"
     `/finance/overview?ledger=${financeLedgers[0]!.id}&month=2026-08&date=2026-08-16`,
   );
   const invoker = page.getByRole("button", {
-    name: "Other transaction actions",
+    name: "其他 Transaction 操作",
     exact: true,
   });
   await expect(invoker).toBeEnabled();
@@ -3225,8 +3242,8 @@ test("preserves Calendar focus and Quick Entry draft during an Overview refresh"
     name: "2026-08 Finance calendar",
   });
   const amount = overview
-    .getByRole("form", { name: "Quick Entry" })
-    .getByRole("textbox", { name: "Amount" });
+    .getByRole("form", { name: "快速记账" })
+    .getByRole("textbox", { name: "金额" });
   await amount.fill("99.25");
   const selected = calendar.getByRole("button", {
     name: /2026-08-16.*Selected/,

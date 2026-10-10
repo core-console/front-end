@@ -1,3 +1,5 @@
+import { messages } from "@/lib/i18n";
+
 import { z } from "zod";
 
 import {
@@ -15,13 +17,22 @@ import {
   type SubmissionResolution,
 } from "./submission-evidence";
 
+const recoveryCopy = messages.finance.quickEntry.recovery;
+
 export const submissionDatabaseName = "core-console.finance.submissions";
 const storeName = "submissions";
 export const journalChangedEvent = "finance-submissions-changed";
 
 // Only authored recovery guidance may be presented to users. Parser, browser,
 // and transport exceptions can contain response content or internal details.
-export class SubmissionRecoveryError extends Error {}
+export class SubmissionRecoveryError extends Error {
+  readonly localizedMessage: string;
+
+  constructor(message: string, localizedMessage: string = recoveryCopy.failed) {
+    super(message);
+    this.localizedMessage = localizedMessage;
+  }
+}
 
 export const normalizedApiBaseUrl = resolveApiBaseUrl;
 
@@ -142,7 +153,16 @@ export function submissionLabel(record: Pick<FinanceSubmission, "operation">) {
   }
 }
 
+export function isQuickEntrySubmission(command: CreateSubmissionCommand) {
+  return (
+    command.operation === "createFinanceTransaction" &&
+    command.workflow === "quickEntry" &&
+    command.body.kind !== "internalTransfer"
+  );
+}
+
 export function rejectionMessage(record: FinanceSubmission) {
+  if (isQuickEntrySubmission(record)) return recoveryCopy.rejectedGuidance;
   if (record.operation === "createBalanceAdjustment")
     return "The Balance Adjustment command was rejected. Review current Account context before creating a new submission.";
   if (record.operation === "createFinanceTransaction")
@@ -190,6 +210,7 @@ async function openJournal(): Promise<IDBDatabase> {
       reject(
         new SubmissionRecoveryError(
           "Browser storage is unavailable. Enable IndexedDB before creating in Finance.",
+          recoveryCopy.storageUnavailable,
         ),
       );
       return;
@@ -209,6 +230,7 @@ async function openJournal(): Promise<IDBDatabase> {
       reject(
         new SubmissionRecoveryError(
           "Browser storage upgrade is blocked. Close other Core Console tabs and reload; retained submissions must be preserved.",
+          recoveryCopy.storageBlocked,
         ),
       );
     };
@@ -216,6 +238,7 @@ async function openJournal(): Promise<IDBDatabase> {
       reject(
         new SubmissionRecoveryError(
           "Browser storage could not open. Reload without clearing site data.",
+          recoveryCopy.storageOpenFailed,
         ),
       );
     request.onsuccess = () => {
@@ -249,6 +272,7 @@ async function transaction<T>(
       reject(
         new SubmissionRecoveryError(
           "Browser recovery storage is incompatible. Update or reload Core Console without clearing site data.",
+          recoveryCopy.storageIncompatible,
         ),
       );
       return;
@@ -264,6 +288,7 @@ async function transaction<T>(
           ? failure
           : new SubmissionRecoveryError(
               "Browser storage write failed. The submitted command remains recoverable; reload without clearing site data.",
+              recoveryCopy.storageWriteFailed,
             ),
       );
     };
@@ -278,6 +303,7 @@ async function transaction<T>(
       )
         throw new SubmissionRecoveryError(
           "Browser recovery storage is incompatible. Update or reload Core Console without clearing site data.",
+          recoveryCopy.storageIncompatible,
         );
       action(store, (result) => {
         value = result;
@@ -294,6 +320,7 @@ function parseStored(value: unknown): FinanceSubmission {
   if (!parsed.success)
     throw new SubmissionRecoveryError(
       "A retained submission is incompatible or damaged. Recovery is blocked; do not clear site data. Update or reload Core Console.",
+      recoveryCopy.damaged,
     );
   return parsed.data;
 }
@@ -414,6 +441,7 @@ async function updateExisting(
           )
             throw new SubmissionRecoveryError(
               "The retained command changed. Recovery is blocked.",
+              recoveryCopy.commandChanged,
             );
           const next = update(current);
           if (next) store.put(recordSchema.parse(next));
@@ -440,11 +468,13 @@ export async function resolveSubmission(
     if (!validResolution(current, submissionResolutionSchema.parse(resolution)))
       throw new SubmissionRecoveryError(
         "Submission evidence does not match. Recovery is blocked.",
+        recoveryCopy.evidenceMismatch,
       );
     if (current.state === "resolved") {
       if (!equalJson(current.resolution, resolution))
         throw new SubmissionRecoveryError(
           "Conflicting outcome evidence. Recovery is blocked.",
+          recoveryCopy.conflictingEvidence,
         );
       return current;
     }
@@ -465,6 +495,7 @@ export async function acknowledgeSubmission(record: FinanceSubmission) {
     if (current.state !== "resolved")
       throw new SubmissionRecoveryError(
         "Only a durably resolved submission can be acknowledged.",
+        recoveryCopy.unresolvedAcknowledgement,
       );
     return null;
   });

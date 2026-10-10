@@ -224,7 +224,7 @@ async function create(
       name:
         origin === "transactions"
           ? "Record transaction"
-          : "Other transaction actions",
+          : "其他 Transaction 操作",
     })
     .first()
     .click();
@@ -356,7 +356,7 @@ test("late adjustment completion cannot close or focus a newer workflow", async 
   api.holdResponse();
   await page.goto(`/finance/categories?ledger=${ledger.id}`);
   await page.getByRole("link", { name: "Overview", exact: true }).click();
-  await page.getByRole("button", { name: "Other transaction actions" }).click();
+  await page.getByRole("button", { name: "其他 Transaction 操作" }).click();
   await page.getByRole("menuitem", { name: "Balance Adjustment" }).click();
   const form = page.getByRole("dialog");
   await form.getByLabel("Target balance").fill("-0.00");
@@ -364,17 +364,15 @@ test("late adjustment completion cannot close or focus a newer workflow", async 
   await expect.poll(() => api.posts.length).toBe(1);
   await page.goBack();
   await page.getByRole("link", { name: "Overview", exact: true }).click();
-  const quick = page.getByRole("form", { name: "Quick Entry" });
-  await quick.getByLabel("Amount", { exact: true }).fill("19.99");
-  await quick.getByLabel("Amount", { exact: true }).focus();
+  const quick = page.getByRole("form", { name: "快速记账" });
+  await quick.getByLabel("金额", { exact: true }).fill("19.99");
+  await quick.getByLabel("金额", { exact: true }).focus();
   api.releaseResponse();
   await expect(
     page.getByRole("status", { name: /^Balance Adjustment created:/ }),
   ).toBeVisible();
-  await expect(quick.getByLabel("Amount", { exact: true })).toHaveValue(
-    "19.99",
-  );
-  await expect(quick.getByLabel("Amount", { exact: true })).toBeFocused();
+  await expect(quick.getByLabel("金额", { exact: true })).toHaveValue("19.99");
+  await expect(quick.getByLabel("金额", { exact: true })).toBeFocused();
   expect(errors).toEqual([]);
 });
 

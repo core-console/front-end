@@ -1,10 +1,14 @@
+import { messages } from "@/lib/i18n";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 
 import type { SubmitResult } from "./finance-submission-context";
 import type { CreateSubmissionCommand } from "./submission-journal";
 import { useFinanceSubmissions } from "./finance-submission-context";
-import { SubmissionRecoveryError } from "./submission-journal";
+import {
+  isQuickEntrySubmission,
+  SubmissionRecoveryError,
+} from "./submission-journal";
 
 const emptyAttempt = {
   pending: false,
@@ -158,8 +162,12 @@ export function useFinanceCreate(
           ...previous,
           error:
             failure instanceof SubmissionRecoveryError
-              ? failure.message
-              : "Browser preparation failed. Nothing was dispatched. Reload recovery and try again.",
+              ? isQuickEntrySubmission(command)
+                ? failure.localizedMessage
+                : failure.message
+              : isQuickEntrySubmission(command)
+                ? messages.finance.quickEntry.recovery.preparationFailed
+                : "Browser preparation failed. Nothing was dispatched. Reload recovery and try again.",
         }));
     } finally {
       workflowSession.pending = false;

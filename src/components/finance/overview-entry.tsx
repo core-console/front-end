@@ -26,6 +26,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { glossary, locale, messages } from "@/lib/i18n";
+
+const copy = messages.finance.quickEntry;
+
 type SecondaryKind = "internalTransfer" | "balanceAdjustment";
 
 function mutationLedgerId(variables: unknown) {
@@ -144,11 +148,12 @@ export function OverviewEntry({
   return (
     <section
       aria-labelledby="quick-entry-title"
+      lang={locale}
       className="min-w-0 rounded-lg border border-border bg-card p-4"
     >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-base font-semibold" id="quick-entry-title">
-          Quick Entry
+          {copy.title}
         </h2>
         <DropdownMenu>
           {/* Enabled text must not fade in from the disabled opacity. */}
@@ -163,7 +168,7 @@ export function OverviewEntry({
               />
             }
           >
-            Other transaction actions
+            {copy.otherActions}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuGroup>
@@ -171,12 +176,12 @@ export function OverviewEntry({
                 disabled={!hasTransferPair}
                 onClick={() => setSecondaryKind("internalTransfer")}
               >
-                Internal Transfer
+                <span lang="en">{glossary.internalTransfer}</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setSecondaryKind("balanceAdjustment")}
               >
-                Balance Adjustment
+                <span lang="en">{glossary.balanceAdjustment}</span>
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
@@ -184,27 +189,25 @@ export function OverviewEntry({
       </div>
       {hasReferences && activeAccounts.length > 0 && !hasTransferPair ? (
         <p className="mb-4 text-sm text-muted-foreground">
-          Internal Transfer needs two distinct active Accounts using the same
-          currency.{" "}
+          {copy.transferGuidance}{" "}
           <Link
             className="text-primary underline"
             to={`/finance/accounts${buildFinanceSearch(ledgerId, { date, month: date.slice(0, 7) })}`}
           >
-            Manage Accounts for Internal Transfer
+            {copy.manageTransferAccounts}
           </Link>
-          .
         </p>
       ) : null}
       {accountsQuery.isSuccess &&
       activeAccounts.length === 0 &&
       !hadActiveAccount.current ? (
         <div className="flex flex-col items-start gap-2 text-sm">
-          <p>Quick Entry and transaction creation need an active Account.</p>
+          <p>{copy.needsAccount}</p>
           <Link
             className="text-primary underline"
             to={`/finance/accounts${buildFinanceSearch(ledgerId, { date, month: date.slice(0, 7) })}`}
           >
-            Create or unarchive an Account
+            {copy.manageAccounts}
           </Link>
         </div>
       ) : hasReferences ? (
@@ -243,8 +246,8 @@ export function OverviewEntry({
             {accountsQuery.isError ||
             categoriesQuery.isError ||
             currenciesQuery.isError
-              ? "Quick Entry references could not load. Try again."
-              : "Loading Quick Entry references…"}
+              ? copy.referencesFailed
+              : copy.loadingReferences}
           </p>
           {accountsQuery.isError ||
           categoriesQuery.isError ||
@@ -260,7 +263,7 @@ export function OverviewEntry({
               size="sm"
               variant="outline"
             >
-              Retry Quick Entry references
+              {copy.retryReferences}
             </Button>
           ) : null}
         </div>
@@ -269,14 +272,13 @@ export function OverviewEntry({
       activeAccounts.length === 0 &&
       hadActiveAccount.current ? (
         <p className="mt-3 text-sm" role="alert">
-          No active Account is available. The draft is preserved.{" "}
+          {copy.noActiveAccount}{" "}
           <Link
             className="text-primary underline"
             to={`/finance/accounts${buildFinanceSearch(ledgerId, { date, month: date.slice(0, 7) })}`}
           >
-            Create or unarchive an Account
+            {copy.manageAccounts}
           </Link>{" "}
-          before recording.
         </p>
       ) : null}
       {hasReferences && !referencesFresh ? (
@@ -286,8 +288,8 @@ export function OverviewEntry({
         >
           <p>
             {referenceProblem
-              ? "Quick Entry references could not refresh. The draft is preserved."
-              : "Refreshing Quick Entry references…"}
+              ? copy.referenceRefreshFailed
+              : copy.refreshingReferences}
           </p>
           {referenceProblem ? (
             <Button
@@ -301,7 +303,7 @@ export function OverviewEntry({
               size="sm"
               variant="outline"
             >
-              Retry Quick Entry references
+              {copy.retryReferences}
             </Button>
           ) : null}
         </div>

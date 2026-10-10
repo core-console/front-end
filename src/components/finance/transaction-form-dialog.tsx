@@ -34,6 +34,9 @@ import {
 } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatOverviewDate } from "@/components/finance/overview-date";
+import { glossary, locale, messages } from "@/lib/i18n";
+
+const copy = messages.finance.quickEntry;
 
 type OrdinaryTransactionKind = "expense" | "income";
 type FormErrors = Partial<
@@ -102,7 +105,10 @@ export function TransactionFormDialog({
   submitBlocked = false,
 }: TransactionFormDialogProps) {
   const inline = inlineDate !== undefined;
-  const accountLabels = buildAccountWorkflowLabels(accounts);
+  const accountLabels = buildAccountWorkflowLabels(
+    accounts,
+    inline ? locale : undefined,
+  );
   const initialAccount = accounts.find(
     (account) => account.status === "active",
   );
@@ -158,7 +164,11 @@ export function TransactionFormDialog({
       ? selectedCategoryIdentity.label
       : undefined) ??
     (selectedCategory
-      ? categoryWorkflowLabel(selectedCategory, categories)
+      ? categoryWorkflowLabel(
+          selectedCategory,
+          categories,
+          inline ? locale : undefined,
+        )
       : unavailableCategoryLabels.get(categoryId));
   const selectedCurrency = currencies.find(
     (currency) => currency.code === selectedAccount?.currency,
@@ -189,8 +199,11 @@ export function TransactionFormDialog({
 
         const feedback = getTransactionProblemFeedback(
           error,
-          `The ${kind} could not be recorded. Try again.`,
+          inline
+            ? copy.validation.failed
+            : `The ${kind} could not be recorded. Try again.`,
           {
+            ...(inline ? { locale } : {}),
             ...(selectedAccountLabel === undefined
               ? {}
               : { accountLabel: selectedAccountLabel }),
@@ -211,7 +224,7 @@ export function TransactionFormDialog({
               accountId,
               selectedAccountLabel ??
                 selectedAccount?.name ??
-                "Selected Account",
+                (inline ? copy.selectedAccount : "Selected Account"),
             );
             return next;
           });
@@ -223,7 +236,7 @@ export function TransactionFormDialog({
               categoryId,
               selectedCategoryLabel ??
                 selectedCategory?.name ??
-                "Selected Category",
+                (inline ? copy.selectedCategory : "Selected Category"),
             );
             return next;
           });
@@ -293,40 +306,58 @@ export function TransactionFormDialog({
     const nextErrors: FormErrors = {};
     const trimmedNote = note.trim();
     if (!isStrictlyPositiveDecimal(amount)) {
-      nextErrors.amount = "Enter a positive plain decimal amount.";
+      nextErrors.amount = inline
+        ? copy.validation.positiveAmount
+        : "Enter a positive plain decimal amount.";
     } else if (normalizedIntegerDigitCount(amount) > durableIntegerDigitsMax) {
-      nextErrors.amount = "Amount has too many integer digits.";
+      nextErrors.amount = inline
+        ? copy.validation.integerDigits
+        : "Amount has too many integer digits.";
     } else if (!selectedCurrency) {
-      nextErrors.amount = "Amount currency is unavailable for this Account.";
+      nextErrors.amount = inline
+        ? copy.validation.currencyUnavailable
+        : "Amount currency is unavailable for this Account.";
     } else if (
       (amount.split(".")[1]?.length ?? 0) > selectedCurrency.minorUnit
     ) {
-      nextErrors.amount =
-        selectedCurrency.minorUnit === 0
+      nextErrors.amount = inline
+        ? copy.validation.fractionDigits(
+            selectedCurrency.code,
+            selectedCurrency.minorUnit,
+          )
+        : selectedCurrency.minorUnit === 0
           ? `${selectedCurrency.code} amounts cannot include fractional digits.`
           : `${selectedCurrency.code} amounts support at most ${selectedCurrency.minorUnit} fractional digits.`;
     }
     if (!selectedAccount || selectedAccount.status !== "active") {
-      nextErrors.accountId = "Choose an active Account.";
+      nextErrors.accountId = inline
+        ? copy.validation.activeAccount
+        : "Choose an active Account.";
     }
     if (
       categoryId &&
       (!selectedCategory || selectedCategory.status !== "active")
     ) {
-      nextErrors.categoryId =
-        "Choose an active Category or explicit Uncategorized.";
+      nextErrors.categoryId = inline
+        ? copy.validation.activeCategory
+        : "Choose an active Category or explicit Uncategorized.";
     }
     if (!FinanceRequestDate.safeParse(effectiveDate).success) {
-      nextErrors.transactionDate = "Enter a valid Transaction Date.";
+      nextErrors.transactionDate = inline
+        ? copy.validation.validDate
+        : "Enter a valid Transaction Date.";
     } else if (
       selectedAccount &&
       effectiveDate < selectedAccount.trackingStartDate
     ) {
-      nextErrors.transactionDate =
-        "Choose a Transaction Date on or after the Account's Tracking Start Date.";
+      nextErrors.transactionDate = inline
+        ? copy.validation.trackingDate
+        : "Choose a Transaction Date on or after the Account's Tracking Start Date.";
     }
     if ([...trimmedNote].length > 500) {
-      nextErrors.note = "Note must be 500 characters or fewer.";
+      nextErrors.note = inline
+        ? copy.validation.noteLength
+        : "Note must be 500 characters or fewer.";
     }
 
     setErrors(nextErrors);
@@ -386,18 +417,15 @@ export function TransactionFormDialog({
     <form
       aria-busy={create.pending}
       aria-describedby={inline ? "quick-entry-effective-date" : undefined}
-      aria-label={inline ? "Quick Entry" : `Record ${kind}`}
+      aria-label={inline ? copy.title : `Record ${kind}`}
+      lang={inline ? locale : undefined}
       className="flex flex-col gap-4"
       noValidate
       onSubmit={handleSubmit}
     >
       {inline ? (
         <>
-          <div
-            aria-label="Quick Entry kind"
-            className="flex gap-2"
-            role="group"
-          >
+          <div aria-label={copy.kind} className="flex gap-2" role="group">
             <Button
               aria-pressed={kind === "expense"}
               disabled={create.pending}
@@ -405,7 +433,7 @@ export function TransactionFormDialog({
               type="button"
               variant={kind === "expense" ? "default" : "outline"}
             >
-              Expense
+              {copy.expense}
             </Button>
             <Button
               aria-pressed={kind === "income"}
@@ -414,23 +442,25 @@ export function TransactionFormDialog({
               type="button"
               variant={kind === "income" ? "default" : "outline"}
             >
-              Income
+              {copy.income}
             </Button>
           </div>
           <p
             className="text-sm text-muted-foreground"
             id="quick-entry-effective-date"
           >
-            Effective Transaction Date:{" "}
+            {copy.effectiveDate}
             <time dateTime={effectiveDate}>
-              {formatOverviewDate(effectiveDate)}
+              {formatOverviewDate(effectiveDate, locale)}
             </time>
           </p>
         </>
       ) : null}
       <FieldGroup>
         <Field data-invalid={Boolean(errors.amount)}>
-          <FieldLabel htmlFor={`${formId}-amount`}>Amount</FieldLabel>
+          <FieldLabel htmlFor={`${formId}-amount`}>
+            {inline ? copy.amount : "Amount"}
+          </FieldLabel>
           <Input
             aria-describedby={`${formId}-amount-description${inline ? " quick-entry-effective-date" : ""}`}
             aria-errormessage={
@@ -450,18 +480,28 @@ export function TransactionFormDialog({
           />
           {selectedAccount ? (
             <FieldDescription id={`${formId}-amount-description`}>
-              Amount currency: <span>{selectedAccount.currency}</span> from the
-              selected Account.
+              {inline ? (
+                copy.amountCurrency(selectedAccount.currency)
+              ) : (
+                <>
+                  Amount currency: <span>{selectedAccount.currency}</span> from
+                  the selected Account.
+                </>
+              )}
             </FieldDescription>
           ) : (
             <FieldDescription id={`${formId}-amount-description`}>
-              Select an Account to establish currency.
+              {inline
+                ? copy.selectCurrencyAccount
+                : "Select an Account to establish currency."}
             </FieldDescription>
           )}
           <FieldError id={`${formId}-amount-error`}>{errors.amount}</FieldError>
         </Field>
         <Field data-invalid={Boolean(errors.accountId)}>
-          <FieldLabel htmlFor={`${formId}-account`}>Account</FieldLabel>
+          <FieldLabel htmlFor={`${formId}-account`}>
+            <span lang="en">{glossary.account}</span>
+          </FieldLabel>
           <NativeSelect
             aria-describedby={`${formId}-account-description`}
             aria-errormessage={
@@ -492,11 +532,17 @@ export function TransactionFormDialog({
             ref={accountRef}
             value={accountId}
           >
-            <NativeSelectOption value="">Select an Account</NativeSelectOption>
+            <NativeSelectOption value="">
+              {inline ? copy.selectAccount : "Select an Account"}
+            </NativeSelectOption>
             {accountId &&
             !activeAccounts.some((account) => account.id === accountId) ? (
               <NativeSelectOption disabled value={accountId}>
-                {selectedAccountLabel ?? "Selected Account"} (unavailable)
+                {inline
+                  ? copy.unavailable(
+                      selectedAccountLabel ?? copy.selectedAccount,
+                    )
+                  : `${selectedAccountLabel ?? "Selected Account"} (unavailable)`}
               </NativeSelectOption>
             ) : null}
             {activeAccounts.map((account) => (
@@ -506,15 +552,18 @@ export function TransactionFormDialog({
             ))}
           </NativeSelect>
           <FieldDescription id={`${formId}-account-description`}>
-            Only active Accounts can be selected. The selected Account supplies
-            currency.
+            {inline
+              ? copy.accountGuidance
+              : "Only active Accounts can be selected. The selected Account supplies currency."}
           </FieldDescription>
           <FieldError id={`${formId}-account-error`}>
             {errors.accountId}
           </FieldError>
         </Field>
         <Field data-invalid={Boolean(errors.categoryId)}>
-          <FieldLabel htmlFor={`${formId}-category`}>Category</FieldLabel>
+          <FieldLabel htmlFor={`${formId}-category`}>
+            <span lang="en">{glossary.category}</span>
+          </FieldLabel>
           <NativeSelect
             aria-describedby={`${formId}-category-description`}
             aria-errormessage={
@@ -533,7 +582,11 @@ export function TransactionFormDialog({
                 nextCategory
                   ? {
                       id: nextCategory.id,
-                      label: categoryWorkflowLabel(nextCategory, categories),
+                      label: categoryWorkflowLabel(
+                        nextCategory,
+                        categories,
+                        inline ? locale : undefined,
+                      ),
                     }
                   : null,
               );
@@ -542,21 +595,33 @@ export function TransactionFormDialog({
             ref={categoryRef}
             value={categoryId}
           >
-            <NativeSelectOption value="">Uncategorized</NativeSelectOption>
+            <NativeSelectOption value="">
+              {inline ? copy.uncategorized : "Uncategorized"}
+            </NativeSelectOption>
             {categoryId &&
             !activeCategories.some((category) => category.id === categoryId) ? (
               <NativeSelectOption disabled value={categoryId}>
-                {selectedCategoryLabel ?? "Selected Category"} (unavailable)
+                {inline
+                  ? copy.unavailable(
+                      selectedCategoryLabel ?? copy.selectedCategory,
+                    )
+                  : `${selectedCategoryLabel ?? "Selected Category"} (unavailable)`}
               </NativeSelectOption>
             ) : null}
             {activeCategories.map((category) => (
               <NativeSelectOption key={category.id} value={category.id}>
-                {categoryWorkflowLabel(category, categories)}
+                {categoryWorkflowLabel(
+                  category,
+                  categories,
+                  inline ? locale : undefined,
+                )}
               </NativeSelectOption>
             ))}
           </NativeSelect>
           <FieldDescription id={`${formId}-category-description`}>
-            Categories are optional; Uncategorized is a complete allocation.
+            {inline
+              ? copy.categoryGuidance
+              : "Categories are optional; Uncategorized is a complete allocation."}
           </FieldDescription>
           <FieldError id={`${formId}-category-error`}>
             {errors.categoryId}
@@ -590,7 +655,9 @@ export function TransactionFormDialog({
           </p>
         ) : null}
         <Field data-invalid={Boolean(errors.note)}>
-          <FieldLabel htmlFor={`${formId}-note`}>Note</FieldLabel>
+          <FieldLabel htmlFor={`${formId}-note`}>
+            {inline ? copy.note : "Note"}
+          </FieldLabel>
           {inline ? (
             <Input
               aria-errormessage={
@@ -603,7 +670,7 @@ export function TransactionFormDialog({
                 setNote(event.target.value);
                 clearFieldError("note");
               }}
-              placeholder="Optional"
+              placeholder={copy.optional}
               ref={inlineNoteRef}
               value={note}
             />
@@ -646,7 +713,7 @@ export function TransactionFormDialog({
         ) : null}
         {create.unresolved && !create.integrityBlocked && !create.pending ? (
           <Button type="button" variant="outline" onClick={create.startAnother}>
-            Start a separate Transaction create
+            {inline ? copy.startAnother : "Start a separate Transaction create"}
           </Button>
         ) : null}
         <Button
@@ -658,7 +725,13 @@ export function TransactionFormDialog({
           }
           type="submit"
         >
-          {create.pending ? `Recording ${kind}…` : `Record ${kind}`}
+          {inline
+            ? create.pending
+              ? copy.recording(kind)
+              : copy.record(kind)
+            : create.pending
+              ? `Recording ${kind}…`
+              : `Record ${kind}`}
         </Button>
       </div>
     </form>

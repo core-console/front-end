@@ -23,7 +23,7 @@ export type SubmissionContext = {
   isCurrentNamespace: () => boolean;
   ready: boolean;
   records: FinanceSubmission[];
-  storageError: string | null;
+  storageError: { message: string; localizedMessage: string } | null;
   messages: Record<string, string>;
   busy: ReadonlySet<string>;
   submit: (

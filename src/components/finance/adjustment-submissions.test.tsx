@@ -269,7 +269,7 @@ async function openAdjustment(
       name:
         origin === "transactions"
           ? "Record transaction"
-          : "Other transaction actions",
+          : "其他 Transaction 操作",
     },
     { timeout: 5000 },
   );

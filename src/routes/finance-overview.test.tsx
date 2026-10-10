@@ -335,11 +335,9 @@ describe("Finance Overview", () => {
     await user.click(
       await within(day).findByRole("button", { name: "Record for this date" }),
     );
+    expect(await screen.findByRole("textbox", { name: "金额" })).toHaveFocus();
     expect(
-      await screen.findByRole("textbox", { name: "Amount" }),
-    ).toHaveFocus();
-    expect(
-      screen.getByText(/Effective Transaction Date:/).querySelector("time"),
+      screen.getByText(/本次 Transaction 日期：/).querySelector("time"),
     ).toHaveAttribute("datetime", "2026-08-17");
   });
 
@@ -674,16 +672,16 @@ describe("Finance Overview", () => {
     renderRoute(
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-17`,
     );
-    const form = await screen.findByRole("form", { name: "Quick Entry" });
-    await user.click(within(form).getByRole("button", { name: "Income" }));
-    const amount = within(form).getByRole("textbox", { name: "Amount" });
+    const form = await screen.findByRole("form", { name: "快速记账" });
+    await user.click(within(form).getByRole("button", { name: "收入" }));
+    const amount = within(form).getByRole("textbox", { name: "金额" });
     await user.type(amount, "9007199254740993.25");
     await user.selectOptions(
       within(form).getByRole("combobox", { name: "Category" }),
       category.id,
     );
     await user.type(
-      within(form).getByRole("textbox", { name: "Note" }),
+      within(form).getByRole("textbox", { name: "备注" }),
       "Award{Enter}",
     );
     await waitFor(() =>
@@ -703,14 +701,15 @@ describe("Finance Overview", () => {
     );
     await waitFor(() => expect(amount).toHaveValue(""));
     await waitFor(() => expect(amount).toHaveFocus());
-    expect(within(form).getByRole("textbox", { name: "Note" })).toHaveValue("");
-    expect(
-      within(form).getByRole("button", { name: "Income" }),
-    ).toHaveAttribute("aria-pressed", "true");
+    expect(within(form).getByRole("textbox", { name: "备注" })).toHaveValue("");
+    expect(within(form).getByRole("button", { name: "收入" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     expect(
       within(form).getByRole("combobox", { name: "Category" }),
     ).toHaveValue(category.id);
-    expect(await screen.findByText("Income recorded.")).toBeInTheDocument();
+    expect(await screen.findByText("已记录收入。")).toBeInTheDocument();
     expect(
       await within(
         screen.getByRole("region", { name: "Selected-day activity" }),
@@ -787,11 +786,11 @@ describe("Finance Overview", () => {
     renderRoute(
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-17`,
     );
-    const form = await screen.findByRole("form", { name: "Quick Entry" });
-    const amount = within(form).getByRole("textbox", { name: "Amount" });
+    const form = await screen.findByRole("form", { name: "快速记账" });
+    const amount = within(form).getByRole("textbox", { name: "金额" });
     await screen.findByText("No transactions for this date");
     await user.type(amount, "12.34{Enter}");
-    expect(await screen.findByText("Expense recorded.")).toBeInTheDocument();
+    expect(await screen.findByText("已记录支出。")).toBeInTheDocument();
     await waitFor(() => expect(amount).toHaveValue(""));
     await waitFor(() => expect(amount).toHaveFocus());
     expect(requests).toBe(2);
@@ -896,15 +895,15 @@ describe("Finance Overview", () => {
     renderRoute(
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-17`,
     );
-    const form = await screen.findByRole("form", { name: "Quick Entry" });
-    const amount = within(form).getByRole("textbox", { name: "Amount" });
+    const form = await screen.findByRole("form", { name: "快速记账" });
+    const amount = within(form).getByRole("textbox", { name: "金额" });
     await screen.findByText("No transactions for this date");
     await user.type(amount, "10.00{Enter}");
     await waitFor(() => expect(requests).toBe(2));
     await waitFor(() => expect(amount).toHaveValue(""));
     await waitFor(() =>
       expect(
-        within(form).getByRole("button", { name: "Record expense" }),
+        within(form).getByRole("button", { name: "记录支出" }),
       ).toBeEnabled(),
     );
     await user.type(amount, "20.00{Enter}");
@@ -949,11 +948,11 @@ describe("Finance Overview", () => {
     const { router } = renderRoute(
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-16`,
     );
-    const form = await screen.findByRole("form", { name: "Quick Entry" });
-    const amount = within(form).getByRole("textbox", { name: "Amount" });
+    const form = await screen.findByRole("form", { name: "快速记账" });
+    const amount = within(form).getByRole("textbox", { name: "金额" });
     await user.type(amount, "12.34");
     await user.type(
-      within(form).getByRole("textbox", { name: "Note" }),
+      within(form).getByRole("textbox", { name: "备注" }),
       "Lunch",
     );
     await user.click(
@@ -963,7 +962,7 @@ describe("Finance Overview", () => {
     );
     expect(router.state.location.search).toContain("date=2026-08-17");
     expect(amount).toHaveValue("12.34");
-    expect(within(form).getByRole("textbox", { name: "Note" })).toHaveValue(
+    expect(within(form).getByRole("textbox", { name: "备注" })).toHaveValue(
       "Lunch",
     );
     expect(form.querySelector("time")).toHaveAttribute(
@@ -1007,10 +1006,10 @@ describe("Finance Overview", () => {
       await screen.findByRole("menuitem", { name: "Team fund" }),
     );
     expect(router.state.location.search).toContain(`ledger=${otherLedger.id}`);
-    const nextForm = await screen.findByRole("form", { name: "Quick Entry" });
-    expect(
-      within(nextForm).getByRole("textbox", { name: "Amount" }),
-    ).toHaveValue("");
+    const nextForm = await screen.findByRole("form", { name: "快速记账" });
+    expect(within(nextForm).getByRole("textbox", { name: "金额" })).toHaveValue(
+      "",
+    );
     expect(nextForm.querySelector("time")).toHaveAttribute(
       "datetime",
       "2026-08-17",
@@ -1047,8 +1046,8 @@ describe("Finance Overview", () => {
     const { queryClient } = renderRoute(
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-17`,
     );
-    const form = await screen.findByRole("form", { name: "Quick Entry" });
-    const amount = within(form).getByRole("textbox", { name: "Amount" });
+    const form = await screen.findByRole("form", { name: "快速记账" });
+    const amount = within(form).getByRole("textbox", { name: "金额" });
     const accountSelect = within(form).getByRole("combobox", {
       name: "Account",
     });
@@ -1073,21 +1072,17 @@ describe("Finance Overview", () => {
     expect(categorySelect).toHaveValue(category.id);
     await waitFor(() =>
       expect(
-        within(accountSelect).getByRole("option", { name: /unavailable/ }),
+        within(accountSelect).getByRole("option", { name: /不可用/ }),
       ).toBeDisabled(),
     );
     expect(
-      within(categorySelect).getByRole("option", { name: /unavailable/ }),
+      within(categorySelect).getByRole("option", { name: /不可用/ }),
     ).toBeDisabled();
-    await user.click(
-      within(form).getByRole("button", { name: "Record expense" }),
-    );
+    await user.click(within(form).getByRole("button", { name: "记录支出" }));
     expect(submissions).toBe(0);
     expect(accountSelect).toHaveFocus();
     await user.selectOptions(accountSelect, second.id);
-    await user.click(
-      within(form).getByRole("button", { name: "Record expense" }),
-    );
+    await user.click(within(form).getByRole("button", { name: "记录支出" }));
     expect(submissions).toBe(0);
     expect(categorySelect).toHaveFocus();
   });
@@ -1102,7 +1097,7 @@ describe("Finance Overview", () => {
     const calendar = await screen.findByRole("grid", {
       name: "2026-08 Finance calendar",
     });
-    const quickEntry = screen.getByRole("region", { name: "Quick Entry" });
+    const quickEntry = screen.getByRole("region", { name: "快速记账" });
     const dayError = await screen.findByRole("alert", {
       name: "Selected-day error",
     });
@@ -1170,26 +1165,26 @@ describe("Finance Overview", () => {
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-17`,
     );
     const quickEntry = await screen.findByRole("region", {
-      name: "Quick Entry",
+      name: "快速记账",
     });
     expect(
-      await within(quickEntry).findByText(/need an active Account/),
+      await within(quickEntry).findByText(/快速记账需要启用的 Account/),
     ).toBeVisible();
     expect(
       within(quickEntry).getByRole("link", {
-        name: "Create or unarchive an Account",
+        name: "新建或取消归档 Account",
       }),
     ).toHaveAttribute("href", expect.stringContaining("/finance/accounts"));
     expect(
       within(quickEntry).getByRole("button", {
-        name: "Other transaction actions",
+        name: "其他 Transaction 操作",
       }),
     ).toBeDisabled();
     expect(
       await screen.findByRole("button", { name: "Record for this date" }),
     ).toBeDisabled();
     expect(
-      screen.queryByRole("form", { name: "Quick Entry" }),
+      screen.queryByRole("form", { name: "快速记账" }),
     ).not.toBeInTheDocument();
   });
 
@@ -1209,8 +1204,8 @@ describe("Finance Overview", () => {
     const { queryClient } = renderRoute(
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-17`,
     );
-    const form = await screen.findByRole("form", { name: "Quick Entry" });
-    const amount = within(form).getByRole("textbox", { name: "Amount" });
+    const form = await screen.findByRole("form", { name: "快速记账" });
+    const amount = within(form).getByRole("textbox", { name: "金额" });
     await user.type(amount, "12.34");
     amount.focus();
     archived = true;
@@ -1222,11 +1217,11 @@ describe("Finance Overview", () => {
     expect(amount).toHaveValue("12.34");
     await waitFor(() =>
       expect(
-        within(form).getByRole("button", { name: "Record expense" }),
+        within(form).getByRole("button", { name: "记录支出" }),
       ).toBeDisabled(),
     );
     expect(
-      screen.getByRole("link", { name: "Create or unarchive an Account" }),
+      screen.getByRole("link", { name: "新建或取消归档 Account" }),
     ).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Record for this date" }),
@@ -1246,8 +1241,8 @@ describe("Finance Overview", () => {
     const { queryClient } = renderRoute(
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-17`,
     );
-    const form = await screen.findByRole("form", { name: "Quick Entry" });
-    const amount = within(form).getByRole("textbox", { name: "Amount" });
+    const form = await screen.findByRole("form", { name: "快速记账" });
+    const amount = within(form).getByRole("textbox", { name: "金额" });
     await user.type(amount, "12.34");
     amount.focus();
     server.use(getListFinanceAccountsMockHandler503());
@@ -1257,19 +1252,17 @@ describe("Finance Overview", () => {
     expect(form).toBeInTheDocument();
     expect(amount).toHaveValue("12.34");
     expect(amount).toHaveFocus();
+    expect(await screen.findByText(/无法刷新快速记账所需数据/)).toBeVisible();
     expect(
-      await screen.findByText(/Quick Entry references could not refresh/),
-    ).toBeVisible();
-    expect(
-      within(form).getByRole("button", { name: "Record expense" }),
+      within(form).getByRole("button", { name: "记录支出" }),
     ).toBeDisabled();
     server.use(getListFinanceAccountsMockHandler([account]));
     await user.click(
-      screen.getByRole("button", { name: "Retry Quick Entry references" }),
+      screen.getByRole("button", { name: "重试加载快速记账数据" }),
     );
     await waitFor(() =>
       expect(
-        within(form).getByRole("button", { name: "Record expense" }),
+        within(form).getByRole("button", { name: "记录支出" }),
       ).toBeEnabled(),
     );
     expect(amount).toHaveValue("12.34");
@@ -1294,7 +1287,7 @@ describe("Finance Overview", () => {
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-17`,
     );
     const menu = await screen.findByRole("button", {
-      name: "Other transaction actions",
+      name: "其他 Transaction 操作",
     });
     await waitFor(() => expect(menu).toBeEnabled());
     await user.click(menu);
@@ -1308,7 +1301,7 @@ describe("Finance Overview", () => {
     await user.click(within(transfer).getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(menu).toHaveFocus());
     await user.click(
-      await screen.findByRole("button", { name: "Other transaction actions" }),
+      await screen.findByRole("button", { name: "其他 Transaction 操作" }),
     );
     await user.click(
       await screen.findByRole("menuitem", { name: "Balance Adjustment" }),
@@ -1406,7 +1399,7 @@ describe("Finance Overview", () => {
     );
     const openAdjustment = async () => {
       const menu = await screen.findByRole("button", {
-        name: "Other transaction actions",
+        name: "其他 Transaction 操作",
       });
       await waitFor(() => expect(menu).toBeEnabled());
       await user.click(menu);
@@ -1488,7 +1481,7 @@ describe("Finance Overview", () => {
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-17`,
     );
     const menu = await screen.findByRole("button", {
-      name: "Other transaction actions",
+      name: "其他 Transaction 操作",
     });
     await waitFor(() => expect(menu).toBeEnabled());
     await user.click(menu);
@@ -1496,11 +1489,11 @@ describe("Finance Overview", () => {
       await screen.findByRole("menuitem", { name: "Internal Transfer" }),
     ).toHaveAttribute("aria-disabled", "true");
     expect(
-      screen.getByText(/distinct active Accounts using the same currency/),
+      screen.getByText(/两个不同的启用 Account，且币种相同/),
     ).toBeVisible();
     expect(
       screen.getByRole("link", {
-        name: "Manage Accounts for Internal Transfer",
+        name: "管理用于 Internal Transfer 的 Accounts",
       }),
     ).toHaveAttribute(
       "href",
@@ -1835,8 +1828,8 @@ describe("Finance Overview", () => {
     const { queryClient } = renderRoute(
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-16`,
     );
-    const form = await screen.findByRole("form", { name: "Quick Entry" });
-    const amount = within(form).getByRole("textbox", { name: "Amount" });
+    const form = await screen.findByRole("form", { name: "快速记账" });
+    const amount = within(form).getByRole("textbox", { name: "金额" });
     await user.type(amount, "12.34");
     amount.focus();
     const day = await screen.findByRole("region", {
@@ -1952,8 +1945,8 @@ describe("Finance Overview", () => {
     renderRoute(
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-16`,
     );
-    const form = await screen.findByRole("form", { name: "Quick Entry" });
-    const amount = within(form).getByRole("textbox", { name: "Amount" });
+    const form = await screen.findByRole("form", { name: "快速记账" });
+    const amount = within(form).getByRole("textbox", { name: "金额" });
     await user.type(amount, "9.99");
     await user.click(
       await screen.findByRole("button", {
@@ -2185,8 +2178,8 @@ describe("Finance Overview", () => {
     renderRoute(
       `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-16`,
     );
-    const form = await screen.findByRole("form", { name: "Quick Entry" });
-    const amount = within(form).getByRole("textbox", { name: "Amount" });
+    const form = await screen.findByRole("form", { name: "快速记账" });
+    const amount = within(form).getByRole("textbox", { name: "金额" });
     await user.type(amount, "5.00");
     await user.click(
       await screen.findByRole("button", { name: /Edit Income.*aaaaaaa1/ }),

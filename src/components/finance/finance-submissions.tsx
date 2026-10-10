@@ -1,3 +1,5 @@
+import { messages } from "@/lib/i18n";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   useCallback,
@@ -59,6 +61,7 @@ import {
   type SubmissionNamespace,
   submissionLabel,
   rejectionMessage,
+  isQuickEntrySubmission,
 } from "./submission-journal";
 
 import {
@@ -67,14 +70,26 @@ import {
   type SubmissionContext,
 } from "./finance-submission-context";
 
+const recoveryCopy = messages.finance.quickEntry.recovery;
+
 const namespaceKey = (namespace: SubmissionNamespace | null) =>
   namespace ? `${namespace.apiBaseUrl}|${namespace.ownerId}` : "";
 const submissionToken = (record: FinanceSubmission) =>
   JSON.stringify([record.apiBaseUrl, record.ownerId, record.submissionId]);
-const messageFor = (error: unknown) =>
+const messageFor = (error: unknown, localized = false) =>
   error instanceof SubmissionRecoveryError
-    ? error.message
-    : "Recovery could not complete. Check the outcome again; the original submission is retained.";
+    ? localized
+      ? error.localizedMessage
+      : error.message
+    : localized
+      ? recoveryCopy.failed
+      : "Recovery could not complete. Check the outcome again; the original submission is retained.";
+
+const submissionMessage = (
+  record: FinanceSubmission,
+  english: string,
+  chinese: string,
+) => (isQuickEntrySubmission(record) ? chinese : english);
 
 export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient();
@@ -101,7 +116,7 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
   const [view, setView] = useState<{
     key: string;
     records: FinanceSubmission[];
-    storageError: string | null;
+    storageError: { message: string; localizedMessage: string } | null;
     messages: Record<
       string,
       { state: FinanceSubmission["state"]; text: string }
@@ -198,7 +213,10 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
           setView({
             key: namespaceKey(owner),
             records: [],
-            storageError: messageFor(error),
+            storageError: {
+              message: messageFor(error),
+              localizedMessage: messageFor(error, true),
+            },
             messages: {},
           });
         throw error;
@@ -211,6 +229,7 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
       if (!matches(owner))
         throw new SubmissionRecoveryError(
           "Current User or API changed. Return to the original user and API to recover this submission.",
+          recoveryCopy.ownerChanged,
         );
       const response = await getCurrentUser({ cache: "no-store" });
       const user = MeResponse.parse(response.data);
@@ -219,6 +238,7 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
       if (user.id !== owner.ownerId || !matches(owner))
         throw new SubmissionRecoveryError(
           "Current User changed or is unavailable. Reload to recover under the original user.",
+          recoveryCopy.userChanged,
         );
     },
     [matches, queryClient],
@@ -284,7 +304,11 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
               () =>
                 showMessage(
                   record,
-                  "Transaction creation is confirmed. Your Transaction list could not refresh. Retry the list refresh; do not create again.",
+                  submissionMessage(
+                    record,
+                    "Transaction creation is confirmed. Your Transaction list could not refresh. Retry the list refresh; do not create again.",
+                    recoveryCopy.refreshFailed,
+                  ),
                 ),
             );
             break;
@@ -331,16 +355,28 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
           resource.category ||
           resource.transaction
             ? record.operation === "createFinanceTransaction"
-              ? "Transaction creation is confirmed. View Transactions for its current state."
+              ? submissionMessage(
+                  record,
+                  "Transaction creation is confirmed. View Transactions for its current state.",
+                  recoveryCopy.confirmed,
+                )
               : `${label} creation is confirmed. Your ${label} list is current.`
-            : `${label} creation is confirmed. The ${label} is currently unavailable; it will not be recreated.`;
+            : submissionMessage(
+                record,
+                `${label} creation is confirmed. The ${label} is currently unavailable; it will not be recreated.`,
+                recoveryCopy.resourceUnavailable,
+              );
         showMessage(record, message);
         return { ...resource, message };
       } catch {
         const message =
           record.operation === "createBalanceAdjustment"
             ? "Balance Adjustment outcome is confirmed. Current Finance resources could not refresh. Retry the resource refresh; do not submit again."
-            : `${label} creation is confirmed. Your ${label} list could not refresh. Retry the list refresh; do not create again.`;
+            : submissionMessage(
+                record,
+                `${label} creation is confirmed. Your ${label} list could not refresh. Retry the list refresh; do not create again.`,
+                recoveryCopy.refreshFailed,
+              );
         showMessage(record, message);
         return { message };
       }
@@ -371,7 +407,11 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
         record: resolved,
         message:
           resolution.kind === "notAdmitted"
-            ? "This command was not admitted. Correct the draft and create a new submission."
+            ? submissionMessage(
+                record,
+                "This command was not admitted. Correct the draft and create a new submission.",
+                recoveryCopy.notAdmittedGuidance,
+              )
             : rejectionMessage(resolved),
       };
     },
@@ -385,11 +425,13 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
       if (!record)
         throw new SubmissionRecoveryError(
           "This submission was already acknowledged. It will not be retried.",
+          recoveryCopy.alreadyAcknowledged,
         );
       if (record.state === "resolved") return { record };
       if (record.integrityBlocked)
         throw new SubmissionRecoveryError(
           "The submission identity conflicts with another command. Recovery is blocked; do not retry or create a replacement.",
+          recoveryCopy.conflict,
         );
       await assertOwner(record);
       let resolution: SubmissionResolution | null;
@@ -429,12 +471,17 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
         if (!resolution)
           throw new SubmissionRecoveryError(
             "The response evidence does not match this submission. Check its outcome; do not create again.",
+            recoveryCopy.responseMismatch,
           );
       } catch (error) {
         resolution = errorResolution(record, errorBody(error));
         if (!resolution) {
           const problem = nonterminalProblem(error);
-          let message = `The ${submissionLabel(record)} outcome is unknown. Check the outcome or retry the original submission. Do not submit the draft again.`;
+          let message = submissionMessage(
+            record,
+            `The ${submissionLabel(record)} outcome is unknown. Check the outcome or retry the original submission. Do not submit the draft again.`,
+            recoveryCopy.unknownGuidance,
+          );
           if (problem.success) {
             const code = problem.data.code;
             if (
@@ -442,19 +489,28 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
               code === "finance_submission_version_mismatch"
             ) {
               await blockConflictingSubmission(record);
-              message =
-                "The submission identity conflicts with another command. Recovery is blocked; do not create a replacement.";
+              message = submissionMessage(
+                record,
+                "The submission identity conflicts with another command. Recovery is blocked; do not create a replacement.",
+                recoveryCopy.conflict,
+              );
             } else if (
               code === "finance_submission_protocol_required" ||
               code === "finance_submission_protocol_invalid" ||
               code === "finance_command_version_unsupported" ||
               code === "finance_command_version_closed"
             ) {
-              message =
-                "Update Core Console before recovering this submission. Its original command and version are retained.";
+              message = submissionMessage(
+                record,
+                "Update Core Console before recovering this submission. Its original command and version are retained.",
+                recoveryCopy.update,
+              );
             } else if (problem.data.status === 403) {
-              message =
-                "Access is unavailable. Return to the original active user to recover this submission.";
+              message = submissionMessage(
+                record,
+                "Access is unavailable. Return to the original active user to recover this submission.",
+                recoveryCopy.access,
+              );
             }
           }
           showMessage(record, message);
@@ -502,7 +558,10 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
       const task = Promise.resolve()
         .then(action)
         .catch((error: unknown) => {
-          showMessage(record, messageFor(error));
+          showMessage(
+            record,
+            messageFor(error, isQuickEntrySubmission(record)),
+          );
         })
         .finally(() => {
           running.current.delete(token);
@@ -534,16 +593,22 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
           if (!correlates(record, evidence.receipt))
             throw new SubmissionRecoveryError(
               "Outcome evidence does not match the original command. Recovery is blocked.",
+              recoveryCopy.outcomeMismatch,
             );
           await settle(record, { kind: "receipt", receipt: evidence.receipt });
         } else {
           if (!correlates(record, evidence))
             throw new SubmissionRecoveryError(
               "Lookup evidence does not match the original command. Recovery is blocked.",
+              recoveryCopy.lookupMismatch,
             );
           showMessage(
             record,
-            "The original submission is unfinished. Retry it explicitly to continue.",
+            submissionMessage(
+              record,
+              "The original submission is unfinished. Retry it explicitly to continue.",
+              recoveryCopy.unfinished,
+            ),
           );
         }
       }),
@@ -602,6 +667,7 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
     if (!owner)
       throw new SubmissionRecoveryError(
         "Current User is unavailable. Restore access before creating in Finance.",
+        recoveryCopy.userRequired,
       );
     await assertOwner(owner);
     // Existing corrupt/incompatible records block preparation without erasing evidence.
@@ -611,7 +677,7 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
     try {
       return await dispatch(record);
     } catch (error) {
-      const message = messageFor(error);
+      const message = messageFor(error, isQuickEntrySubmission(record));
       showMessage(record, message);
       return { record, message };
     }

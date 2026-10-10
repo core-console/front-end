@@ -43,11 +43,11 @@ export function weekday(date: string) {
   return value.getUTCDay();
 }
 
-export function formatOverviewDate(date: string) {
+export function formatOverviewDate(date: string, locale?: string) {
   const [year, month, day] = date.split("-").map(Number);
   const value = new Date(0);
   value.setUTCFullYear(year!, month! - 1, day!);
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale, {
     day: "numeric",
     month: "long",
     timeZone: "UTC",

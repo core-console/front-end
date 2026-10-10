@@ -170,7 +170,7 @@ async function create(page: Page, entry: Entry, expectUnknown = true) {
         name:
           entry.origin === "transactions"
             ? "Record transaction"
-            : "Other transaction actions",
+            : "其他 Transaction 操作",
       })
       .first()
       .click();
@@ -187,11 +187,13 @@ async function create(page: Page, entry: Entry, expectUnknown = true) {
   }
   const form =
     entry.origin === "quick"
-      ? page.getByRole("form", { name: "Quick Entry" })
+      ? page.getByRole("form", { name: "快速记账" })
       : page.getByRole("dialog");
   if (entry.origin === "quick" && entry.kind === "income")
-    await form.getByRole("button", { name: /^Income$/ }).click();
-  await form.getByLabel("Amount", { exact: true }).fill(money.amount);
+    await form.getByRole("button", { name: "收入" }).click();
+  await form
+    .getByLabel(entry.origin === "quick" ? "金额" : "Amount", { exact: true })
+    .fill(money.amount);
   if (entry.kind === "internalTransfer")
     await form.getByLabel("Destination Account").selectOption(accounts[1].id);
   else
@@ -200,17 +202,27 @@ async function create(page: Page, entry: Entry, expectUnknown = true) {
       .selectOption(categories[1].id);
   if (entry.origin !== "quick")
     await form.getByLabel("Transaction date").fill(date);
-  await form.getByLabel("Note", { exact: true }).fill("Immutable note");
+  await form
+    .getByLabel(entry.origin === "quick" ? "备注" : "Note", { exact: true })
+    .fill("Immutable note");
   await form
     .getByRole("button", {
       name:
         entry.kind === "internalTransfer"
           ? "Record transfer"
-          : `Record ${entry.kind}`,
+          : entry.kind === "income"
+            ? entry.origin === "quick"
+              ? "记录收入"
+              : "Record income"
+            : entry.origin === "quick"
+              ? "记录支出"
+              : "Record expense",
     })
     .click();
   if (expectUnknown)
-    await expect(form.getByRole("alert")).toContainText("outcome is unknown");
+    await expect(form.getByRole("alert")).toContainText(
+      entry.origin === "quick" ? "结果未知" : "outcome is unknown",
+    );
   return form;
 }
 async function stored(page: Page) {
@@ -245,7 +257,9 @@ for (const entry of entries) {
       owner: submissionTestUser.id,
       version: "1",
     });
-    await form.getByLabel("Note", { exact: true }).fill("New transient note");
+    await form
+      .getByLabel(entry.origin === "quick" ? "备注" : "Note", { exact: true })
+      .fill("New transient note");
     if (entry.origin !== "quick")
       await form.getByRole("button", { name: "Cancel" }).click();
     const violations = await new AxeBuilder({ page })
@@ -265,15 +279,29 @@ for (const entry of entries) {
     );
     api.allowRetry();
     await page
-      .getByRole("button", { name: "Retry original submission" })
+      .getByRole("button", {
+        name:
+          entry.origin === "quick"
+            ? "重试原始提交"
+            : "Retry original submission",
+      })
       .focus();
     await page.keyboard.press("Enter");
     await expect(
-      page.getByRole("status", { name: /^Transaction created:/ }),
+      page.getByRole("status", {
+        name:
+          entry.origin === "quick"
+            ? /^Transaction 已创建:/
+            : /^Transaction created:/,
+      }),
     ).toBeVisible();
     expect(api.posts).toHaveLength(2);
     expect(api.posts[1]).toEqual(api.posts[0]);
-    await page.getByRole("button", { name: "Acknowledge outcome" }).click();
+    await page
+      .getByRole("button", {
+        name: entry.origin === "quick" ? "确认结果" : "Acknowledge outcome",
+      })
+      .click();
     await expect.poll(() => stored(page)).toEqual([]);
     expect(errors).toEqual([]);
   });
@@ -289,26 +317,24 @@ test("a receipt stays resolved through resource refresh failure and simultaneous
   await create(page, entry);
   api.allowRetry();
   api.failResource();
-  await page.getByRole("button", { name: "Retry original submission" }).click();
+  await page.getByRole("button", { name: "重试原始提交" }).click();
   await expect(
-    page.getByRole("status", { name: /^Transaction created:/ }),
-  ).toContainText("could not refresh");
+    page.getByRole("status", { name: /^Transaction 已创建:/ }),
+  ).toContainText("无法刷新");
   expect((await stored(page))[0]?.state).toBe("resolved");
   const sibling = await context.newPage();
   const siblingErrors = errorsFor(sibling);
   await sibling.goto(`/finance/accounts?ledger=${otherLedger.id}`);
-  await expect(
-    sibling.getByRole("button", { name: "Acknowledge outcome" }),
-  ).toBeVisible();
+  await expect(sibling.getByRole("button", { name: "确认结果" })).toBeVisible();
   await Promise.all([
-    sibling.getByRole("button", { name: "Acknowledge outcome" }).click(),
-    page.getByRole("button", { name: "Acknowledge outcome" }).click(),
+    sibling.getByRole("button", { name: "确认结果" }).click(),
+    page.getByRole("button", { name: "确认结果" }).click(),
   ]);
   await expect.poll(() => stored(page)).toEqual([]);
   await page.reload();
-  await expect(
-    page.getByRole("button", { name: "Retry original submission" }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "重试原始提交" })).toHaveCount(
+    0,
+  );
   expect(api.posts).toHaveLength(2);
   expect(errors).toEqual([]);
   expect(siblingErrors).toEqual([]);
@@ -349,10 +375,20 @@ for (const entry of [entries[0]!, entries[3]!, entries[5]!]) {
       expect(restarted.posts).toEqual([]);
       restarted.allowRetry();
       await next
-        .getByRole("button", { name: "Retry original submission" })
+        .getByRole("button", {
+          name:
+            entry.origin === "quick"
+              ? "重试原始提交"
+              : "Retry original submission",
+        })
         .click();
       await expect(
-        next.getByRole("status", { name: /^Transaction created:/ }),
+        next.getByRole("status", {
+          name:
+            entry.origin === "quick"
+              ? /^Transaction 已创建:/
+              : /^Transaction created:/,
+        }),
       ).toBeVisible();
       expect(restarted.posts[0]).toEqual(original);
       expect(nextErrors).toEqual([]);
@@ -374,20 +410,18 @@ test("acknowledgement in another tab cannot be undone by a delayed retry respons
   const sibling = await context.newPage();
   const siblingErrors = errorsFor(sibling);
   await sibling.goto(`/finance/accounts?ledger=${ledger.id}`);
-  await expect(
-    sibling.getByRole("button", { name: "Check outcome" }),
-  ).toBeEnabled();
+  await expect(sibling.getByRole("button", { name: "查询结果" })).toBeEnabled();
   api.allowRetry();
   api.holdReplay();
-  await page.getByRole("button", { name: "Retry original submission" }).click();
+  await page.getByRole("button", { name: "重试原始提交" }).click();
   await expect.poll(() => api.posts.length).toBe(2);
   api.completeLookup();
-  await sibling.getByRole("button", { name: "Check outcome" }).click();
-  await sibling.getByRole("button", { name: "Acknowledge outcome" }).click();
+  await sibling.getByRole("button", { name: "查询结果" }).click();
+  await sibling.getByRole("button", { name: "确认结果" }).click();
   await expect.poll(() => stored(sibling)).toEqual([]);
   api.releaseReplay();
   await expect(
-    page.getByRole("status", { name: /^Transaction created:/ }),
+    page.getByRole("status", { name: /^Transaction 已创建:/ }),
   ).toHaveCount(0);
   await page.reload();
   await expect.poll(() => stored(page)).toEqual([]);
@@ -414,10 +448,10 @@ test("IndexedDB preparation abort prevents the initial Transaction POST", async 
   await page.goto(
     `/finance/overview?ledger=${ledger.id}&month=2026-10&date=${date}`,
   );
-  const form = page.getByRole("form", { name: "Quick Entry" });
-  await form.getByLabel("Amount", { exact: true }).fill("12.34");
-  await form.getByRole("button", { name: "Record expense" }).click();
-  await expect(form.getByRole("alert")).toContainText("storage write failed");
+  const form = page.getByRole("form", { name: "快速记账" });
+  await form.getByLabel("金额", { exact: true }).fill("12.34");
+  await form.getByRole("button", { name: "记录支出" }).click();
+  await expect(form.getByRole("alert")).toContainText("浏览器存储写入失败");
   expect(api.posts).toEqual([]);
   expect(await stored(page)).toEqual([]);
   expect(errors).toEqual([]);
@@ -438,19 +472,19 @@ test("a late original create response cannot reset or focus a new workflow after
     page.getByRole("heading", { name: "Transactions", exact: true }),
   ).toBeVisible();
   await page.getByRole("link", { name: "Overview", exact: true }).click();
-  const next = page.getByRole("form", { name: "Quick Entry" });
-  await next.getByLabel("Amount", { exact: true }).fill("77.77");
-  const note = next.getByLabel("Note", { exact: true });
+  const next = page.getByRole("form", { name: "快速记账" });
+  await next.getByLabel("金额", { exact: true }).fill("77.77");
+  const note = next.getByLabel("备注", { exact: true });
   await note.fill("New workflow draft");
   await note.focus();
   api.releaseReplay();
   await expect(
-    page.getByRole("status", { name: /^Transaction created:/ }),
+    page.getByRole("status", { name: /^Transaction 已创建:/ }),
   ).toBeVisible();
   await expect
     .poll(async () => (await stored(page))[0]?.state)
     .toBe("resolved");
-  await expect(next.getByLabel("Amount", { exact: true })).toHaveValue("77.77");
+  await expect(next.getByLabel("金额", { exact: true })).toHaveValue("77.77");
   await expect(note).toHaveValue("New workflow draft");
   await expect(note).toBeFocused();
   await expect(page).toHaveURL(/\/finance\/overview/);

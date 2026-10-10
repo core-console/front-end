@@ -508,7 +508,7 @@ export function OverviewDestination({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [focusMonth, setFocusMonth] = useState<string | null>(null);
-  const [announcement, setAnnouncement] = useState("");
+  const [announcement, setAnnouncement] = useState<ReactNode>("");
   const overviewKey = getGetFinanceOverviewQueryKey(ledgerId, { month });
   const overviewLifecycle = useSyncExternalStore(
     useCallback(
@@ -562,7 +562,15 @@ export function OverviewDestination({
     transaction: FinanceTransactionResponseOutput,
   ) => {
     setAnnouncement(
-      `${transaction.kind === "internalTransfer" ? "Internal Transfer" : transaction.kind === "income" ? "Income" : "Expense"} recorded.`,
+      transaction.kind === "internalTransfer" ? (
+        "Internal Transfer recorded."
+      ) : (
+        <span lang={locale}>
+          {messages.finance.quickEntry.recorded(
+            transaction.kind === "income" ? "income" : "expense",
+          )}
+        </span>
+      ),
     );
   };
 
