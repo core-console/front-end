@@ -1061,6 +1061,191 @@ test("renders accessible responsive Finance Categories", async ({
   expectNoBrowserErrors(errors);
 });
 
+test("drills into the selected Overview month and restores context with Back", async ({
+  page,
+}, testInfo) => {
+  const errors = collectBrowserErrors(page);
+  await page.setViewportSize({ height: 900, width: 1024 });
+  const ledger = {
+    id: "b9aa59ad-aa6b-49f5-9f4c-8ed071ea3f74",
+    name: "Travel",
+  };
+  const pages = financeTransactionPages.map((historyPage, pageIndex) => ({
+    ...historyPage,
+    items: historyPage.items.map((item, index) => ({
+      ...item,
+      ledgerId: ledger.id,
+      transactionDate:
+        pageIndex === 0
+          ? index === 0
+            ? "2026-08-31"
+            : "2026-08-01"
+          : item.transactionDate,
+    })),
+  }));
+  const requests: URL[] = [];
+  await mockOverviewDetails(page);
+  await page.route("**/api/finance/ledgers", async (route) => {
+    await route.fulfill({ json: [...financeLedgers, ledger] });
+  });
+  await page.route(
+    "**/api/finance/ledgers/*/overview?month=*",
+    async (route) => {
+      const month = new URL(route.request().url()).searchParams.get("month")!;
+      await route.fulfill({
+        json: { ...financeOverviewForMonth(month), ledger },
+      });
+    },
+  );
+  await page.route("**/api/finance/ledgers/*/transactions?*", async (route) => {
+    const url = new URL(route.request().url());
+    requests.push(url);
+    const isMonthly =
+      url.searchParams.get("fromDate") === "2026-08-01" &&
+      url.searchParams.get("toDate") === "2026-08-31";
+    const historyPage = pages[url.searchParams.has("cursor") ? 1 : 0]!;
+    const kind = url.searchParams.get("kind");
+    await route.fulfill({
+      json: isMonthly
+        ? {
+            ...historyPage,
+            items: historyPage.items.filter(
+              (item) => !kind || item.kind === kind,
+            ),
+          }
+        : { items: [], nextCursor: null },
+    });
+  });
+  await page.route("**/api/finance/ledgers/*/transactions/*", async (route) => {
+    const id = route.request().url().split("/").at(-1);
+    await route.fulfill({
+      json: pages
+        .flatMap((historyPage) => historyPage.items)
+        .find((item) => item.id === id),
+    });
+  });
+
+  const julyUrl = `/finance/overview?ledger=${ledger.id}&month=2026-07&date=2026-07-31`;
+  const augustUrl = `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-31`;
+  const historyUrl = `/finance/transactions?ledger=${ledger.id}&from=2026-08-01&to=2026-08-31`;
+  await page.goto(julyUrl);
+  await page.getByRole("button", { name: "Next month", exact: true }).click();
+  await expect(page).toHaveURL(augustUrl);
+  const summary = page.getByRole("region", { name: "Selected-month activity" });
+  const drilldown = summary.getByRole("link", { name: "查看本月流水" });
+  await expect(drilldown).toHaveAttribute("href", historyUrl);
+  await expectLanguage(drilldown, "zh-CN");
+  const quickEntry = page.getByRole("region", {
+    name: "Quick Entry",
+    exact: true,
+  });
+  await quickEntry
+    .getByRole("textbox", { name: "Amount", exact: true })
+    .fill("88.00");
+  await expectNoAccessibilityViolations(page, summary, testInfo);
+  await drilldown.focus();
+  await expect(drilldown).toBeFocused();
+  await drilldown.press("Enter");
+  await expect(page).toHaveURL(historyUrl);
+
+  const transactions = page.getByRole("region", {
+    name: "Transactions",
+    exact: true,
+  });
+  await expect(transactions.getByLabel("From date")).toHaveValue("2026-08-01");
+  await expect(transactions.getByLabel("To date")).toHaveValue("2026-08-31");
+  await expect(
+    transactions.getByRole("article", { name: "Income on August 31, 2026" }),
+  ).toContainText("8,500.00 CNY");
+  await expect(
+    transactions.getByRole("article", { name: "Expense on August 1, 2026" }),
+  ).toContainText("12.99 USD");
+  await transactions
+    .getByRole("button", { name: "Load more", exact: true })
+    .click();
+  await expect(transactions.getByRole("article")).toHaveCount(4);
+  await expect(
+    transactions.getByRole("article", {
+      name: "Internal Transfer on August 14, 2026",
+    }),
+  ).toBeVisible();
+  await expect(
+    transactions.getByRole("article", {
+      name: "Balance Adjustment on August 13, 2026",
+    }),
+  ).toBeVisible();
+  const monthlyRequests = requests.filter(
+    (url) =>
+      url.searchParams.get("fromDate") === "2026-08-01" &&
+      url.searchParams.get("toDate") === "2026-08-31",
+  );
+  expect(monthlyRequests.length).toBeGreaterThanOrEqual(2);
+  for (const url of monthlyRequests) {
+    expect(url.pathname).toBe(`/api/finance/ledgers/${ledger.id}/transactions`);
+    const params = new URLSearchParams(url.search);
+    params.delete("cursor");
+    expect(Object.fromEntries(params)).toEqual({
+      fromDate: "2026-08-01",
+      pageSize: "50",
+      toDate: "2026-08-31",
+    });
+  }
+  expect(
+    monthlyRequests.some(
+      (url) => url.searchParams.get("cursor") === "opaque-browser-cursor",
+    ),
+  ).toBe(true);
+  await expectNoAccessibilityViolations(page, transactions, testInfo);
+
+  await transactions
+    .getByRole("button", { name: /Edit Expense.*Transaction ID/ })
+    .click();
+  const edit = page.getByRole("dialog", { name: "Edit Expense" });
+  await expect(edit.getByLabel("Amount")).toHaveValue("12.99");
+  await edit.press("Escape");
+  await transactions
+    .getByRole("link", { name: /View details for Income/ })
+    .click();
+  await expect(
+    page.getByRole("link", { name: "Back to Transactions", exact: true }),
+  ).toHaveAttribute("href", historyUrl);
+  await page.goBack();
+  await expect(page).toHaveURL(historyUrl);
+  await expect(transactions.getByRole("article")).toHaveCount(4);
+
+  await transactions
+    .getByLabel("Transaction kind", { exact: true })
+    .selectOption("expense");
+  await transactions
+    .getByRole("button", { name: "Apply filters", exact: true })
+    .click();
+  await expect(page).toHaveURL(`${historyUrl}&kind=expense`);
+  await expect(transactions.getByRole("article")).toHaveCount(1);
+  await page.goBack();
+  await expect(page).toHaveURL(historyUrl);
+  await expect(
+    transactions.getByLabel("Transaction kind", { exact: true }),
+  ).toHaveValue("");
+  await page.goBack();
+  await expect(page).toHaveURL(augustUrl);
+  await expect(
+    page.getByRole("button", { name: ledger.name, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^2026-08-31,/ }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    quickEntry.getByRole("textbox", { name: "Amount", exact: true }),
+  ).toHaveValue("");
+  await page.goBack();
+  await expect(page).toHaveURL(julyUrl);
+  await expect(drilldown).toHaveAttribute(
+    "href",
+    `/finance/transactions?ledger=${ledger.id}&from=2026-07-01&to=2026-07-31`,
+  );
+  expectNoBrowserErrors(errors);
+});
+
 test("renders accessible responsive Finance Transactions with opaque pagination", async ({
   page,
 }, testInfo) => {

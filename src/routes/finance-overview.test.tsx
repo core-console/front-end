@@ -190,6 +190,88 @@ describe("Finance Overview", () => {
     server.use(getListFinanceLedgersMockHandler([ledger]));
   });
 
+  it.each([
+    ["2026-02", "2026-02-28"],
+    ["2024-02", "2024-02-29"],
+    ["1900-02", "1900-02-28"],
+    ["2000-02", "2000-02-29"],
+    ["2026-04", "2026-04-30"],
+    ["2026-12", "2026-12-31"],
+    ["2027-01", "2027-01-31"],
+  ])(
+    "opens all history for selected month %s in the addressed Ledger",
+    async (month, lastDate) => {
+      const user = userEvent.setup();
+      const selectedLedger = {
+        id: "b9aa59ad-aa6b-49f5-9f4c-8ed071ea3f74",
+        name: "Travel",
+      };
+      const historyRequests: URL[] = [];
+      server.use(
+        getListFinanceLedgersMockHandler([ledger, selectedLedger]),
+        getGetFinanceOverviewMockHandler({
+          ...overview,
+          days: [],
+          ledger: selectedLedger,
+          month,
+        }),
+        getListFinanceAccountsMockHandler([]),
+        getListFinanceCategoriesMockHandler([]),
+        getListFinanceCurrenciesMockHandler([]),
+        http.get(
+          "*/api/finance/ledgers/:ledgerId/transactions",
+          ({ request }) => {
+            historyRequests.push(new URL(request.url));
+            return HttpResponse.json({ items: [], nextCursor: null });
+          },
+        ),
+      );
+      const { router } = renderRoute(
+        `/finance/overview?ledger=${selectedLedger.id}&month=${month}&date=${month}-16&from=2020-01-01&to=2020-01-02&kind=expense&uncategorized=true&account_id=${overview.accounts[0]!.id}`,
+      );
+      const summary = await screen.findByRole(
+        "region",
+        { name: "Selected-month activity" },
+        { timeout: 5_000 },
+      );
+      const drilldown = within(summary).getByRole("link", {
+        name: "查看本月流水",
+      });
+      expect(drilldown).toHaveAttribute(
+        "href",
+        `/finance/transactions?ledger=${selectedLedger.id}&from=${month}-01&to=${lastDate}`,
+      );
+      await user.click(drilldown);
+      expect(await screen.findByLabelText("From date")).toHaveValue(
+        `${month}-01`,
+      );
+      expect(screen.getByLabelText("To date")).toHaveValue(lastDate);
+      await waitFor(() => {
+        const request = historyRequests.find(
+          (url) => url.searchParams.get("toDate") === lastDate,
+        );
+        expect(request?.pathname).toBe(
+          `/api/finance/ledgers/${selectedLedger.id}/transactions`,
+        );
+        expect(Object.fromEntries(request!.searchParams)).toEqual({
+          fromDate: `${month}-01`,
+          pageSize: "50",
+          toDate: lastDate,
+        });
+      });
+      await router.navigate(-1);
+      expect(
+        await screen.findByRole("region", { name: "Selected-month activity" }),
+      ).toBeVisible();
+      expect(router.state.location.search).toContain(
+        `month=${month}&date=${month}-16`,
+      );
+      expect(
+        screen.getByRole("button", { name: selectedLedger.name }),
+      ).toBeVisible();
+    },
+  );
+
   it("shows exact present position separately from selected-month activity and every Account", async () => {
     server.use(getGetFinanceOverviewMockHandler(overview));
     renderRoute(

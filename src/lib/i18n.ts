@@ -28,6 +28,9 @@ export const messages = {
   common: {
     returnHome: "返回 Home",
   },
+  finance: {
+    viewMonthTransactions: "查看本月流水",
+  },
   shell: {
     sidebarLabel: "Core Console 侧边栏",
     primaryNavigation: "主导航",

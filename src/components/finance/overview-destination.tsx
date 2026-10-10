@@ -42,6 +42,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { locale, messages } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 type OverviewDestinationProps = {
@@ -146,7 +147,26 @@ function MonthSummary({
         <h2 className="text-base font-semibold" id="month-activity-title">
           Selected-month activity
         </h2>
-        {navigation}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            lang={locale}
+            nativeButton={false}
+            role="link"
+            render={
+              <Link
+                to={`/finance/transactions${buildFinanceSearch(data.ledger.id, {
+                  from: dateInMonth(month, 1),
+                  to: dateInMonth(month, daysInMonth(month)),
+                })}`}
+              />
+            }
+            size="sm"
+            variant="outline"
+          >
+            {messages.finance.viewMonthTransactions}
+          </Button>
+          {navigation}
+        </div>
       </div>
       <div>
         <p className="text-sm text-muted-foreground">
