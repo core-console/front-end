@@ -326,10 +326,26 @@ test("a receipt stays resolved through resource refresh failure and simultaneous
   const siblingErrors = errorsFor(sibling);
   await sibling.goto(`/finance/accounts?ledger=${otherLedger.id}`);
   await expect(sibling.getByRole("button", { name: "确认结果" })).toBeVisible();
+  const acknowledgingPages = new Set<Page>();
+  let releaseAcknowledgements!: () => void;
+  const acknowledgementsEntered = new Promise<void>((resolve) => {
+    releaseAcknowledgements = resolve;
+  });
+  // Hold the owner checks until both handlers enter, before either can delete
+  // the journal record and notify the other tab to remove its button.
+  await context.route("**/api/me", async (route) => {
+    acknowledgingPages.add(route.request().frame().page());
+    if (acknowledgingPages.size === 2) releaseAcknowledgements();
+    await acknowledgementsEntered;
+    await route.fulfill({ json: submissionTestUser });
+  });
   await Promise.all([
     sibling.getByRole("button", { name: "确认结果" }).click(),
     page.getByRole("button", { name: "确认结果" }).click(),
   ]);
+  await acknowledgementsEntered;
+  expect(acknowledgingPages).toEqual(new Set([page, sibling]));
+  await context.unroute("**/api/me");
   await expect.poll(() => stored(page)).toEqual([]);
   await page.reload();
   await expect(page.getByRole("button", { name: "重试原始提交" })).toHaveCount(
