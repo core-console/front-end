@@ -1,4 +1,4 @@
-import { EllipsisIcon } from "lucide-react";
+import { CheckCircle2Icon, EllipsisIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useMutationState, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
@@ -21,6 +21,7 @@ import {
 } from "@/components/finance/category-list-cache";
 import { getCategoryProblemFeedback } from "@/components/finance/category-problem";
 import { buildFinanceSearch } from "@/components/finance/finance-route-state";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +47,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 type CategoriesDestinationProps = {
   ledgerId: string;
@@ -56,6 +58,10 @@ type Lifecycle = Category["status"];
 type CategoryFocusRequest = {
   categoryId: string;
   expectedStatus: Lifecycle | "missing";
+};
+type CategoryFeedback = {
+  operation: "create" | "rename" | "archive" | "unarchive";
+  message: string;
 };
 
 function categoryMutationIdentity(value: unknown) {
@@ -209,7 +215,8 @@ export function CategoriesDestination({
   const [archiveTarget, setArchiveTarget] = useState<Category | null>(null);
   const [unarchiveConflictTarget, setUnarchiveConflictTarget] =
     useState<Category | null>(null);
-  const [feedback, setFeedback] = useState("");
+  const [feedback, setFeedback] = useState<CategoryFeedback | null>(null);
+  const feedbackWorkflow = useRef(0);
   const [actionError, setActionError] = useState("");
   const [focusRequest, setFocusRequest] = useState<CategoryFocusRequest | null>(
     null,
@@ -217,6 +224,12 @@ export function CategoriesDestination({
   const createButtonRef = useRef<HTMLButtonElement | null>(null);
   const archiveCancelRef = useRef<HTMLButtonElement | null>(null);
   const editingCategoryUnavailable = useRef(false);
+  const startWorkflow = () => {
+    feedbackWorkflow.current += 1;
+    setFeedback(null);
+    setActionError("");
+  };
+  const visibleSuccess = feedback !== null && feedback.operation !== "create";
   const categoriesQuery = useListFinanceCategories(ledgerId, {
     query: {
       select: (response) => CategoryResponse.array().parse(response.data),
@@ -245,8 +258,11 @@ export function CategoriesDestination({
       return identity?.ledgerId === ledgerId ? [identity.categoryId] : [];
     }),
   );
+  const focusCategoryPending =
+    focusRequest !== null && pendingCategoryIds.has(focusRequest.categoryId);
   const archiveMutation = useArchiveFinanceCategory({
     mutation: {
+      onMutate: () => feedbackWorkflow.current,
       onError: (error, variables) => {
         const problem = getCategoryProblemFeedback(
           error,
@@ -264,7 +280,7 @@ export function CategoriesDestination({
           queryKey: getListFinanceCategoriesQueryKey(ledgerId),
         });
       },
-      onSuccess: (response) => {
+      onSuccess: (response, _variables, workflow) => {
         const archived = CategoryResponse.parse(response.data);
         const categoryLabel = categoryWorkflowLabel(
           archived,
@@ -275,7 +291,12 @@ export function CategoriesDestination({
           categoryId: archived.id,
           expectedStatus: archived.status,
         });
-        setFeedback(`${categoryLabel} archived.`);
+        if (workflow === feedbackWorkflow.current) {
+          setFeedback({
+            operation: "archive",
+            message: `${categoryLabel} archived.`,
+          });
+        }
         setActionError("");
         setArchiveTarget(null);
         void queryClient.invalidateQueries({
@@ -292,6 +313,7 @@ export function CategoriesDestination({
     : null;
   const unarchiveMutation = useUnarchiveFinanceCategory({
     mutation: {
+      onMutate: () => feedbackWorkflow.current,
       onError: (error, variables) => {
         const problem = getCategoryProblemFeedback(
           error,
@@ -314,7 +336,7 @@ export function CategoriesDestination({
           queryKey: getListFinanceCategoriesQueryKey(ledgerId),
         });
       },
-      onSuccess: (response) => {
+      onSuccess: (response, _variables, workflow) => {
         const active = CategoryResponse.parse(response.data);
         const categoryLabel = categoryWorkflowLabel(
           active,
@@ -325,7 +347,12 @@ export function CategoriesDestination({
           categoryId: active.id,
           expectedStatus: active.status,
         });
-        setFeedback(`${categoryLabel} unarchived.`);
+        if (workflow === feedbackWorkflow.current) {
+          setFeedback({
+            operation: "unarchive",
+            message: `${categoryLabel} unarchived.`,
+          });
+        }
         setActionError("");
         setUnarchiveConflictTarget(null);
         void queryClient.invalidateQueries({
@@ -336,7 +363,7 @@ export function CategoriesDestination({
   });
 
   useEffect(() => {
-    if (!focusRequest || !categoriesQuery.data) return;
+    if (!focusRequest || !categoriesQuery.data || focusCategoryPending) return;
 
     const currentCategory = categoriesQuery.data.find(
       (category) => category.id === focusRequest.categoryId,
@@ -356,7 +383,7 @@ export function CategoriesDestination({
         : createButtonRef.current;
     if (target?.isConnected) target.focus();
     setFocusRequest(null);
-  }, [categoriesQuery.data, focusRequest]);
+  }, [categoriesQuery.data, focusCategoryPending, focusRequest]);
 
   if (categoriesQuery.isPending) {
     return (
@@ -411,14 +438,29 @@ export function CategoriesDestination({
         </p>
         <Button
           onClick={() => {
-            setActionError("");
-            setFeedback("");
+            startWorkflow();
             setCreateOpen(true);
           }}
           ref={createButtonRef}
         >
           Create category
         </Button>
+      </div>
+      <div
+        aria-atomic="true"
+        className={cn(!visibleSuccess && "sr-only")}
+        role="status"
+      >
+        {visibleSuccess ? (
+          <Alert role="presentation">
+            <CheckCircle2Icon aria-hidden="true" />
+            <AlertTitle className="min-w-0 [overflow-wrap:anywhere]">
+              {feedback.message}
+            </AlertTitle>
+          </Alert>
+        ) : (
+          feedback?.message
+        )}
       </div>
       {categoriesQuery.data.length === 0 ? (
         <Empty className="border bg-card py-12">
@@ -455,20 +497,17 @@ export function CategoriesDestination({
               key={lifecycle}
               lifecycle={lifecycle}
               onArchive={(category) => {
-                setActionError("");
-                setFeedback("");
+                startWorkflow();
                 archiveMutation.reset();
                 setArchiveTarget(category);
               }}
               onRename={(category) => {
-                setActionError("");
-                setFeedback("");
+                startWorkflow();
                 editingCategoryUnavailable.current = false;
                 setEditingCategory(category);
               }}
               onUnarchive={(category) => {
-                setActionError("");
-                setFeedback("");
+                startWorkflow();
                 setUnarchiveConflictTarget(null);
                 unarchiveMutation.mutate({
                   categoryId: category.id,
@@ -491,9 +530,6 @@ export function CategoriesDestination({
           ))}
         </>
       )}
-      <p className="sr-only" role="status">
-        {feedback}
-      </p>
       {actionError ? (
         <div
           className="flex flex-wrap items-center gap-3 text-sm text-destructive"
@@ -518,10 +554,10 @@ export function CategoriesDestination({
                 categoriesQuery.data,
               )}`}
               onClick={() => {
+                startWorkflow();
                 editingCategoryUnavailable.current = false;
                 setEditingCategory(unarchiveConflictTarget);
                 setUnarchiveConflictTarget(null);
-                setActionError("");
               }}
               size="sm"
               variant="outline"
@@ -538,7 +574,12 @@ export function CategoriesDestination({
           if (open) return;
           setCreateOpen(false);
         }}
-        onSaved={(category) => setFeedback(`${category.name} created.`)}
+        onSaved={(category) =>
+          setFeedback({
+            operation: "create",
+            message: `${category.name} created.`,
+          })
+        }
         onUnavailable={setActionError}
         open={createOpen}
       />
@@ -562,7 +603,12 @@ export function CategoriesDestination({
             editingCategoryUnavailable.current = false;
             setEditingCategory(null);
           }}
-          onSaved={(category) => setFeedback(`${category.name} renamed.`)}
+          onSaved={(category) =>
+            setFeedback({
+              operation: "rename",
+              message: `${categoryWorkflowLabel(category, categoriesQuery.data)} renamed.`,
+            })
+          }
           onUnavailable={(message) => {
             editingCategoryUnavailable.current = true;
             removeCategoryFromList(queryClient, ledgerId, editingCategory.id);

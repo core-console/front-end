@@ -1013,14 +1013,35 @@ test("renders accessible responsive Finance Accounts", async ({
 test("renders accessible responsive Finance Categories", async ({
   page,
 }, testInfo) => {
+  test.setTimeout(60_000);
   const errors = collectBrowserErrors(page);
+  let currentCategories = [...financeCategories];
   await page.setViewportSize({ height: 900, width: 1024 });
   await page.route("**/api/finance/ledgers", async (route) => {
     await route.fulfill({ json: financeLedgers });
   });
   await page.route("**/api/finance/ledgers/*/categories", async (route) => {
-    await route.fulfill({ json: financeCategories });
+    await route.fulfill({ json: currentCategories });
   });
+  await page.route("**/api/finance/ledgers/*/categories/*", async (route) => {
+    const { name } = route.request().postDataJSON() as { name: string };
+    const updated = { ...currentCategories[0]!, name };
+    currentCategories[0] = updated;
+    await route.fulfill({ json: updated });
+  });
+  for (const action of ["archive", "unarchive"] as const) {
+    await page.route(
+      `**/api/finance/ledgers/*/categories/*/${action}`,
+      async (route) => {
+        const updated = CategoryResponse.parse({
+          ...currentCategories[0],
+          status: action === "archive" ? "archived" : "active",
+        });
+        currentCategories[0] = updated;
+        await route.fulfill({ json: updated });
+      },
+    );
+  }
   const categories = page.getByRole("region", {
     exact: true,
     name: "Categories",
@@ -1075,6 +1096,46 @@ test("renders accessible responsive Finance Categories", async ({
   await expect(
     categories.getByRole("button", { name: "Create category" }),
   ).toBeFocused();
+
+  const success = categories.getByRole("status");
+  const expectVisibleSuccess = async (message: string) => {
+    await expect(success).toHaveText(message);
+    await expect(success).toBeVisible();
+    const bounds = await success.boundingBox();
+    expect(bounds?.height).toBeGreaterThan(20);
+    expect(bounds?.width).toBeGreaterThan(200);
+    await expectNoAccessibilityViolations(page, categories, testInfo);
+  };
+
+  await foodActions.click();
+  await page.getByRole("menuitem", { name: "Rename Food" }).click();
+  const renameFood = page.getByRole("dialog", { name: "Rename Food" });
+  await renameFood.getByLabel("Category name").fill("Dining");
+  await renameFood.getByRole("button", { name: "Rename category" }).click();
+  await expect(renameFood).not.toBeVisible();
+  await expectVisibleSuccess("Dining renamed.");
+  const diningActions = categories.getByRole("button", {
+    name: "Actions for Dining",
+  });
+  await expect(diningActions).toBeFocused();
+
+  await diningActions.click();
+  await page.getByRole("menuitem", { name: "Archive Dining" }).click();
+  const archiveDining = page.getByRole("alertdialog", {
+    name: "Archive Dining?",
+  });
+  await expect(
+    archiveDining.getByRole("button", { name: "Cancel" }),
+  ).toBeFocused();
+  await archiveDining.getByRole("button", { name: "Archive Category" }).click();
+  await expect(archiveDining).not.toBeVisible();
+  await expectVisibleSuccess("Dining archived.");
+  await expect(diningActions).toBeFocused();
+
+  await diningActions.click();
+  await page.getByRole("menuitem", { name: "Unarchive Dining" }).click();
+  await expectVisibleSuccess("Dining unarchived.");
+  await expect(diningActions).toBeFocused();
   expectNoBrowserErrors(errors);
 });
 

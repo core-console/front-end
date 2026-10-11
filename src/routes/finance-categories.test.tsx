@@ -409,6 +409,7 @@ describe("Finance Categories destination", () => {
       ),
     ).toBeVisible();
     expect(name).toHaveValue("Transport");
+    expect(screen.queryByText(/renamed\.$/)).not.toBeInTheDocument();
   });
 
   it("does not dismiss a pending Rename workflow", async () => {
@@ -453,6 +454,7 @@ describe("Finance Categories destination", () => {
         within(dialog).getByRole("button", { name: "Renaming…" }),
       ).toBeDisabled(),
     );
+    expect(screen.queryByText("Dining renamed.")).not.toBeInTheDocument();
 
     await user.keyboard("{Escape}");
     const pendingDialog = screen.queryByRole("dialog", {
@@ -512,12 +514,169 @@ describe("Finance Categories destination", () => {
     );
 
     await waitFor(() => expect(listRequests).toBe(2));
+    expect(screen.getByRole("status")).toHaveTextContent("Dining renamed.");
+    expect(screen.getByRole("status")).not.toHaveClass("sr-only");
     expect(
       within(screen.getByRole("region", { name: "Active Categories" }))
         .getAllByRole("article")
         .map((row) => row.getAttribute("aria-label")),
     ).toEqual(["Dining", "Food"]);
     releaseRefresh();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Actions for Dining" }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it.each(["create", "rename", "archive", "unarchive"] as const)(
+    "clears success feedback when starting a new %s workflow",
+    async (workflow) => {
+      const user = userEvent.setup();
+      const renamed = { ...categories[0]!, name: "Dining" };
+      let currentCategories = categories;
+      server.use(
+        getListFinanceLedgersMockHandler([ledger]),
+        getListFinanceCategoriesMockHandler(() => currentCategories),
+        getUpdateFinanceCategoryMockHandler(() => {
+          currentCategories = [renamed, ...categories.slice(1)];
+          return renamed;
+        }),
+        getUnarchiveFinanceCategoryMockHandler409({
+          type: "about:blank",
+          title: "Conflict",
+          status: 409,
+          code: "finance_category_name_conflict",
+        }),
+      );
+      renderRoute(`/finance/categories?ledger=${ledger.id}`);
+      await user.click(
+        await screen.findByRole("button", { name: "Actions for Transport" }),
+      );
+      await user.click(
+        await screen.findByRole("menuitem", { name: "Rename Transport" }),
+      );
+      const rename = screen.getByRole("dialog", { name: "Rename Transport" });
+      const name = within(rename).getByLabelText("Category name");
+      await user.clear(name);
+      await user.type(name, "Dining");
+      await user.click(
+        within(rename).getByRole("button", { name: "Rename category" }),
+      );
+      await waitFor(() =>
+        expect(screen.getByRole("status")).toHaveTextContent("Dining renamed."),
+      );
+
+      if (workflow === "create") {
+        await user.click(
+          screen.getByRole("button", { name: "Create category" }),
+        );
+      } else {
+        const target = workflow === "unarchive" ? "Subscriptions" : "Food";
+        const action = {
+          rename: "Rename",
+          archive: "Archive",
+          unarchive: "Unarchive",
+        }[workflow];
+        await user.click(
+          screen.getByRole("button", { name: `Actions for ${target}` }),
+        );
+        await user.click(
+          await screen.findByRole("menuitem", { name: `${action} ${target}` }),
+        );
+        if (workflow === "unarchive") {
+          expect(await screen.findByRole("alert")).toHaveTextContent(
+            "could not be unarchived",
+          );
+        }
+      }
+      expect(screen.queryByText("Dining renamed.")).not.toBeInTheDocument();
+    },
+  );
+
+  it("does not revive delayed lifecycle feedback in a newer workflow", async () => {
+    const user = userEvent.setup();
+    let releaseUnarchive!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      releaseUnarchive = resolve;
+    });
+    let currentCategories = categories;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceCategoriesMockHandler(() => currentCategories),
+      getUnarchiveFinanceCategoryMockHandler(async () => {
+        await pending;
+        const active = { ...categories[2]!, status: "active" } as const;
+        currentCategories = [...categories.slice(0, 2), active];
+        return active;
+      }),
+    );
+    renderRoute(`/finance/categories?ledger=${ledger.id}`);
+    await user.click(
+      await screen.findByRole("button", { name: "Actions for Subscriptions" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Unarchive Subscriptions" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("article", { name: "Subscriptions" }),
+      ).toHaveAttribute("aria-busy", "true"),
+    );
+    await user.click(screen.getByRole("button", { name: "Create category" }));
+    releaseUnarchive();
+    await waitFor(() =>
+      expect(
+        within(
+          screen.getByRole("region", {
+            name: "Active Categories",
+            hidden: true,
+          }),
+        ).getByRole("article", { name: "Subscriptions", hidden: true }),
+      ).toHaveAttribute("aria-busy", "false"),
+    );
+    expect(
+      screen.queryByText("Subscriptions unarchived."),
+    ).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  });
+
+  it("does not carry success feedback across Ledgers or destination visits", async () => {
+    const user = userEvent.setup();
+    const active = { ...categories[2]!, status: "active" } as const;
+    let currentCategories = categories;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger, teamLedger]),
+      getListFinanceCategoriesMockHandler(() => currentCategories),
+      getUnarchiveFinanceCategoryMockHandler(() => {
+        currentCategories = [...categories.slice(0, 2), active];
+        return active;
+      }),
+    );
+    const { router } = renderRoute(`/finance/categories?ledger=${ledger.id}`);
+    await user.click(
+      await screen.findByRole("button", { name: "Actions for Subscriptions" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Unarchive Subscriptions" }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Subscriptions unarchived.",
+      ),
+    );
+
+    await router.navigate(`/finance/categories?ledger=${teamLedger.id}`);
+    await screen.findByText("Categories in Team fund");
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    await router.navigate(`/finance/categories?ledger=${ledger.id}`);
+    await screen.findByText("Categories in Personal");
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    await router.navigate(`/finance/accounts?ledger=${ledger.id}`);
+    await router.navigate(`/finance/categories?ledger=${ledger.id}`);
+    await screen.findByText("Categories in Personal");
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
   });
 
   it("confirms archive and reconciles the confirmed lifecycle immediately", async () => {
@@ -568,6 +727,8 @@ describe("Finance Categories destination", () => {
     );
 
     await waitFor(() => expect(listRequests).toBe(2));
+    expect(screen.getByRole("status")).toHaveTextContent("Transport archived.");
+    expect(screen.getByRole("status")).not.toHaveClass("sr-only");
     expect(
       within(screen.getByRole("region", { name: "Archived Categories" }))
         .getAllByRole("article")
@@ -632,6 +793,7 @@ describe("Finance Categories destination", () => {
       "A Category with this name already exists.",
     );
     expect(alert).toHaveTextContent("rename it, then retry Unarchive");
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
     await user.click(
       within(alert).getByRole("button", {
         name: `Rename ${archivedIdentity}`,
@@ -910,6 +1072,7 @@ describe("Finance Categories destination", () => {
     expect(
       screen.getByRole("button", { name: "Actions for Subscriptions" }),
     ).toBeDisabled();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
 
     releaseUnarchive();
     await waitFor(() => expect(row).not.toHaveAttribute("aria-busy", "true"));
@@ -1040,6 +1203,10 @@ describe("Finance Categories destination", () => {
     );
 
     await waitFor(() => expect(listRequests).toBe(2));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Subscriptions unarchived.",
+    );
+    expect(screen.getByRole("status")).not.toHaveClass("sr-only");
     expect(
       within(screen.getByRole("region", { name: "Active Categories" }))
         .getAllByRole("article")
