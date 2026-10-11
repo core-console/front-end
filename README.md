@@ -130,5 +130,5 @@ contract. Finance product routes and UI remain separate implementation work.
 
 For Finance product and design authority, start with the
 [approved interaction specification](docs/finance-v1-frontend-interaction-spec.md),
-the [visual-reference index](docs/design/finance-v1/README.md), and the
+the [design-authority index](docs/design/finance-v1/README.md), and the
 [Finance visual authority](DESIGN.md#finance-v1-authority).

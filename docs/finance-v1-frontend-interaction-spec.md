@@ -13,10 +13,10 @@ specified, not yet implemented; do not duplicate its contract here.
 This document owns Finance v1 frontend workflows, interaction behavior,
 user-facing state transitions, and navigation semantics. It also defines
 required responsive behavior and state presentation.
-The [Finance reference images](design/finance-v1/README.md) own visual
-direction, major desktop layout relationships, page composition, and
-information architecture as represented visually. They do not impose a
-pixel-perfect layout or frontend implementation architecture.
+The [Finance design-authority index](design/finance-v1/README.md) routes the
+approved specifications, visual constraints, and current backend/OpenAPI
+integration status. Historical Finance mockups are retired and do not define
+current UI authority.
 
 The backend Finance foundation at commit
 `144267b51ec59300d1708f6b2046183ba9d35dc0` and the backend Finance v1 Product
@@ -55,8 +55,8 @@ The global shell/header identifies the product area as `Finance`. The Finance
 content heading identifies the current local destination. The destination name
 is not duplicated into both hierarchy levels merely for visual symmetry.
 
-The exact composition of Finance-local navigation may be refined from the
-Finance reference images within the visual authority defined in `DESIGN.md`.
+The exact composition of Finance-local navigation may be refined within the
+visual authority defined in `DESIGN.md` and this specification's requirements.
 It must not become four global navigation entries or a second application
 sidebar. Internal Transfer and Balance Adjustment are operations, not
 destinations.
@@ -998,8 +998,8 @@ clearly labelled currency group.
 
 ## 17. Visual implementation freedoms and limits
 
-Within the authority of the Finance reference images and Core Console
-`DESIGN.md`, implementation may refine:
+Within this specification's requirements and the visual authority of Core
+Console `DESIGN.md`, implementation may refine:
 
 - exact Finance-local navigation composition;
 - grouping surfaces, including card-like versus flatter sections;
@@ -1024,7 +1024,7 @@ must not add PrimeVue or another UI framework.
 Implementation must not redefine Finance destinations, workflow boundaries,
 field order, Calendar or selected-day behavior, browser-addressable state,
 Ledger safety, currency semantics, responsive hierarchy, required states, or
-accessibility interactions. The reference set is not authorization for another
+accessibility interactions. These freedoms are not authorization for another
 product-design round.
 
 ## 18. Explicit Finance v1 frontend non-goals

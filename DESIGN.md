@@ -45,7 +45,7 @@ Inter remains the application typeface. Feature work must not replace the global
 Finance v1 uses a layered authority model:
 
 1. The [approved Finance interaction specification](docs/finance-v1-frontend-interaction-spec.md) owns frontend workflows, interaction behavior, user-facing state transitions, and navigation semantics.
-2. The complete [Finance reference-image set](docs/design/finance-v1/README.md) owns information architecture, page composition, major desktop layout relationships, and visual direction.
+2. The [Finance design-authority index](docs/design/finance-v1/README.md) routes the approved specifications, visual constraints, and current backend/OpenAPI integration status. Historical Finance mockups are retired and do not define current UI authority.
 3. This document, the existing Core Console shell, checked-in shadcn components, and semantic design tokens own the global visual and implementation constraints within which Finance is built.
 
-The Finance reference images are not pixel-perfect implementation requirements. Implementation may refine spacing, density, borders, radii, typography, responsive behavior, and component composition while preserving the interaction specification, information architecture, major desktop relationships, and visual direction. Refinements should retain a neutral, restrained, data-dense enterprise character similar to PrimeVue without introducing PrimeVue or another UI framework.
+Implementation may refine spacing, density, borders, radii, typography, responsive behavior, and component composition while preserving the approved interaction specification, including its information architecture, major desktop relationships, and responsive hierarchy. Refinements should retain a neutral, restrained, data-dense enterprise character similar to PrimeVue without introducing PrimeVue or another UI framework.
