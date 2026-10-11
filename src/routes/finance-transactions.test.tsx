@@ -16,7 +16,12 @@ import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { getGetBalanceAdjustmentContextQueryKey } from "@/api/generated/core-console";
+import {
+  getGetBalanceAdjustmentContextQueryKey,
+  getListFinanceAccountsQueryKey,
+  getListFinanceCategoriesQueryKey,
+  getListFinanceCurrenciesQueryKey,
+} from "@/api/generated/core-console";
 import {
   getListFinanceAccountsMockHandler,
   getListFinanceCategoriesMockHandler,
@@ -170,6 +175,229 @@ const history = {
 } satisfies TransactionHistoryPageResponse;
 
 describe("Finance Transactions destination", () => {
+  it("keeps other failed dependencies untouched when a manual retry fails again", async () => {
+    const user = userEvent.setup();
+    const requests: string[] = [];
+    let accountAvailable = false;
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+      http.get("*/api/finance/ledgers/:ledgerId/accounts", () => {
+        requests.push("accounts");
+        return accountAvailable
+          ? HttpResponse.json(accounts)
+          : HttpResponse.json(
+              { detail: "private database address" },
+              { status: 503 },
+            );
+      }),
+      http.get("*/api/finance/ledgers/:ledgerId/categories", () => {
+        requests.push("categories");
+        return HttpResponse.json({}, { status: 503 });
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+    const retry = await screen.findByRole(
+      "button",
+      { name: "重试加载Account" },
+      { timeout: 5_000 },
+    );
+    await screen.findByRole("button", { name: "重试加载Category" });
+    expect(
+      screen
+        .getAllByRole("alert")
+        .map((alert) => alert.textContent)
+        .join(),
+    ).not.toContain("private database address");
+    const before = [...requests];
+    await user.click(retry);
+    await waitFor(() =>
+      expect(retry).not.toHaveAttribute("aria-disabled", "true"),
+    );
+    expect(screen.getAllByRole("alert")).toHaveLength(2);
+    expect(requests).toEqual([...before, "accounts"]);
+    accountAvailable = true;
+    await user.click(retry);
+    await screen.findByText("Account数据已恢复。");
+    expect(screen.getByRole("alert")).toHaveTextContent("无法加载Category");
+    expect(requests).toEqual([...before, "accounts", "accounts"]);
+  });
+
+  it("recovers a failed Category refresh inside an open form without losing its draft or focus", async () => {
+    const user = userEvent.setup();
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler([...categories]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+    );
+    const { queryClient } = renderRoute(
+      `/finance/transactions?ledger=${ledger.id}`,
+    );
+    const trigger = await screen.findByRole(
+      "button",
+      { name: "Record transaction" },
+      { timeout: 5_000 },
+    );
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await user.click(await screen.findByRole("menuitem", { name: "Expense" }));
+    const dialog = screen.getByRole("dialog", { name: "Record expense" });
+    const amount = within(dialog).getByLabelText("Amount");
+    const note = within(dialog).getByLabelText("Note");
+    await user.type(amount, "42.25");
+    await user.selectOptions(
+      within(dialog).getByLabelText("Category"),
+      activeCategoryId,
+    );
+    await user.type(note, "Keep this draft");
+    server.use(
+      http.get("*/api/finance/ledgers/:ledgerId/categories", () =>
+        HttpResponse.json({}, { status: 503 }),
+      ),
+    );
+    await act(async () => {
+      await queryClient.refetchQueries({
+        queryKey: getListFinanceCategoriesQueryKey(ledger.id),
+        exact: true,
+      });
+    });
+    expect(note).toHaveFocus();
+    const retry = await within(dialog).findByRole("button", {
+      name: "重试加载Category",
+    });
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      getListFinanceCategoriesMockHandler(async () => {
+        await gate;
+        return [...categories];
+      }),
+    );
+    await user.click(retry);
+    await within(dialog).findByText("正在重试加载Category…");
+    await user.click(note);
+    release();
+    await within(dialog).findByText("Category数据已恢复。");
+    expect(note).toHaveFocus();
+    expect(note).toHaveValue("Keep this draft");
+    expect(amount).toHaveValue("42.25");
+    expect(within(dialog).getByLabelText("Category")).toHaveValue(
+      activeCategoryId,
+    );
+    expect(screen.getByRole("dialog")).toBe(dialog);
+  });
+
+  it.each([
+    ["currencies", "币种"],
+    ["accounts", "Account"],
+    ["categories", "Category"],
+  ])(
+    "recovers only failed %s and distinguishes later background loading without resetting work",
+    async (path, label) => {
+      const user = userEvent.setup();
+      const requests: string[] = [];
+      let fail = true;
+      let release!: () => void;
+      let gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      server.use(
+        getListFinanceLedgersMockHandler([ledger]),
+        http.get("*/api/finance/currencies", async () =>
+          dependency("currencies", currencies),
+        ),
+        http.get("*/api/finance/ledgers/:ledgerId/accounts", async () =>
+          dependency("accounts", accounts),
+        ),
+        http.get("*/api/finance/ledgers/:ledgerId/categories", async () =>
+          dependency("categories", categories),
+        ),
+        getListFinanceTransactionsMockHandler(({ request }) => {
+          requests.push("history");
+          return new URL(request.url).searchParams.has("cursor")
+            ? { items: [history.items[3]!], nextCursor: null }
+            : { items: [history.items[0]!], nextCursor: "preserved.cursor" };
+        }),
+      );
+      async function dependency(
+        name: string,
+        data: typeof currencies | typeof accounts | typeof categories,
+      ) {
+        requests.push(name);
+        if (name === path) {
+          if (fail) return HttpResponse.json({}, { status: 503 });
+          await gate;
+        }
+        return HttpResponse.json(data);
+      }
+      const entry = `/finance/transactions?ledger=${ledger.id}&from=2026-08-01&to=2026-08-31`;
+      const { router, queryClient } = renderRoute(entry);
+      const retry = await screen.findByRole(
+        "button",
+        { name: `重试加载${label}` },
+        { timeout: 5_000 },
+      );
+      expect(screen.getByRole("alert")).toHaveTextContent(`无法加载${label}`);
+      await user.click(screen.getByRole("button", { name: "Load more" }));
+      await screen.findByRole("article", {
+        name: "Balance Adjustment on August 14, 2026",
+      });
+      await user.clear(screen.getByLabelText("From date"));
+      await user.type(screen.getByLabelText("From date"), "2026-08-03");
+      const before = [...requests];
+      fail = false;
+      await user.click(retry);
+      expect(await screen.findByText(`正在重试加载${label}…`)).toBeVisible();
+      expect(retry).toHaveAttribute("aria-disabled", "true");
+      expect(retry).toHaveFocus();
+      await user.keyboard("{Enter}");
+      expect(requests).toEqual([...before, path]);
+      release();
+      expect(await screen.findByText(`${label}数据已恢复。`)).toBeVisible();
+      expect(retry).toHaveFocus();
+      expect(screen.getByLabelText("From date")).toHaveValue("2026-08-03");
+      expect(screen.getAllByRole("article")).toHaveLength(2);
+      expect(
+        router.state.location.pathname + router.state.location.search,
+      ).toBe(entry);
+      expect(requests).toEqual([...before, path]);
+      gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const queryKey =
+        path === "currencies"
+          ? getListFinanceCurrenciesQueryKey()
+          : path === "accounts"
+            ? getListFinanceAccountsQueryKey(ledger.id)
+            : getListFinanceCategoriesQueryKey(ledger.id);
+      let background!: Promise<void>;
+      act(() => {
+        background = queryClient.refetchQueries({ queryKey, exact: true });
+      });
+      expect(await screen.findByText(`正在加载${label}…`)).toBeVisible();
+      expect(
+        screen.queryByText(`正在重试加载${label}…`),
+      ).not.toBeInTheDocument();
+      expect(retry).toHaveFocus();
+      expect(retry).toHaveAttribute("aria-disabled", "true");
+      release();
+      await act(async () => background);
+      expect(await screen.findByText(`${label}数据已恢复。`)).toBeVisible();
+      expect(retry).toHaveFocus();
+      expect(screen.getByLabelText("From date")).toHaveValue("2026-08-03");
+      expect(screen.getAllByRole("article")).toHaveLength(2);
+      expect(
+        router.state.location.pathname + router.state.location.search,
+      ).toBe(entry);
+      expect(requests).toEqual([...before, path, path]);
+    },
+  );
+
   it("distinguishes duplicate references and associates each picker description", async () => {
     const user = userEvent.setup();
     server.use(
@@ -2169,7 +2397,14 @@ describe("Finance Transactions destination", () => {
       within(dialog).getByRole("button", { name: "Record transfer" }),
     );
 
-    const recoveryAlert = await within(dialog).findByRole("alert");
+    await within(dialog).findByRole("button", {
+      name: "Retry Account refresh",
+    });
+    const recoveryAlert = within(dialog)
+      .getAllByRole("alert")
+      .find((alert) =>
+        within(alert).queryByRole("button", { name: "Retry Account refresh" }),
+      )!;
     expect(recoveryAlert).toHaveTextContent(
       "Accounts could not be refreshed. Retry Account refresh before submitting this transfer.",
     );

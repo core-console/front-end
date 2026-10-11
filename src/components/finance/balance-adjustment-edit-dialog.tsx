@@ -32,6 +32,8 @@ import {
   type FinanceTransactionResponseOutput,
 } from "@/api/generated/schemas";
 import { buildAccountWorkflowLabels } from "@/components/finance/account-identity";
+import { TransactionDependencyStatus } from "@/components/finance/transaction-dependency-status";
+import { glossary, messages } from "@/lib/i18n";
 import {
   isMissingAdjustmentTransaction,
   reconcileMissingAdjustmentTransaction,
@@ -827,6 +829,14 @@ function EditForm({
         noValidate
         onSubmit={(event) => void submit(event)}
       >
+        <TransactionDependencyStatus
+          label={glossary.account}
+          query={accountsQuery}
+        />
+        <TransactionDependencyStatus
+          label={messages.finance.transactionDependencies.currency}
+          query={currenciesQuery}
+        />
         <FieldGroup>
           <Field data-disabled={busy} data-invalid={Boolean(fieldError)}>
             <FieldLabel htmlFor="edit-adjustment-account">Account</FieldLabel>
@@ -899,8 +909,7 @@ function EditForm({
             </div>
           ) : null}
           {(!conflict && contextQuery.isError) ||
-          accountRefreshFailed ||
-          (!dataReady && (accountsQuery.isError || currenciesQuery.isError)) ? (
+          (accountRefreshFailed && !accountsQuery.isSuccess) ? (
             <Alert variant="destructive">
               <AlertTitle>Adjustment context could not be loaded</AlertTitle>
               <AlertDescription>
@@ -915,10 +924,13 @@ function EditForm({
                   type="button"
                   size="sm"
                   variant="outline"
+                  disabled={contextQuery.isFetching || accountsQuery.isFetching}
+                  focusableWhenDisabled
                   onClick={() => {
-                    void contextQuery.refetch();
-                    void accountsQuery.refetch();
-                    void currenciesQuery.refetch();
+                    if (contextQuery.isError && contextEnabled)
+                      void contextQuery.refetch({ cancelRefetch: false });
+                    if (accountsQuery.isError && accountRefreshFailed)
+                      void accountsQuery.refetch({ cancelRefetch: false });
                     setAccountRefreshFailed(false);
                   }}
                 >

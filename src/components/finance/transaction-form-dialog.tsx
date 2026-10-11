@@ -1,4 +1,10 @@
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import {
+  type FormEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { useFinanceCreate } from "./use-finance-create";
 import {
@@ -51,6 +57,7 @@ type SelectedReferenceIdentity = {
 };
 
 type TransactionFormDialogProps = {
+  dependencyRecovery?: ReactNode;
   accounts: AccountResponse[];
   categories: CategoryResponse[];
   currencies: CurrencyResponse[];
@@ -92,6 +99,7 @@ function normalizedIntegerDigitCount(value: string) {
 }
 
 export function TransactionFormDialog({
+  dependencyRecovery,
   accounts,
   categories,
   currencies,
@@ -760,6 +768,7 @@ export function TransactionFormDialog({
             supplies currency, and the Transaction Date may be in the future.
           </DialogDescription>
         </DialogHeader>
+        {dependencyRecovery}
         {form}
       </DialogContent>
     </Dialog>

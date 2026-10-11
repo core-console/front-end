@@ -1,4 +1,10 @@
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import {
+  type FormEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { useFinanceCreate } from "./use-finance-create";
 import {
@@ -50,6 +56,7 @@ type AccountRefreshResult =
   { accounts: AccountResponse[]; status: "success" } | { status: "error" };
 
 type InternalTransferFormDialogProps = {
+  dependencyRecovery?: ReactNode;
   accounts: AccountResponse[];
   currencies: CurrencyResponse[];
   initialDate?: string;
@@ -131,6 +138,7 @@ function serverMessage(error: unknown) {
 }
 
 export function InternalTransferFormDialog({
+  dependencyRecovery,
   accounts,
   currencies,
   initialDate,
@@ -533,6 +541,7 @@ export function InternalTransferFormDialog({
             Source Account supplies currency; no available-balance rule applies.
           </DialogDescription>
         </DialogHeader>
+        {dependencyRecovery}
         <form
           aria-label="Record internal transfer"
           className="flex flex-col gap-4"

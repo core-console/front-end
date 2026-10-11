@@ -44,6 +44,8 @@ import {
   useTransactionDeletion,
 } from "@/components/finance/transaction-deletion";
 import { reconcileOrdinaryReplacementHistories } from "@/components/finance/transaction-history-cache";
+import { TransactionDependencyStatus } from "@/components/finance/transaction-dependency-status";
+import { glossary, messages } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -1083,30 +1085,20 @@ function EditForm({
             <FieldError id="edit-note-error">{errors.note}</FieldError>
           </Field>
         </FieldGroup>
-        {!currentReferences ? (
-          <p role="alert">
-            Reference choices are unavailable. Retry loading references before
-            saving.
-          </p>
+        <TransactionDependencyStatus
+          label={glossary.account}
+          query={accountsQuery}
+        />
+        {transaction.kind !== "internalTransfer" ? (
+          <TransactionDependencyStatus
+            label={glossary.category}
+            query={categoriesQuery}
+          />
         ) : null}
-        {!currentReferences ? (
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy}
-            onClick={() =>
-              void Promise.all([
-                accountsQuery.refetch(),
-                ...(transaction.kind === "internalTransfer"
-                  ? []
-                  : [categoriesQuery.refetch()]),
-                currenciesQuery.refetch(),
-              ])
-            }
-          >
-            Retry loading references
-          </Button>
-        ) : null}
+        <TransactionDependencyStatus
+          label={messages.finance.transactionDependencies.currency}
+          query={currenciesQuery}
+        />
         {serverError ? (
           <p role="alert" className="text-destructive">
             {serverError}

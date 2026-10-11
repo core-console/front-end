@@ -1,4 +1,10 @@
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import {
+  type FormEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { useGetBalanceAdjustmentContext } from "@/api/generated/core-console";
 import {
@@ -71,6 +77,7 @@ type AccountRefreshResult =
   { accounts: AccountResponse[]; status: "success" } | { status: "error" };
 
 type BalanceAdjustmentFormDialogProps = {
+  dependencyRecovery?: ReactNode;
   accounts: AccountResponse[];
   currencies: CurrencyResponse[];
   initialDate?: string;
@@ -224,6 +231,7 @@ function ConflictReviewAlert({ review }: { review: ConflictReview }) {
 }
 
 export function BalanceAdjustmentFormDialog({
+  dependencyRecovery,
   accounts,
   currencies,
   initialDate,
@@ -624,6 +632,7 @@ export function BalanceAdjustmentFormDialog({
             a known actual target balance.
           </DialogDescription>
         </DialogHeader>
+        {dependencyRecovery}
         <form
           aria-label="Record balance adjustment"
           className="flex flex-col gap-4"

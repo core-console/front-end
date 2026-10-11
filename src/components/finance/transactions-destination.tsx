@@ -32,6 +32,8 @@ import {
 } from "@/components/finance/finance-route-state";
 import { InternalTransferFormDialog } from "@/components/finance/internal-transfer-form-dialog";
 import { TransactionFormDialog } from "@/components/finance/transaction-form-dialog";
+import { TransactionDependencyStatus } from "@/components/finance/transaction-dependency-status";
+import { glossary, messages } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -812,6 +814,23 @@ export function TransactionsDestination({
     );
   };
 
+  const dependencyRecovery = (
+    <>
+      <TransactionDependencyStatus
+        label={messages.finance.transactionDependencies.currency}
+        query={currenciesQuery}
+      />
+      <TransactionDependencyStatus
+        label={glossary.account}
+        query={accountsQuery}
+      />
+      <TransactionDependencyStatus
+        label={glossary.category}
+        query={categoriesQuery}
+      />
+    </>
+  );
+
   let historyContent;
 
   if (transactionsQuery.isPending) {
@@ -975,12 +994,7 @@ export function TransactionsDestination({
           </Button>
         </div>
       ) : null}
-      {currenciesQuery.isError ? (
-        <p className="text-sm text-destructive" role="alert">
-          Transaction recording is temporarily unavailable because supported
-          currencies could not be loaded.
-        </p>
-      ) : null}
+      {dialogKind ? null : dependencyRecovery}
       <FilterForm
         key={appliedFilterKey(appliedFilters)}
         accounts={accountsQuery.data ?? []}
@@ -989,12 +1003,6 @@ export function TransactionsDestination({
         categories={categoriesQuery.data ?? []}
         ledgerId={ledgerId}
       />
-      {accountsQuery.isError || categoriesQuery.isError ? (
-        <p className="text-sm text-destructive" role="alert">
-          Some filter choices are temporarily unavailable. Applied filters and
-          Transaction history remain available.
-        </p>
-      ) : null}
       {historyContent}
       {transactionsQuery.isFetchNextPageError ? (
         <div
@@ -1102,6 +1110,7 @@ export function TransactionsDestination({
       ) : null}
       {dialogKind === "balanceAdjustment" ? (
         <BalanceAdjustmentFormDialog
+          dependencyRecovery={dependencyRecovery}
           accounts={accountsQuery.data ?? []}
           currencies={currenciesQuery.data ?? []}
           ledgerId={ledgerId}
@@ -1119,6 +1128,7 @@ export function TransactionsDestination({
         />
       ) : dialogKind === "internalTransfer" ? (
         <InternalTransferFormDialog
+          dependencyRecovery={dependencyRecovery}
           accounts={accountsQuery.data ?? []}
           currencies={currenciesQuery.data ?? []}
           ledgerId={ledgerId}
@@ -1136,6 +1146,7 @@ export function TransactionsDestination({
         />
       ) : dialogKind ? (
         <TransactionFormDialog
+          dependencyRecovery={dependencyRecovery}
           accounts={accountsQuery.data ?? []}
           categories={categoriesQuery.data ?? []}
           currencies={currenciesQuery.data ?? []}

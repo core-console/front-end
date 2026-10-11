@@ -6,6 +6,9 @@ import { describe, expect, it } from "vitest";
 import {
   getGetBalanceAdjustmentContextQueryKey,
   getGetFinanceTransactionQueryKey,
+  getListFinanceAccountsQueryKey,
+  getListFinanceCategoriesQueryKey,
+  getListFinanceCurrenciesQueryKey,
   getListFinanceTransactionsQueryKey,
 } from "@/api/generated/core-console";
 import {
@@ -117,6 +120,122 @@ function mockEditReferences() {
 }
 
 describe("Finance Transaction detail", () => {
+  it.each([
+    [0, "Income", "categories", "Category"],
+    [1, "Expense", "currencies", "币种"],
+    [2, "Internal Transfer", "accounts", "Account"],
+    [3, "Balance Adjustment", "currencies", "币种"],
+    [3, "Balance Adjustment", "accounts", "Account"],
+  ] as const)(
+    "recovers %s %s editing after %s fails without resetting the draft",
+    async (index, kind, dependency, label) => {
+      const user = userEvent.setup();
+      const requests: string[] = [];
+      let failed = false;
+      let hold = false;
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const transaction = transactions[index]!;
+      mockLedger();
+      mockEditReferences();
+      server.use(
+        getGetFinanceTransactionMockHandler(transaction),
+        http.get(
+          "*/api/finance/ledgers/:ledgerId/accounts/:accountId/balance-adjustment-context",
+          ({ request }) => {
+            requests.push("context");
+            return HttpResponse.json({
+              account,
+              accountNature: "asset",
+              derivedComparisonBalance: money,
+              transactionDate: new URL(request.url).searchParams.get(
+                "transactionDate",
+              ),
+            });
+          },
+        ),
+        http.get(
+          dependency === "currencies"
+            ? "*/api/finance/currencies"
+            : `*/api/finance/ledgers/:ledgerId/${dependency}`,
+          async () => {
+            requests.push(dependency);
+            if (failed) return HttpResponse.json({}, { status: 503 });
+            if (hold) await gate;
+            return HttpResponse.json(
+              dependency === "currencies"
+                ? [{ code: "USD", minorUnit: 2 }]
+                : dependency === "accounts"
+                  ? [fullAccount(account), fullAccount(otherAccount)]
+                  : [
+                      {
+                        id: "44444444-4444-4444-8444-444444444444",
+                        name: "Food",
+                        status: "archived",
+                      },
+                    ],
+            );
+          },
+        ),
+      );
+      const { queryClient } = renderRoute(
+        `/finance/transactions/${transactionId}?ledger=${ledgerId}`,
+      );
+      await user.click(
+        await screen.findByRole(
+          "button",
+          { name: `Edit ${kind}` },
+          { timeout: 5_000 },
+        ),
+      );
+      const dialog = await screen.findByRole("dialog", {
+        name: `Edit ${kind}`,
+      });
+      const amount = await within(dialog).findByLabelText(
+        kind === "Balance Adjustment" ? "Target balance" : "Amount",
+      );
+      await waitFor(() => expect(amount).toBeEnabled());
+      await user.clear(amount);
+      await user.type(amount, "42.25");
+      const note = within(dialog).getByLabelText("Note");
+      await user.clear(note);
+      await user.type(note, "Preserve edited draft");
+      const key =
+        dependency === "currencies"
+          ? getListFinanceCurrenciesQueryKey()
+          : dependency === "accounts"
+            ? getListFinanceAccountsQueryKey(ledgerId)
+            : getListFinanceCategoriesQueryKey(ledgerId);
+      failed = true;
+      await act(async () => {
+        await queryClient.refetchQueries({ queryKey: key, exact: true });
+      });
+      expect(note).toHaveFocus();
+      const retry = await within(dialog).findByRole("button", {
+        name: `重试加载${label}`,
+      });
+      const before = [...requests];
+      failed = false;
+      hold = true;
+      await user.click(retry);
+      await within(dialog).findByText(`正在重试加载${label}…`);
+      release();
+      await within(dialog).findByText(`${label}数据已恢复。`);
+      expect(retry).toHaveFocus();
+      expect(amount).toHaveValue("42.25");
+      expect(note).toHaveValue("Preserve edited draft");
+      expect(requests).toEqual([...before, dependency]);
+      expect(
+        within(dialog).getByRole("button", {
+          name:
+            kind === "Balance Adjustment" ? "Save adjustment" : "Save changes",
+        }),
+      ).toBeEnabled();
+    },
+  );
+
   it.each(
     (["id", "ledger", "kind"] as const).flatMap((mismatch) =>
       (["detail", "history"] as const).flatMap((entry) =>

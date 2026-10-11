@@ -29,6 +29,15 @@ export const messages = {
     returnHome: "返回 Home",
   },
   finance: {
+    transactionDependencies: {
+      currency: "币种",
+      loading: (label: string) => `正在加载${label}…`,
+      retrying: (label: string) => `正在重试加载${label}…`,
+      failed: (label: string) =>
+        `无法加载${label}。当前 Ledger、筛选条件和草稿已保留，请重试。`,
+      recovered: (label: string) => `${label}数据已恢复。`,
+      retry: (label: string) => `重试加载${label}`,
+    },
     viewMonthTransactions: "查看本月流水",
     quickEntry: {
       title: "快速记账",
