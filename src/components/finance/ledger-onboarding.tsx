@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 
 import type { LedgerResponse } from "@/api/generated/schemas";
 import { useLedgerCreate } from "./use-ledger-create";
@@ -17,6 +17,7 @@ interface LedgerOnboardingProps {
 }
 
 export function LedgerOnboarding({ onCreated }: LedgerOnboardingProps) {
+  const nameRef = useRef<HTMLInputElement>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const create = useLedgerCreate(
     "onboarding",
@@ -33,10 +34,12 @@ export function LedgerOnboarding({ onCreated }: LedgerOnboardingProps) {
 
     if (!name) {
       setNameError("Enter a Ledger name.");
+      nameRef.current?.focus();
       return;
     }
     if ([...name].length > 100) {
       setNameError("Ledger name must be 100 characters or fewer.");
+      nameRef.current?.focus();
       return;
     }
 
@@ -68,6 +71,7 @@ export function LedgerOnboarding({ onCreated }: LedgerOnboardingProps) {
               maxLength={100}
               name="name"
               onChange={create.edited}
+              ref={nameRef}
             />
             <FieldDescription id={descriptionId}>
               Use a distinct name you will recognize.

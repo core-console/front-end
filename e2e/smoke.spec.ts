@@ -577,6 +577,72 @@ test("opens Users management in the production shell", async ({
   expectNoBrowserErrors(errors);
 });
 
+test("focuses the first Ledger name after client validation and allows keyboard correction", async ({
+  page,
+}, testInfo) => {
+  const errors = collectBrowserErrors(page);
+  const submitted: unknown[] = [];
+  let ledgers: typeof financeLedgers = [];
+  await mockOverviewDetails(page);
+  await page.route("**/api/finance/ledgers", async (route) => {
+    if (route.request().method() === "POST") {
+      submitted.push(route.request().postDataJSON());
+      ledgers = [financeLedgers[0]!];
+      await route.fulfill({
+        json: createdLedgerReceipt(
+          route.request().headers()["idempotency-key"]!,
+          financeLedgers[0]!.id,
+        ),
+        status: 201,
+      });
+    } else await route.fulfill({ json: ledgers });
+  });
+  await page.route(
+    "**/api/finance/ledgers/*/overview?month=*",
+    async (route) => {
+      const month = new URL(route.request().url()).searchParams.get("month")!;
+      await route.fulfill({ json: financeOverviewForMonth(month) });
+    },
+  );
+  await page.goto("/finance/overview");
+  const name = page.getByRole("textbox", { name: "Ledger name" });
+  const submit = page.getByRole("button", { name: "Create Ledger" });
+  await name.fill("   ");
+  await submit.click();
+
+  await expect(name).toBeFocused();
+  await expect(name).toHaveValue("   ");
+  await expect(
+    page.getByText("Enter a Ledger name.", { exact: true }),
+  ).toBeVisible();
+  await expect(name).toHaveAttribute("aria-invalid", "true");
+  await expect(name).toHaveAttribute(
+    "aria-errormessage",
+    "first-ledger-name-error",
+  );
+  await expect(name).toHaveAccessibleDescription(
+    "Use a distinct name you will recognize. Enter a Ledger name.",
+  );
+  expect(submitted).toEqual([]);
+  await expectNoAccessibilityViolations(page, name, testInfo);
+
+  await page.keyboard.press("Tab");
+  await expect(submit).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(name).toBeFocused();
+  await expect(name).toHaveValue("   ");
+  expect(submitted).toEqual([]);
+
+  await page.keyboard.type("Personal");
+  await expect(name).toHaveValue("   Personal");
+  await page.keyboard.press("Tab");
+  await expect(submit).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(new RegExp(`ledger=${financeLedgers[0]!.id}`));
+  expect(submitted).toEqual([{ name: "Personal" }]);
+  expectNoBrowserErrors(errors);
+});
+
 test("opens Finance with shared Ledger context", async ({ page }, testInfo) => {
   const errors = collectBrowserErrors(page);
   await mockOverviewDetails(page);

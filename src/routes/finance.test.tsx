@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { http, HttpResponse } from "msw";
@@ -253,6 +253,63 @@ describe("Finance foundation", () => {
       await screen.findByRole("button", { name: "Personal" }),
     ).toBeVisible();
   });
+
+  it.each([
+    ["empty", "", "Enter a Ledger name."],
+    ["whitespace-only", "   ", "Enter a Ledger name."],
+    [
+      "overlong",
+      "a".repeat(101),
+      "Ledger name must be 100 characters or fewer.",
+    ],
+  ])(
+    "focuses the first Ledger name after %s name validation fails",
+    async (_, value, message) => {
+      const user = userEvent.setup();
+      let createRequests = 0;
+      server.use(
+        getListFinanceLedgersMockHandler([]),
+        getCreateFinanceLedgerMockHandler(() => {
+          createRequests += 1;
+          return createdLedgerReceipt(crypto.randomUUID(), personalLedger.id);
+        }),
+      );
+      const { router } = renderRoute("/finance/categories");
+      const name = await screen.findByRole("textbox", { name: "Ledger name" });
+      const submit = screen.getByRole("button", { name: "Create Ledger" });
+      await waitFor(() => expect(submit).toBeEnabled());
+      await user.click(name);
+      // Exercise the defensive length check even though typing is capped by maxLength.
+      fireEvent.change(name, { target: { value } });
+      await user.tab();
+      expect(submit).toHaveFocus();
+      await user.keyboard("{Enter}");
+
+      expect(screen.getByText(message)).toBeVisible();
+      expect(name).toHaveAccessibleErrorMessage(message);
+      expect(name).toHaveAccessibleDescription(
+        `Use a distinct name you will recognize. ${message}`,
+      );
+      expect(name).toHaveAttribute("aria-invalid", "true");
+      expect(name).toHaveValue(value);
+      expect(name).toHaveFocus();
+      expect(createRequests).toBe(0);
+      expect(router.state.location.pathname).toBe("/finance/categories");
+
+      await user.tab();
+      expect(submit).toHaveFocus();
+      await user.keyboard("{Enter}");
+      expect(name).toHaveFocus();
+      expect(name).toHaveValue(value);
+      expect(name).toHaveAccessibleErrorMessage(message);
+      expect(createRequests).toBe(0);
+
+      await user.clear(name);
+      await user.keyboard("Household");
+      expect(name).toHaveValue("Household");
+      expect(name).toHaveFocus();
+    },
+  );
 
   it("creates an explicitly named first Ledger and enters dated Overview", async () => {
     const user = userEvent.setup();
