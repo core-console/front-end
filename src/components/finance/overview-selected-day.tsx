@@ -18,6 +18,10 @@ import { buildFinanceSearch } from "@/components/finance/finance-route-state";
 import { formatOverviewDate } from "@/components/finance/overview-date";
 import { TransactionDeleteDialog } from "@/components/finance/transaction-detail";
 import { TransactionEditDialog } from "@/components/finance/transaction-edit-dialog";
+import {
+  buildTransactionListIdentity,
+  type TransactionListIdentity,
+} from "@/components/finance/transaction-list-identity";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -35,19 +39,15 @@ const kindLabel = {
   internalTransfer: "Internal Transfer",
 } as const;
 
-function reference(value: { id: string; name: string; status: string }) {
-  return `${value.name}${value.status === "archived" ? " (archived)" : ""} (Account ID ${value.id})`;
-}
-
-function meaning(transaction: Transaction) {
+function meaning(transaction: Transaction, identity: TransactionListIdentity) {
   if (transaction.kind === "internalTransfer") {
-    return `${formatFinanceMoney(transaction.sourceAmount)} from ${reference(transaction.sourceAccount)} to ${reference(transaction.destinationAccount)} (${formatFinanceMoney(transaction.destinationAmount)})`;
+    return `${formatFinanceMoney(transaction.sourceAmount)} from ${identity.account(transaction.sourceAccount)} to ${identity.account(transaction.destinationAccount)} (${formatFinanceMoney(transaction.destinationAmount)})`;
   }
   if (transaction.kind === "balanceAdjustment") {
     const delta = formatFinanceMoney(transaction.correctionDelta);
-    return `Signed correction ${transaction.correctionDelta.amount.startsWith("-") ? delta : `+${delta}`} for ${reference(transaction.account)}`;
+    return `Signed correction ${transaction.correctionDelta.amount.startsWith("-") ? delta : `+${delta}`} for ${identity.account(transaction.account)}`;
   }
-  return `${formatFinanceMoney(transaction.economicAmount)} ${transaction.kind === "income" ? "into" : "from"} ${reference(transaction.account)}`;
+  return `${formatFinanceMoney(transaction.economicAmount)} ${transaction.kind === "income" ? "into" : "from"} ${identity.account(transaction.account)}`;
 }
 
 export function OverviewSelectedDay({
@@ -120,6 +120,10 @@ export function OverviewSelectedDay({
       },
     );
   }, [query.data]);
+  const listIdentity = useMemo(
+    () => buildTransactionListIdentity(items, accountsQuery.data),
+    [items, accountsQuery.data],
+  );
 
   return (
     <section
@@ -190,14 +194,14 @@ export function OverviewSelectedDay({
             <li className="flex min-w-0 flex-col gap-2 p-4" key={item.id}>
               <p className="font-medium">{kindLabel[item.kind]}</p>
               <p className="min-w-0 text-sm [overflow-wrap:anywhere]">
-                {meaning(item)}
+                {meaning(item, listIdentity)}
               </p>
               {item.kind === "income" || item.kind === "expense" ? (
                 <p className="min-w-0 text-sm [overflow-wrap:anywhere] text-muted-foreground">
                   {item.categoryAllocations
                     .map((allocation) =>
                       allocation.category
-                        ? `${allocation.category.name}${allocation.category.status === "archived" ? " (archived)" : ""} (Category ID ${allocation.category.id}): ${formatFinanceMoney(allocation.amount)}`
+                        ? `${listIdentity.category(allocation.category)}: ${formatFinanceMoney(allocation.amount)}`
                         : `Uncategorized: ${formatFinanceMoney(allocation.amount)}`,
                     )
                     .join(" · ")}
@@ -208,9 +212,11 @@ export function OverviewSelectedDay({
                   {item.note}
                 </p>
               ) : null}
-              <p className="text-xs [overflow-wrap:anywhere] text-muted-foreground">
-                Transaction ID {item.id}
-              </p>
+              {listIdentity.ambiguousTransactions.has(item.id) ? (
+                <p className="text-xs [overflow-wrap:anywhere] text-muted-foreground">
+                  Transaction ID {item.id}
+                </p>
+              ) : null}
               <div className="flex flex-wrap gap-2">
                 <Button
                   nativeButton={false}

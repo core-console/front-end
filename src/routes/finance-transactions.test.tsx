@@ -175,6 +175,258 @@ const history = {
 } satisfies TransactionHistoryPageResponse;
 
 describe("Finance Transactions destination", () => {
+  it("disambiguates names that collide with an archived status label", async () => {
+    const base = history.items[0]!;
+    const archived = {
+      ...base,
+      account: { id: accountId, name: "Cash", status: "archived" as const },
+      categoryAllocations: [
+        {
+          ...base.categoryAllocations![0]!,
+          category: {
+            id: categoryId,
+            name: "Food",
+            status: "archived" as const,
+          },
+        },
+      ],
+    };
+    const active = {
+      ...base,
+      id: "aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa9",
+      account: {
+        id: duplicateAccountId,
+        name: "Cash (archived)",
+        status: "active" as const,
+      },
+      categoryAllocations: [
+        {
+          ...base.categoryAllocations![0]!,
+          category: {
+            id: duplicateCategoryId,
+            name: "Food (archived)",
+            status: "active" as const,
+          },
+        },
+      ],
+    };
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([]),
+      getListFinanceCategoriesMockHandler([]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler({
+        items: [archived, active],
+        nextCursor: null,
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+    const rows = await screen.findAllByRole(
+      "article",
+      { name: "Income on August 16, 2026" },
+      { timeout: 5_000 },
+    );
+    expect(rows[0]).toHaveTextContent(
+      `Into Cash (archived) (Account ID ${accountId})`,
+    );
+    expect(rows[1]).toHaveTextContent(
+      `Into Cash (archived) (Account ID ${duplicateAccountId})`,
+    );
+    expect(rows[0]).toHaveTextContent(
+      `Food (archived) (Category ID ${categoryId})`,
+    );
+    expect(rows[1]).toHaveTextContent(
+      `Food (archived) (Category ID ${duplicateCategoryId})`,
+    );
+  });
+
+  it("distinguishes a Category named Uncategorized from an uncategorized entry", async () => {
+    const base = history.items[0]!;
+    const named = {
+      ...base,
+      categoryAllocations: [
+        {
+          ...base.categoryAllocations![0]!,
+          category: {
+            id: categoryId,
+            name: "Uncategorized",
+            status: "active" as const,
+          },
+        },
+      ],
+    };
+    const uncategorized = {
+      ...base,
+      id: "aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa9",
+      categoryAllocations: [
+        {
+          ...base.categoryAllocations![0]!,
+          category: null,
+        },
+      ],
+    };
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler([
+        { id: categoryId, name: "Uncategorized", status: "active" },
+      ]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler({
+        items: [named, uncategorized],
+        nextCursor: null,
+      }),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+    const rows = await screen.findAllByRole(
+      "article",
+      { name: "Income on August 16, 2026" },
+      { timeout: 5_000 },
+    );
+    expect(
+      within(rows[0]!).getByText(`Uncategorized (Category ID ${categoryId})`),
+    ).toBeVisible();
+    expect(
+      within(rows[1]!).getByText("Uncategorized", { exact: true }),
+    ).toBeVisible();
+  });
+
+  it("disambiguates references and similar records when another history page arrives", async () => {
+    const user = userEvent.setup();
+    const first = history.items[0]!;
+    const similar = {
+      ...first,
+      id: "aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa9",
+      note: "Another award",
+    };
+    const otherCategory = {
+      ...first,
+      id: "aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa8",
+      categoryAllocations: [
+        {
+          ...first.categoryAllocations![0]!,
+          category: {
+            ...first.categoryAllocations![0]!.category!,
+            id: duplicateCategoryId,
+          },
+        },
+      ],
+    };
+    const transfer = {
+      ...history.items[2]!,
+      destinationAccount: {
+        id: duplicateAccountId,
+        name: "Cash",
+        status: "active" as const,
+      },
+    };
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([]),
+      getListFinanceCategoriesMockHandler([]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(({ request }) =>
+        request.url.includes("cursor=")
+          ? { items: [similar, otherCategory, transfer], nextCursor: null }
+          : { items: [first], nextCursor: "next" },
+      ),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+    const initial = await screen.findByRole(
+      "article",
+      { name: "Income on August 16, 2026" },
+      { timeout: 5_000 },
+    );
+    expect(
+      within(initial).queryByText(/Transaction ID/),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+    await screen.findByText("Another award");
+    const rows = screen.getAllByRole("article", {
+      name: "Income on August 16, 2026",
+    });
+    expect(
+      within(rows[0]!).getByText(`Transaction ID ${first.id}`),
+    ).toBeVisible();
+    expect(
+      within(rows[1]!).getByText(`Transaction ID ${similar.id}`),
+    ).toBeVisible();
+    expect(
+      within(rows[0]!).getByText(`Into Cash (Account ID ${accountId})`),
+    ).toBeVisible();
+    expect(
+      within(rows[0]!).getByText(
+        `Salary (archived) (Category ID ${categoryId})`,
+      ),
+    ).toBeVisible();
+    expect(
+      within(rows[2]!).getByText(
+        `Salary (archived) (Category ID ${duplicateCategoryId})`,
+      ),
+    ).toBeVisible();
+    expect(
+      within(rows[2]!).queryByText(/Transaction ID/),
+    ).not.toBeInTheDocument();
+    const transferRow = screen.getByRole("article", {
+      name: "Internal Transfer on August 15, 2026",
+    });
+    expect(
+      within(transferRow).getByText(
+        `1,000.00 CNY to Cash (Account ID ${duplicateAccountId})`,
+      ),
+    ).toBeVisible();
+    expect(
+      within(rows[1]!).getByRole("link", {
+        name: new RegExp(`Transaction ID ${similar.id}$`),
+      }),
+    ).toHaveAttribute(
+      "href",
+      `/finance/transactions/${similar.id}?ledger=${ledger.id}`,
+    );
+  });
+
+  it("keeps ordinary history focused on financial facts while actions retain exact identity", async () => {
+    server.use(
+      getListFinanceLedgersMockHandler([ledger]),
+      getListFinanceAccountsMockHandler([...accounts]),
+      getListFinanceCategoriesMockHandler([...categories]),
+      getListFinanceCurrenciesMockHandler([...currencies]),
+      getListFinanceTransactionsMockHandler(history),
+    );
+    renderRoute(`/finance/transactions?ledger=${ledger.id}`);
+    const row = await screen.findByRole(
+      "article",
+      {
+        name: "Income on August 16, 2026",
+      },
+      { timeout: 5_000 },
+    );
+    expect(within(row).getByText("9,007,199,254,740,993.25 USD")).toBeVisible();
+    expect(within(row).getByText("Into Cash")).toBeVisible();
+    expect(within(row).getByText("Salary (archived)")).toBeVisible();
+    expect(within(row).getByText("Annual award")).toBeVisible();
+    expect(within(row).queryByText(/Transaction ID/)).not.toBeInTheDocument();
+    const id = history.items[0]!.id;
+    expect(
+      within(row).getByRole("link", {
+        name: `View details for Income on August 16, 2026, Transaction ID ${id}`,
+      }),
+    ).toHaveAttribute(
+      "href",
+      `/finance/transactions/${id}?ledger=${ledger.id}`,
+    );
+    expect(
+      within(row).getByRole("button", {
+        name: `Edit Income on August 16, 2026, Transaction ID ${id}`,
+      }),
+    ).toBeEnabled();
+    expect(
+      within(row).getByRole("button", {
+        name: `Delete Income on August 16, 2026, Transaction ID ${id}`,
+      }),
+    ).toBeEnabled();
+  });
+
   it("keeps other failed dependencies untouched when a manual retry fails again", async () => {
     const user = userEvent.setup();
     const requests: string[] = [];

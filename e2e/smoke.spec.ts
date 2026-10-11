@@ -1390,6 +1390,169 @@ test("drills into the selected Overview month and restores context with Back", a
   expectNoBrowserErrors(errors);
 });
 
+for (const destination of ["overview", "transactions"] as const) {
+  test(`keeps ${destination} list identity clear with fewer visible UUIDs`, async ({
+    page,
+  }, testInfo) => {
+    const errors = collectBrowserErrors(page);
+    const first = FinanceTransactionResponse.parse({
+      ...financeTransactionPages[0]!.items[0]!,
+      categoryAllocations: [
+        {
+          amount: { amount: "8500.00", currency: "CNY" },
+          category: financeCategories[0]!,
+        },
+      ],
+    });
+    const similar = FinanceTransactionResponse.parse({
+      ...first,
+      id: "55555555-5555-4555-8555-555555555556",
+      note: "Another salary",
+    });
+    const transfer = FinanceTransactionResponse.parse({
+      ...financeTransactionPages[1]!.items[0]!,
+      transactionDate: "2026-08-16",
+      sourceAccount: {
+        id: financeAccounts[0]!.id,
+        name: financeAccounts[0]!.name,
+        status: "archived",
+      },
+      destinationAccount: {
+        id: financeAccounts[2]!.id,
+        name: financeAccounts[0]!.name,
+        status: "active",
+      },
+    });
+    const otherCategory = FinanceTransactionResponse.parse({
+      ...first,
+      id: "55555555-5555-4555-8555-555555555557",
+      categoryAllocations: [
+        {
+          amount: { amount: "8500.00", currency: "CNY" },
+          category: {
+            ...financeCategories[0]!,
+            id: "33333333-3333-4333-8333-333333333334",
+          },
+        },
+      ],
+    });
+    const all = [first, similar, transfer, otherCategory];
+    await page.route("**/api/finance/ledgers", (route) =>
+      route.fulfill({ json: financeLedgers }),
+    );
+    await page.route("**/api/finance/ledgers/*/accounts", (route) =>
+      route.fulfill({ json: financeAccounts }),
+    );
+    await page.route("**/api/finance/ledgers/*/categories", (route) =>
+      route.fulfill({ json: financeCategories }),
+    );
+    await page.route("**/api/finance/currencies", (route) =>
+      route.fulfill({ json: financeCurrencies }),
+    );
+    await page.route("**/api/finance/ledgers/*/overview?month=*", (route) =>
+      route.fulfill({ json: financeOverviewForMonth("2026-08") }),
+    );
+    await page.route("**/api/finance/ledgers/*/transactions?*", (route) =>
+      route.fulfill({
+        json: new URL(route.request().url()).searchParams.has("cursor")
+          ? { items: all.slice(1), nextCursor: null }
+          : { items: [first], nextCursor: "identity-next" },
+      }),
+    );
+    await page.route("**/api/finance/ledgers/*/transactions/*", (route) =>
+      route.fulfill({
+        json: all.find((item) => route.request().url().endsWith(item.id)),
+      }),
+    );
+    await page.setViewportSize({ height: 900, width: 1024 });
+    await page.goto(
+      `/finance/${destination}?ledger=${financeLedgers[0]!.id}&month=2026-08&date=2026-08-16`,
+    );
+    const list =
+      destination === "overview"
+        ? page.getByRole("region", { name: "Selected-day activity" })
+        : page.getByRole("region", { name: "Transactions", exact: true });
+    const rows = list.getByRole(
+      destination === "overview" ? "listitem" : "article",
+    );
+    await expect(rows).toHaveCount(1);
+    await expect(
+      rows.first().getByText("August salary", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      rows.first().getByText(/Account ID|Category ID|Transaction ID/),
+    ).toHaveCount(0);
+    await expectNoAccessibilityViolations(page, list, testInfo);
+    await list.screenshot({ path: testInfo.outputPath("ordinary-list.png") });
+    await list.getByRole("button", { name: "Load more", exact: true }).click();
+    await expect(rows).toHaveCount(4);
+    await expect(
+      rows.nth(0).getByText(`Transaction ID ${first.id}`, { exact: true }),
+    ).toBeVisible();
+    await expect(
+      rows.nth(1).getByText(`Transaction ID ${similar.id}`, { exact: true }),
+    ).toBeVisible();
+    await expect(rows.nth(0)).toContainText(
+      `Account ID ${financeAccounts[0]!.id}`,
+    );
+    await expect(rows.nth(2)).toContainText(
+      `Account ID ${financeAccounts[2]!.id}`,
+    );
+    await expect(rows.nth(0)).toContainText(
+      `Category ID ${financeCategories[0]!.id}`,
+    );
+    await expect(rows.nth(3)).toContainText(
+      "Category ID 33333333-3333-4333-8333-333333333334",
+    );
+    for (const width of [1024, 1280]) {
+      await page.setViewportSize({ height: 900, width });
+      expect(
+        await page.evaluate(
+          () =>
+            document.documentElement.scrollWidth <=
+            document.documentElement.clientWidth,
+        ),
+      ).toBe(true);
+      await expectNoAccessibilityViolations(page, list, testInfo);
+    }
+    await list.screenshot({ path: testInfo.outputPath("ambiguous-list.png") });
+    const view = rows
+      .nth(1)
+      .getByRole(destination === "overview" ? "button" : "link", {
+        name: new RegExp(`View details.*Transaction ID ${similar.id}$`),
+      });
+    await view.focus();
+    await view.press("Enter");
+    const detail = page.getByRole("article", { name: "Transaction detail" });
+    await expect(detail.getByText(similar.id, { exact: true })).toBeVisible();
+    await expect(detail).toContainText(financeAccounts[0]!.id);
+    await expect(detail).toContainText(financeCategories[0]!.id);
+    await page
+      .getByRole("link", {
+        name: `Back to ${destination === "overview" ? "Overview" : "Transactions"}`,
+        exact: true,
+      })
+      .click();
+    await expect(rows).toHaveCount(4);
+    await rows
+      .nth(1)
+      .getByRole("button", {
+        name: new RegExp(`Delete.*Transaction ID ${similar.id}$`),
+      })
+      .click();
+    const confirmation = page.getByRole("alertdialog", {
+      name: "Delete transaction?",
+    });
+    await expect(confirmation).toContainText(similar.id);
+    await expect(
+      confirmation.getByRole("button", { name: "Cancel", exact: true }),
+    ).toBeFocused();
+    await confirmation.press("Escape");
+    await expect(confirmation).not.toBeVisible();
+    expectNoBrowserErrors(errors);
+  });
+}
+
 test("renders accessible responsive Finance Transactions with opaque pagination", async ({
   page,
 }, testInfo) => {

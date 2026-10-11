@@ -33,6 +33,10 @@ import {
 import { InternalTransferFormDialog } from "@/components/finance/internal-transfer-form-dialog";
 import { TransactionFormDialog } from "@/components/finance/transaction-form-dialog";
 import { TransactionDependencyStatus } from "@/components/finance/transaction-dependency-status";
+import {
+  buildTransactionListIdentity,
+  type TransactionListIdentity,
+} from "@/components/finance/transaction-list-identity";
 import { glossary, messages } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import {
@@ -413,7 +417,13 @@ function FilterForm({
   );
 }
 
-function TransactionSemantics({ transaction }: { transaction: Transaction }) {
+function TransactionSemantics({
+  transaction,
+  identity,
+}: {
+  transaction: Transaction;
+  identity: TransactionListIdentity;
+}) {
   if (transaction.kind === "income" || transaction.kind === "expense") {
     return (
       <>
@@ -422,7 +432,7 @@ function TransactionSemantics({ transaction }: { transaction: Transaction }) {
         </p>
         <p className="text-sm text-muted-foreground">
           {transaction.kind === "income" ? "Into" : "From"}{" "}
-          {referenceLabel(transaction.account)}
+          {identity.account(transaction.account)}
         </p>
       </>
     );
@@ -433,11 +443,11 @@ function TransactionSemantics({ transaction }: { transaction: Transaction }) {
       <>
         <p className="font-medium tabular-nums">
           {formatFinanceMoney(transaction.sourceAmount)} from{" "}
-          {referenceLabel(transaction.sourceAccount)}
+          {identity.account(transaction.sourceAccount)}
         </p>
         <p className="text-sm text-muted-foreground">
           {formatFinanceMoney(transaction.destinationAmount)} to{" "}
-          {referenceLabel(transaction.destinationAccount)}
+          {identity.account(transaction.destinationAccount)}
         </p>
       </>
     );
@@ -449,7 +459,7 @@ function TransactionSemantics({ transaction }: { transaction: Transaction }) {
         Correction {formatSignedFinanceMoney(transaction.correctionDelta)}
       </p>
       <p className="text-sm text-muted-foreground">
-        Adjusts {referenceLabel(transaction.account)}
+        Adjusts {identity.account(transaction.account)}
       </p>
     </>
   );
@@ -457,11 +467,13 @@ function TransactionSemantics({ transaction }: { transaction: Transaction }) {
 
 function TransactionRow({
   href,
+  identity,
   onDelete,
   onEdit,
   transaction,
 }: {
   href: string;
+  identity: TransactionListIdentity;
   onDelete: () => void;
   onEdit: (invoker: HTMLButtonElement) => void;
   transaction: Transaction;
@@ -477,20 +489,22 @@ function TransactionRow({
       <p className="text-sm font-medium">{date}</p>
       <p className="text-sm">{kind}</p>
       <div className="flex min-w-0 flex-col gap-1 [overflow-wrap:anywhere]">
-        <TransactionSemantics transaction={transaction} />
+        <TransactionSemantics transaction={transaction} identity={identity} />
       </div>
       <p className="min-w-0 text-sm [overflow-wrap:anywhere] text-muted-foreground">
         {transaction.kind === "income" || transaction.kind === "expense"
           ? transaction.categoryAllocations[0]!.category
-            ? referenceLabel(transaction.categoryAllocations[0]!.category!)
+            ? identity.category(transaction.categoryAllocations[0]!.category!)
             : "Uncategorized"
           : "Not applicable"}
       </p>
       <div className="min-w-0 text-sm text-muted-foreground">
         <p className="line-clamp-2">{transaction.note ?? "No note"}</p>
-        <p className="text-xs [overflow-wrap:anywhere]">
-          Transaction ID {transaction.id}
-        </p>
+        {identity.ambiguousTransactions.has(transaction.id) ? (
+          <p className="text-xs [overflow-wrap:anywhere]">
+            Transaction ID {transaction.id}
+          </p>
+        ) : null}
       </div>
       <div className="flex flex-wrap gap-1 xl:justify-end">
         <Link
@@ -716,6 +730,15 @@ export function TransactionsDestination({
 
     return result;
   }, [transactionsQuery.data?.pages]);
+  const listIdentity = useMemo(
+    () =>
+      buildTransactionListIdentity(
+        transactions,
+        accountsQuery.data,
+        categoriesQuery.data,
+      ),
+    [transactions, accountsQuery.data, categoriesQuery.data],
+  );
   const queryIdentity = `${ledgerId}|${appliedFilterKey(appliedFilters)}`;
 
   useEffect(() => {
@@ -923,6 +946,7 @@ export function TransactionsDestination({
         </div>
         {transactions.map((transaction) => (
           <TransactionRow
+            identity={listIdentity}
             href={`/finance/transactions/${transaction.id}${buildFinanceSearch(ledgerId, appliedFilters.portable, appliedFilters.resource)}`}
             key={transaction.id}
             onDelete={() => setDeleteTarget(transaction)}

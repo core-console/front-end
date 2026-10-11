@@ -185,6 +185,136 @@ const dayTransactions = [
 ] as const satisfies TransactionHistoryPageResponse["items"];
 
 describe("Finance Overview", () => {
+  it("keeps selected-day names and notes visible without routine UUIDs and opens exact detail", async () => {
+    const user = userEvent.setup();
+    const transaction = dayTransactions[0]!;
+    server.use(
+      getGetFinanceOverviewMockHandler(overview),
+      getListFinanceAccountsMockHandler([...overview.accounts]),
+      getListFinanceCategoriesMockHandler([]),
+      getListFinanceCurrenciesMockHandler([{ code: "CNY", minorUnit: 2 }]),
+      getListFinanceTransactionsMockHandler({
+        items: [...dayTransactions],
+        nextCursor: null,
+      }),
+      getGetFinanceTransactionMockHandler(transaction),
+    );
+    renderRoute(
+      `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-16`,
+    );
+    const day = await screen.findByRole(
+      "region",
+      { name: "Selected-day activity" },
+      { timeout: 5_000 },
+    );
+    await within(day).findByText("Award");
+    expect(
+      within(day).getByText(
+        "9,007,199,254,740,993.25 CNY into Savings (archived)",
+      ),
+    ).toBeVisible();
+    expect(
+      within(day).getByText("Food (archived): 9,007,199,254,740,993.25 CNY"),
+    ).toBeVisible();
+    expect(
+      within(day).queryByText(/Account ID|Category ID|Transaction ID/),
+    ).not.toBeInTheDocument();
+    expect(
+      within(day).getByRole("button", {
+        name: `Edit Income, Transaction ID ${transaction.id}`,
+      }),
+    ).toBeEnabled();
+    expect(
+      within(day).getByRole("button", {
+        name: `Delete Income, Transaction ID ${transaction.id}`,
+      }),
+    ).toBeEnabled();
+    await user.click(
+      within(day).getByRole("button", {
+        name: `View details for Income, Transaction ID ${transaction.id}`,
+      }),
+    );
+    const detail = await screen.findByRole("article", {
+      name: "Transaction detail",
+    });
+    expect(within(detail).getByText(transaction.id)).toBeVisible();
+    expect(detail).toHaveTextContent(transaction.account.id);
+    expect(detail).toHaveTextContent(
+      transaction.categoryAllocations[0]!.category!.id,
+    );
+  });
+
+  it("keeps exact identity for duplicate selected-day references, similar records, and unnamed Accounts", async () => {
+    const first = dayTransactions[0]!;
+    const similar = { ...first, id: "aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa9" };
+    const transfer = {
+      ...dayTransactions[2]!,
+      destinationAccount: {
+        ...dayTransactions[2]!.destinationAccount,
+        name: "Savings",
+      },
+    };
+    const otherCategory = {
+      ...first,
+      id: "aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa8",
+      categoryAllocations: [
+        {
+          ...first.categoryAllocations[0]!,
+          category: {
+            ...first.categoryAllocations[0]!.category!,
+            id: "77777777-7777-4777-8777-777777777778",
+          },
+        },
+      ],
+    };
+    const unnamed = {
+      ...dayTransactions[3]!,
+      account: { ...first.account, name: " " },
+    };
+    server.use(
+      getGetFinanceOverviewMockHandler(overview),
+      getListFinanceAccountsMockHandler([]),
+      getListFinanceCategoriesMockHandler([]),
+      getListFinanceCurrenciesMockHandler([]),
+      getListFinanceTransactionsMockHandler({
+        items: [first, similar, transfer, otherCategory, unnamed],
+        nextCursor: null,
+      }),
+    );
+    renderRoute(
+      `/finance/overview?ledger=${ledger.id}&month=2026-08&date=2026-08-16`,
+    );
+    const day = await screen.findByRole(
+      "region",
+      { name: "Selected-day activity" },
+      { timeout: 5_000 },
+    );
+    await within(day).findByText(`Transaction ID ${similar.id}`);
+    const rows = within(day).getAllByRole("listitem");
+    expect(
+      within(rows[0]!).getByText(`Transaction ID ${first.id}`),
+    ).toBeVisible();
+    expect(
+      within(rows[0]!).getByText(
+        `9,007,199,254,740,993.25 CNY into Savings (archived) (Account ID ${first.account.id})`,
+      ),
+    ).toBeVisible();
+    expect(
+      within(rows[0]!).getByText(
+        `Food (archived) (Category ID ${first.categoryAllocations[0]!.category!.id}): 9,007,199,254,740,993.25 CNY`,
+      ),
+    ).toBeVisible();
+    expect(rows[2]).toHaveTextContent(
+      `to Savings (Account ID ${transfer.destinationAccount.id})`,
+    );
+    expect(rows[3]).toHaveTextContent(
+      "Category ID 77777777-7777-4777-8777-777777777778",
+    );
+    expect(rows[4]).toHaveTextContent(
+      `Signed correction -27.00 CNY for Account (archived) (Account ID ${unnamed.account.id})`,
+    );
+  });
+
   beforeEach(() => {
     localStorage.clear();
     server.use(getListFinanceLedgersMockHandler([ledger]));
@@ -376,9 +506,7 @@ describe("Finance Overview", () => {
         /9,007,199,254,740,993\.25 CNY into Savings/,
       ),
     ).toBeVisible();
-    expect(
-      within(day).getByText(/Food \(archived\).*Category ID/),
-    ).toBeVisible();
+    expect(within(day).getByText(/Food \(archived\):/)).toBeVisible();
     expect(within(day).getByText(/Uncategorized: 35.00 CNY/)).toBeVisible();
     await user.click(within(day).getByRole("button", { name: "Load more" }));
     expect(
@@ -389,7 +517,11 @@ describe("Finance Overview", () => {
       within(day)
         .getAllByRole("listitem")
         .map(
-          (item) => item.textContent?.match(/Transaction ID ([-a-f0-9]+)/)?.[1],
+          (item) =>
+            within(item)
+              .getByRole("button", { name: /View details/ })
+              .getAttribute("aria-label")
+              ?.match(/Transaction ID ([-a-f0-9]+)/)?.[1],
         ),
     ).toEqual(dayTransactions.map((item) => item.id));
     expect(
