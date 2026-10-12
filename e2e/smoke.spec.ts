@@ -1504,16 +1504,43 @@ for (const destination of ["overview", "transactions"] as const) {
     await expect(rows.nth(3)).toContainText(
       "Category ID 33333333-3333-4333-8333-333333333334",
     );
-    for (const width of [1024, 1280]) {
+    for (const width of destination === "transactions"
+      ? [1024, 1280, 1920]
+      : [1024, 1280]) {
       await page.setViewportSize({ height: 900, width });
-      expect(
-        await page.evaluate(
-          () =>
-            document.documentElement.scrollWidth <=
-            document.documentElement.clientWidth,
-        ),
-      ).toBe(true);
-      await expectNoAccessibilityViolations(page, list, testInfo);
+      for (const collapsed of destination === "transactions"
+        ? [false, true]
+        : [false]) {
+        if (collapsed) {
+          await page.getByRole("button", { name: "收起侧边栏" }).click();
+          await expect(page.getByRole("complementary")).toHaveCSS(
+            "width",
+            "56px",
+          );
+        }
+        expect(
+          await page.evaluate(
+            () =>
+              document.documentElement.scrollWidth <=
+              document.documentElement.clientWidth,
+          ),
+        ).toBe(true);
+        for (const row of await rows.all()) {
+          expect(
+            await row.evaluate(
+              (element) => element.scrollWidth <= element.clientWidth,
+            ),
+          ).toBe(true);
+        }
+        await expectNoAccessibilityViolations(page, list, testInfo);
+        if (collapsed) {
+          await page.getByRole("button", { name: "展开侧边栏" }).click();
+          await expect(page.getByRole("complementary")).toHaveCSS(
+            "width",
+            "240px",
+          );
+        }
+      }
     }
     await list.screenshot({ path: testInfo.outputPath("ambiguous-list.png") });
     const view = rows
@@ -1757,7 +1784,171 @@ test("renders accessible responsive Finance Transactions with opaque pagination"
   expectNoBrowserErrors(errors);
 });
 
-for (const viewportWidth of [1024, 1280]) {
+for (const width of [1024, 1280, 1440, 1920]) {
+  test(`fits Transaction history to its content width at ${width}px`, async ({
+    page,
+  }, testInfo) => {
+    const errors = collectBrowserErrors(page);
+    await page.setViewportSize({ height: 1024, width });
+    await page.route("**/api/finance/ledgers", (route) =>
+      route.fulfill({ json: financeLedgers }),
+    );
+    await page.route("**/api/finance/currencies", (route) =>
+      route.fulfill({ json: financeCurrencies }),
+    );
+    await page.route("**/api/finance/ledgers/*/accounts", (route) =>
+      route.fulfill({ json: financeAccounts }),
+    );
+    await page.route("**/api/finance/ledgers/*/categories", (route) =>
+      route.fulfill({ json: financeCategories }),
+    );
+    await page.route("**/api/finance/ledgers/*/transactions?*", (route) =>
+      route.fulfill({
+        json: {
+          items: financeTransactionPages.flatMap((history) => history.items),
+          nextCursor: null,
+        },
+      }),
+    );
+    await page.route("**/api/finance/ledgers/*/transactions/*", (route) =>
+      route.fulfill({
+        json: financeTransactionPages
+          .flatMap((history) => history.items)
+          .find((transaction) =>
+            route.request().url().endsWith(transaction.id),
+          ),
+      }),
+    );
+    const transactions = page.getByRole("region", {
+      exact: true,
+      name: "Transactions",
+    });
+    const rows = transactions.getByRole("article");
+    await page.goto(`/finance/transactions?ledger=${financeLedgers[0]!.id}`);
+    await expect(rows).toHaveCount(4);
+
+    for (const collapsed of [false, true]) {
+      if (collapsed) {
+        await page.getByRole("button", { name: "收起侧边栏" }).click();
+      }
+      await expect(page.getByRole("complementary")).toHaveCSS(
+        "width",
+        collapsed ? "56px" : "240px",
+      );
+      await expectNoAccessibilityViolations(page, transactions, testInfo);
+      await rows
+        .first()
+        .locator("..")
+        .screenshot({
+          path: testInfo.outputPath(
+            `history-${collapsed ? "collapsed" : "expanded"}.png`,
+          ),
+        });
+      // At the same 1280px viewport, only the collapsed shell has room for six columns.
+      const dense = width >= 1920 || (width >= 1280 && collapsed);
+      for (const row of await rows.all()) {
+        const bounds = await row.boundingBox();
+        expect(bounds).not.toBeNull();
+        expect(bounds!.height).toBeLessThanOrEqual(144);
+        expect(
+          await row.evaluate((element) => {
+            const bounds = element.getBoundingClientRect();
+            return [...element.children].every((child) => {
+              const childBounds = child.getBoundingClientRect();
+              return (
+                childBounds.left >= bounds.left &&
+                childBounds.right <= bounds.right &&
+                child.scrollWidth <= child.clientWidth
+              );
+            });
+          }),
+        ).toBe(true);
+        const view = row.getByRole("link", { name: /^View details/ });
+        const edit = row.getByRole("button", { name: /^Edit/ });
+        const remove = row.getByRole("button", { name: /^Delete/ });
+        const viewBounds = (await view.boundingBox())!;
+        const editBounds = (await edit.boundingBox())!;
+        const deleteBounds = (await remove.boundingBox())!;
+        expect(editBounds.y).toBe(viewBounds.y);
+        expect(deleteBounds.y).toBe(viewBounds.y);
+        expect(editBounds.x).toBeGreaterThanOrEqual(
+          viewBounds.x + viewBounds.width,
+        );
+        expect(deleteBounds.x).toBeGreaterThanOrEqual(
+          editBounds.x + editBounds.width,
+        );
+        expect(deleteBounds.x + deleteBounds.width).toBeLessThanOrEqual(
+          bounds!.x + bounds!.width,
+        );
+      }
+      const date = await rows
+        .first()
+        .getByText("August 16, 2026", { exact: true })
+        .boundingBox();
+      const amount = await rows
+        .first()
+        .getByText("8,500.00 CNY", { exact: true })
+        .boundingBox();
+      if (dense) {
+        expect(Math.abs(date!.y - amount!.y)).toBeLessThan(30);
+      } else {
+        expect(amount!.y).toBeGreaterThan(date!.y + date!.height);
+      }
+      await expect(
+        transactions.getByText("From Travel card (archived)", { exact: true }),
+      ).toBeVisible();
+      await expect(
+        transactions.getByText("Uncategorized", { exact: true }).last(),
+      ).toBeVisible();
+      await expect(
+        transactions.getByText("500.00 CNY from Old wallet (archived)", {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(
+        transactions.getByText("500.00 CNY to Operating cash", { exact: true }),
+      ).toBeVisible();
+      await expect(
+        transactions.getByText("Correction -27.00 CNY", { exact: true }),
+      ).toBeVisible();
+      const view = rows.first().getByRole("link", { name: /^View details/ });
+      await view.focus();
+      await page.keyboard.press("Tab");
+      const edit = rows.first().getByRole("button", { name: /^Edit/ });
+      await expect(edit).toBeFocused();
+      await edit.press("Enter");
+      const editDialog = page.getByRole("dialog", {
+        name: "Edit Income",
+        exact: true,
+      });
+      await expect(editDialog).toBeVisible();
+      await editDialog.press("Escape");
+      await expect(edit).toBeFocused();
+      await page.keyboard.press("Tab");
+      const remove = rows.first().getByRole("button", { name: /^Delete/ });
+      await expect(remove).toBeFocused();
+      await remove.press("Enter");
+      const confirmation = page.getByRole("alertdialog", {
+        name: "Delete transaction?",
+      });
+      await expect(
+        confirmation.getByRole("button", { name: "Cancel" }),
+      ).toBeFocused();
+      await confirmation.press("Escape");
+      await expect(remove).toBeFocused();
+      expect(
+        await page.evaluate(
+          () =>
+            document.documentElement.scrollWidth <=
+            document.documentElement.clientWidth,
+        ),
+      ).toBe(true);
+    }
+    expectNoBrowserErrors(errors);
+  });
+}
+
+for (const viewportWidth of [1024, 1280, 1440, 1920]) {
   test(`wraps long Transaction references at ${viewportWidth}px without horizontal document scroll`, async ({
     page,
   }) => {
@@ -1809,22 +2000,41 @@ for (const viewportWidth of [1024, 1280]) {
     await expect(appliedFilters).toBeVisible();
     await expect(accountReference).toBeVisible();
     await expect(categoryReference).toBeVisible();
-    for (const reference of [
-      appliedFilters,
-      accountReference,
-      categoryReference,
-    ]) {
+    for (const collapsed of [false, true]) {
+      if (collapsed) {
+        await page.getByRole("button", { name: "收起侧边栏" }).click();
+        await expect(page.getByRole("complementary")).toHaveCSS(
+          "width",
+          "56px",
+        );
+      }
+      for (const reference of [
+        appliedFilters,
+        accountReference,
+        categoryReference,
+        transaction,
+      ]) {
+        expect(
+          await reference.evaluate(
+            (element) => element.scrollWidth <= element.clientWidth,
+          ),
+        ).toBe(true);
+      }
       expect(
-        await reference.evaluate(
-          (element) => element.scrollWidth <= element.clientWidth,
+        await transaction.evaluate((element) => {
+          const row = element.getBoundingClientRect();
+          return [...element.querySelectorAll("a, button")].every((action) => {
+            const bounds = action.getBoundingClientRect();
+            return bounds.left >= row.left && bounds.right <= row.right;
+          });
+        }),
+      ).toBe(true);
+      expect(
+        await page.evaluate<boolean>(
+          "document.documentElement.scrollWidth <= document.documentElement.clientWidth",
         ),
       ).toBe(true);
     }
-    expect(
-      await page.evaluate<boolean>(
-        "document.documentElement.scrollWidth <= document.documentElement.clientWidth",
-      ),
-    ).toBe(true);
     expectNoBrowserErrors(errors);
   });
 }

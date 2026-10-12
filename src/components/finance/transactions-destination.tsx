@@ -484,7 +484,7 @@ function TransactionRow({
   return (
     <article
       aria-label={`${kind} on ${date}`}
-      className="grid min-w-0 gap-3 border-b border-border p-4 last:border-b-0 md:grid-cols-2 xl:grid-cols-[8.5rem_10rem_minmax(15rem,1fr)_minmax(9rem,0.65fr)_minmax(10rem,0.8fr)_auto] xl:items-center"
+      className="grid min-w-0 gap-3 border-b border-border p-4 last:border-b-0 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_9rem] @6xl/history:grid-cols-[8.5rem_10rem_minmax(15rem,1fr)_minmax(9rem,0.65fr)_minmax(10rem,0.8fr)_9rem] @6xl/history:items-center"
     >
       <p className="text-sm font-medium">{date}</p>
       <p className="text-sm">{kind}</p>
@@ -498,7 +498,7 @@ function TransactionRow({
             : "Uncategorized"
           : "Not applicable"}
       </p>
-      <div className="min-w-0 text-sm text-muted-foreground">
+      <div className="min-w-0 text-sm [overflow-wrap:anywhere] text-muted-foreground">
         <p className="line-clamp-2">{transaction.note ?? "No note"}</p>
         {identity.ambiguousTransactions.has(transaction.id) ? (
           <p className="text-xs [overflow-wrap:anywhere]">
@@ -506,7 +506,7 @@ function TransactionRow({
           </p>
         ) : null}
       </div>
-      <div className="flex flex-wrap gap-1 xl:justify-end">
+      <div className="flex w-max items-center gap-1 justify-self-end md:col-start-3 md:row-start-1 @6xl/history:col-auto @6xl/history:row-auto">
         <Link
           aria-label={`View details for ${kind} on ${date}, Transaction ID ${transaction.id}`}
           className="inline-flex h-6 items-center justify-center rounded px-2 text-xs font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
@@ -932,10 +932,11 @@ export function TransactionsDestination({
     );
   } else {
     historyContent = (
-      <div className="min-w-0 overflow-hidden rounded-lg border border-border bg-card">
+      <div className="@container/history min-w-0 rounded-lg border border-border bg-card">
+        {/* Six columns need the history's available width, including room for all actions. */}
         <div
           aria-hidden="true"
-          className="hidden grid-cols-[8.5rem_10rem_minmax(15rem,1fr)_minmax(9rem,0.65fr)_minmax(10rem,0.8fr)_auto] gap-3 border-b border-border px-4 py-2 text-sm font-medium xl:grid"
+          className="hidden grid-cols-[8.5rem_10rem_minmax(15rem,1fr)_minmax(9rem,0.65fr)_minmax(10rem,0.8fr)_9rem] gap-3 border-b border-border px-4 py-2 text-sm font-medium @6xl/history:grid"
         >
           <span>Date</span>
           <span>Kind</span>
