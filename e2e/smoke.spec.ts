@@ -652,6 +652,116 @@ for (const width of [1024, 1280, 1600]) {
   });
 }
 
+for (const state of ["empty", "database failure", "generic failure"] as const) {
+  test(`distinguishes Users loading from ${state}`, async ({
+    page,
+  }, testInfo) => {
+    const errors = collectBrowserErrors(page);
+    await page.setViewportSize({ width: 1024, height: 1024 });
+    let releaseUsers!: () => void;
+    const usersReady = new Promise<void>((resolve) => {
+      releaseUsers = resolve;
+    });
+    let requests = 0;
+    await page.route("**/api/users", async (route) => {
+      requests += 1;
+      await usersReady;
+      await route.fulfill(
+        state === "empty"
+          ? { json: [] }
+          : {
+              status: 503,
+              json: {
+                code:
+                  state === "database failure"
+                    ? "database_unavailable"
+                    : "unknown_error",
+                detail:
+                  "Database host db.internal.example refused the connection.",
+                status: 503,
+                title: "Service Unavailable",
+                type: "about:blank",
+              },
+            },
+      );
+    });
+    await page.goto("/users");
+
+    const main = page.getByRole("main");
+    const table = main.getByRole("table");
+    const loading = table.getByRole("status");
+    const addUser = main.getByRole("button", { name: "Add user" });
+    await expect(loading).toHaveText("Loading users…");
+    await expect(loading).toBeVisible();
+    await expect(table.getByRole("alert")).toHaveCount(0);
+    await expect(table.getByText("No users.", { exact: true })).toHaveCount(0);
+    await addUser.focus();
+    await expectNoAccessibilityViolations(page, main, testInfo);
+    await page.screenshot({ path: testInfo.outputPath("users-loading.png") });
+
+    const loadingColor = await loading.evaluate(
+      (element) => getComputedStyle(element).color,
+    );
+    releaseUsers();
+
+    if (state === "empty") {
+      await expect(table.getByText("No users.", { exact: true })).toBeVisible();
+      const description = table.getByText(
+        "Users will appear here after they are added.",
+      );
+      await expect(description).toBeVisible();
+      await expect(description).toHaveCSS("color", loadingColor);
+      await expect(table.getByRole("alert")).toHaveCount(0);
+    } else {
+      const alert = table.getByRole("alert");
+      await expect(alert).toBeVisible({ timeout: 15_000 });
+      await expect(alert.getByText("Unable to load users")).toBeVisible();
+      await expect(
+        alert.getByText(
+          state === "database failure"
+            ? "Core Console cannot reach the user database. Try again later."
+            : "Users could not be loaded.",
+          { exact: true },
+        ),
+      ).toBeVisible();
+      await expect(alert).not.toHaveCSS("color", loadingColor);
+      await expect(alert.locator('svg[aria-hidden="true"]')).toBeVisible();
+      await expect(table.getByText("No users.", { exact: true })).toHaveCount(
+        0,
+      );
+      await expect(main.getByText(/db\.internal/)).toHaveCount(0);
+    }
+    await expect(loading).toHaveCount(0);
+    await expect(table.getByRole("columnheader")).toHaveCount(5);
+    await expect(addUser).toBeFocused();
+    expect(
+      await table.evaluate((element) => {
+        const container = element.parentElement!;
+        return container.scrollWidth <= container.clientWidth;
+      }),
+    ).toBe(true);
+    await expectNoAccessibilityViolations(page, main, testInfo);
+    await page.screenshot({ path: testInfo.outputPath(`users-${state}.png`) });
+
+    await page.keyboard.press("Enter");
+    const dialog = page.getByRole("dialog", { name: "Add user" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByLabel("Display name")).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
+    await expect(addUser).toBeFocused();
+
+    expect(errors.pageErrors).toEqual([]);
+    expect(errors.consoleErrors).toEqual(
+      state === "empty"
+        ? []
+        : Array.from({ length: requests }, () =>
+            expect.stringMatching(/Failed to load resource:.*503/),
+          ),
+    );
+  });
+}
+
 test("opens Users management in the production shell", async ({
   page,
 }, testInfo) => {

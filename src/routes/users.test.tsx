@@ -77,11 +77,15 @@ describe("Users", () => {
 
     renderRoute("/users");
 
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).getByText("Unable to load users")).toBeVisible();
     expect(
-      await screen.findByRole("cell", {
-        name: "Core Console cannot reach the user database. Try again later.",
-      }),
+      within(alert).getByText(
+        "Core Console cannot reach the user database. Try again later.",
+      ),
     ).toBeVisible();
+    expect(within(screen.getByRole("table")).getByRole("alert")).toBe(alert);
+    expect(screen.queryByText("No users.")).not.toBeInTheDocument();
     expect(screen.queryByText(/db\.internal/i)).not.toBeInTheDocument();
   });
 

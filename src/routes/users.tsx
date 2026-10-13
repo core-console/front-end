@@ -1,8 +1,18 @@
+import { TriangleAlert } from "lucide-react";
+import type { ReactNode } from "react";
+
 import { useGetCurrentUser, useListUsers } from "@/api/generated/core-console";
 import { MeResponse, UserResponse } from "@/api/generated/schemas";
 import { AddUserDialog } from "@/components/users/add-user-dialog";
 import { UserActions } from "@/components/users/user-actions";
 import { getUserProblemMessage } from "@/components/users/problem-details";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import {
   Table,
   TableBody,
@@ -30,13 +40,10 @@ function Status({ status }: { status: UserResponse["status"] }) {
   );
 }
 
-function EmptyTableRow({ children }: { children: string }) {
+function StateTableRow({ children }: { children: ReactNode }) {
   return (
     <TableRow>
-      <TableCell
-        className="h-16 px-4 text-center text-muted-foreground"
-        colSpan={5}
-      >
+      <TableCell className="h-16 px-4 py-4 whitespace-normal" colSpan={5}>
         {children}
       </TableCell>
     </TableRow>
@@ -85,16 +92,35 @@ export function UsersPage() {
           </TableHeader>
           <TableBody>
             {usersQuery.isPending ? (
-              <EmptyTableRow>Loading users…</EmptyTableRow>
+              <StateTableRow>
+                <p className="text-center text-muted-foreground" role="status">
+                  Loading users…
+                </p>
+              </StateTableRow>
             ) : usersQuery.isError ? (
-              <EmptyTableRow>
-                {getUserProblemMessage(
-                  usersQuery.error,
-                  "Users could not be loaded.",
-                )}
-              </EmptyTableRow>
+              <StateTableRow>
+                <Alert variant="destructive">
+                  <TriangleAlert aria-hidden="true" />
+                  <AlertTitle>Unable to load users</AlertTitle>
+                  <AlertDescription>
+                    {getUserProblemMessage(
+                      usersQuery.error,
+                      "Users could not be loaded.",
+                    )}
+                  </AlertDescription>
+                </Alert>
+              </StateTableRow>
             ) : usersQuery.data.length === 0 ? (
-              <EmptyTableRow>No users.</EmptyTableRow>
+              <StateTableRow>
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyTitle>No users.</EmptyTitle>
+                    <EmptyDescription>
+                      Users will appear here after they are added.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              </StateTableRow>
             ) : (
               usersQuery.data.map((user) => (
                 <TableRow key={user.id}>
