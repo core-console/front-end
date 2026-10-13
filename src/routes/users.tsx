@@ -74,11 +74,11 @@ export function UsersPage() {
         <Table className="table-fixed">
           <TableHeader className="bg-secondary">
             <TableRow className="hover:bg-secondary">
-              <TableHead className="h-9 w-[21%] px-4">Display name</TableHead>
-              <TableHead className="h-9 w-[18%] px-4">Username</TableHead>
-              <TableHead className="h-9 w-[36%] px-4">Email</TableHead>
-              <TableHead className="h-9 w-[17%] px-4">Status</TableHead>
-              <TableHead className="h-9 w-[8%] px-4 text-right">
+              <TableHead className="h-9 w-[28%] px-4">Display name</TableHead>
+              <TableHead className="h-9 w-[20%] px-4">Username</TableHead>
+              <TableHead className="h-9 px-4">Email</TableHead>
+              <TableHead className="h-9 w-28 px-4">Status</TableHead>
+              <TableHead className="h-9 w-24 px-4 text-right">
                 Actions
               </TableHead>
             </TableRow>

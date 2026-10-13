@@ -538,6 +538,120 @@ for (const width of [1024, 1280, 1600]) {
   });
 }
 
+for (const width of [1024, 1280, 1600]) {
+  test(`keeps Users headings, identity, and actions readable at ${width}px`, async ({
+    page,
+  }, testInfo) => {
+    const errors = collectBrowserErrors(page);
+    await page.setViewportSize({ width, height: 1024 });
+    await page.route("**/api/users", async (route) => {
+      await route.fulfill({
+        json: [
+          ...managedUsers,
+          {
+            ...managedUsers[1],
+            id: "11111111-1111-4111-8111-111111111111",
+            displayName: "Alexandra with a very long display name",
+            username: "alexandra.with.a.long.username",
+            email: "alexandra.with.a.long.email@example.com",
+          },
+        ],
+      });
+    });
+    await page.goto("/users");
+
+    const table = page.getByRole("table");
+    const alice = table.getByRole("row").filter({ hasText: "Alice Smith" });
+    const action = alice.getByRole("button", {
+      name: "Actions for Alice Smith",
+    });
+    await expect(action).toBeVisible();
+
+    for (const expanded of [true, false]) {
+      if (!expanded) {
+        await page.getByRole("button", { name: "收起侧边栏" }).click();
+      }
+      await expect(
+        page.getByRole("complementary", { name: "Core Console 侧边栏" }),
+      ).toHaveCSS("width", expanded ? "240px" : "56px");
+
+      for (const heading of await table.getByRole("columnheader").all()) {
+        const fits = await heading.evaluate((element) => {
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          const text = range.getBoundingClientRect();
+          const cell = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return (
+            text.left >= cell.left + parseFloat(style.paddingLeft) - 1 &&
+            text.right <= cell.right - parseFloat(style.paddingRight) + 1
+          );
+        });
+        expect(fits).toBe(true);
+      }
+      for (const cell of await alice.getByRole("cell").all()) {
+        expect(
+          await cell.evaluate(
+            (element) => element.scrollWidth <= element.clientWidth,
+          ),
+        ).toBe(true);
+      }
+      for (const button of await table.getByRole("button").all()) {
+        expect(
+          await button.evaluate((element) => {
+            const cell = element.closest("td")!;
+            const bounds = cell.getBoundingClientRect();
+            const control = element.getBoundingClientRect();
+            const style = getComputedStyle(cell);
+            return (
+              control.left >= bounds.left + parseFloat(style.paddingLeft) - 1 &&
+              control.right <= bounds.right - parseFloat(style.paddingRight) + 1
+            );
+          }),
+        ).toBe(true);
+      }
+      expect(
+        await table.evaluate((element) => {
+          const container = element.parentElement!;
+          return container.scrollWidth <= container.clientWidth;
+        }),
+      ).toBe(true);
+      expect(
+        await page.locator("body").evaluate((element) => element.scrollWidth),
+      ).toBe(width);
+
+      await page.getByRole("button", { name: "Add user" }).focus();
+      await page.keyboard.press("Tab");
+      await expect(
+        table.getByRole("button", {
+          name: "Actions for Core Console Operator",
+        }),
+      ).toBeFocused();
+      await page.keyboard.press("Tab");
+      await expect(action).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("menuitem", { name: "Edit" })).toBeFocused();
+      await page.keyboard.press("ArrowDown");
+      await expect(
+        page.getByRole("menuitem", { name: "Deactivate" }),
+      ).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(action).toBeFocused();
+      await expectNoAccessibilityViolations(
+        page,
+        page.getByRole("main"),
+        testInfo,
+      );
+      await page.screenshot({
+        path: testInfo.outputPath(
+          `users-${expanded ? "expanded" : "collapsed"}.png`,
+        ),
+      });
+    }
+    expectNoBrowserErrors(errors);
+  });
+}
+
 test("opens Users management in the production shell", async ({
   page,
 }, testInfo) => {
