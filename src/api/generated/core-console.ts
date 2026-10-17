@@ -62,6 +62,8 @@ import type {
   LedgerValidationResponse,
   ListFinanceTransactionsParams,
   MeResponse,
+  ParticipantNameRequest,
+  ParticipantResponse,
   ProblemDetails,
   ReplaceBalanceAdjustmentRequest,
   ReplaceBalanceAdjustmentResultResponse,
@@ -3953,6 +3955,1092 @@ export function useGetFinanceOverview<
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+export type listFinanceParticipantsResponse200 = {
+  data: ParticipantResponse[];
+  status: 200;
+};
+
+export type listFinanceParticipantsResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type listFinanceParticipantsResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type listFinanceParticipantsResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type listFinanceParticipantsResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type listFinanceParticipantsResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type listFinanceParticipantsResponseSuccess =
+  listFinanceParticipantsResponse200 & {
+    headers: Headers;
+  };
+export type listFinanceParticipantsResponseError = (
+  | listFinanceParticipantsResponse403
+  | listFinanceParticipantsResponse404
+  | listFinanceParticipantsResponse422
+  | listFinanceParticipantsResponse500
+  | listFinanceParticipantsResponse503
+) & {
+  headers: Headers;
+};
+
+export const getListFinanceParticipantsUrl = (ledgerId: string) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/participants`;
+};
+
+/**
+ * Returns active then archived identities, ordered by case-folded name and UUID. Only the owner of the addressed Ledger can access these records.
+ * @summary List active and archived Ledger Participants
+ */
+export const listFinanceParticipants = async (
+  ledgerId: string,
+  options?: RequestInit,
+): Promise<listFinanceParticipantsResponseSuccess> => {
+  const res = await fetch(getListFinanceParticipantsUrl(ledgerId), {
+    ...options,
+    method: "GET",
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: listFinanceParticipantsResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: listFinanceParticipantsResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: listFinanceParticipantsResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as listFinanceParticipantsResponseSuccess;
+};
+
+export const getListFinanceParticipantsQueryKey = (ledgerId: string) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/participants`,
+  ] as const;
+};
+
+export const getListFinanceParticipantsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFinanceParticipants>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipants>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListFinanceParticipantsQueryKey(ledgerId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listFinanceParticipants>>
+  > = ({ signal }) =>
+    listFinanceParticipants(ledgerId, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: ledgerId !== null && ledgerId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFinanceParticipants>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListFinanceParticipantsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFinanceParticipants>>
+>;
+export type ListFinanceParticipantsQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useListFinanceParticipants<
+  TData = Awaited<ReturnType<typeof listFinanceParticipants>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipants>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceParticipants>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceParticipants>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceParticipants<
+  TData = Awaited<ReturnType<typeof listFinanceParticipants>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipants>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceParticipants>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceParticipants>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceParticipants<
+  TData = Awaited<ReturnType<typeof listFinanceParticipants>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipants>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary List active and archived Ledger Participants
+ */
+
+export function useListFinanceParticipants<
+  TData = Awaited<ReturnType<typeof listFinanceParticipants>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipants>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListFinanceParticipantsQueryOptions(
+    ledgerId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export type createFinanceParticipantResponse201 = {
+  data: ParticipantResponse;
+  status: 201;
+};
+
+export type createFinanceParticipantResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type createFinanceParticipantResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type createFinanceParticipantResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type createFinanceParticipantResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type createFinanceParticipantResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type createFinanceParticipantResponseSuccess =
+  createFinanceParticipantResponse201 & {
+    headers: Headers;
+  };
+export type createFinanceParticipantResponseError = (
+  | createFinanceParticipantResponse403
+  | createFinanceParticipantResponse404
+  | createFinanceParticipantResponse422
+  | createFinanceParticipantResponse500
+  | createFinanceParticipantResponse503
+) & {
+  headers: Headers;
+};
+
+export const getCreateFinanceParticipantUrl = (ledgerId: string) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/participants`;
+};
+
+/**
+ * Creates an independent Ledger-local UUID identity. Display names may repeat. This metadata operation has no financial effects and does not use the Finance submission protocol.
+ * @summary Create a private Ledger Participant
+ */
+export const createFinanceParticipant = async (
+  ledgerId: string,
+  participantNameRequest: ParticipantNameRequest,
+  options?: RequestInit,
+): Promise<createFinanceParticipantResponseSuccess> => {
+  const getHeaders = (
+    defaults: HeadersInit,
+    overrides?: HeadersInit,
+  ): Headers => {
+    const headers = new Headers(defaults);
+    if (overrides instanceof Headers) {
+      overrides.forEach((value, name) => headers.set(name, value));
+    } else {
+      const entries = Array.isArray(overrides)
+        ? overrides
+        : Object.entries(overrides ?? {});
+      for (const entry of entries) {
+        const [name, value] = entry as [string, string];
+        headers.set(name, value);
+      }
+    }
+    return headers;
+  };
+  const res = await fetch(getCreateFinanceParticipantUrl(ledgerId), {
+    ...options,
+    method: "POST",
+    headers: getHeaders(
+      { "Content-Type": "application/json" },
+      options?.headers,
+    ),
+    body: JSON.stringify(participantNameRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: createFinanceParticipantResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: createFinanceParticipantResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: createFinanceParticipantResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as createFinanceParticipantResponseSuccess;
+};
+
+export const getCreateFinanceParticipantMutationKey = () =>
+  ["createFinanceParticipant"] as const;
+
+export const getCreateFinanceParticipantMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createFinanceParticipant>>,
+    TError,
+    CreateFinanceParticipantMutationVariables,
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createFinanceParticipant>>,
+  TError,
+  CreateFinanceParticipantMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreateFinanceParticipantMutationKey();
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createFinanceParticipant>>,
+    CreateFinanceParticipantMutationVariables
+  > = (props) => {
+    const { ledgerId, data } = props ?? {};
+
+    return createFinanceParticipant(ledgerId, data, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateFinanceParticipantMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createFinanceParticipant>>
+>;
+export type CreateFinanceParticipantMutationBody = ParticipantNameRequest;
+export type CreateFinanceParticipantMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+export type CreateFinanceParticipantMutationVariables = {
+  ledgerId: string;
+  data: ParticipantNameRequest;
+};
+
+/**
+ * @summary Create a private Ledger Participant
+ */
+export const useCreateFinanceParticipant = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createFinanceParticipant>>,
+      TError,
+      CreateFinanceParticipantMutationVariables,
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createFinanceParticipant>>,
+  TError,
+  CreateFinanceParticipantMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getCreateFinanceParticipantMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type getFinanceParticipantResponse200 = {
+  data: ParticipantResponse;
+  status: 200;
+};
+
+export type getFinanceParticipantResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type getFinanceParticipantResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type getFinanceParticipantResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type getFinanceParticipantResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type getFinanceParticipantResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type getFinanceParticipantResponseSuccess =
+  getFinanceParticipantResponse200 & {
+    headers: Headers;
+  };
+export type getFinanceParticipantResponseError = (
+  | getFinanceParticipantResponse403
+  | getFinanceParticipantResponse404
+  | getFinanceParticipantResponse422
+  | getFinanceParticipantResponse500
+  | getFinanceParticipantResponse503
+) & {
+  headers: Headers;
+};
+
+export const getGetFinanceParticipantUrl = (
+  ledgerId: string,
+  participantId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/participants/${participantId}`;
+};
+
+/**
+ * Includes archived identities for historical attribution. Only the owner of the addressed Ledger can access these records.
+ * @summary Inspect a private Ledger Participant
+ */
+export const getFinanceParticipant = async (
+  ledgerId: string,
+  participantId: string,
+  options?: RequestInit,
+): Promise<getFinanceParticipantResponseSuccess> => {
+  const res = await fetch(
+    getGetFinanceParticipantUrl(ledgerId, participantId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: getFinanceParticipantResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: getFinanceParticipantResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: getFinanceParticipantResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getFinanceParticipantResponseSuccess;
+};
+
+export const getGetFinanceParticipantQueryKey = (
+  ledgerId: string,
+  participantId: string,
+) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/participants/${participantId}`,
+  ] as const;
+};
+
+export const getGetFinanceParticipantQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFinanceParticipant>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceParticipant>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetFinanceParticipantQueryKey(ledgerId, participantId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getFinanceParticipant>>
+  > = ({ signal }) =>
+    getFinanceParticipant(ledgerId, participantId, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      ledgerId !== null &&
+      ledgerId !== undefined &&
+      participantId !== null &&
+      participantId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFinanceParticipant>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetFinanceParticipantQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFinanceParticipant>>
+>;
+export type GetFinanceParticipantQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useGetFinanceParticipant<
+  TData = Awaited<ReturnType<typeof getFinanceParticipant>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceParticipant>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFinanceParticipant>>,
+          TError,
+          Awaited<ReturnType<typeof getFinanceParticipant>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetFinanceParticipant<
+  TData = Awaited<ReturnType<typeof getFinanceParticipant>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceParticipant>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFinanceParticipant>>,
+          TError,
+          Awaited<ReturnType<typeof getFinanceParticipant>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetFinanceParticipant<
+  TData = Awaited<ReturnType<typeof getFinanceParticipant>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceParticipant>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Inspect a private Ledger Participant
+ */
+
+export function useGetFinanceParticipant<
+  TData = Awaited<ReturnType<typeof getFinanceParticipant>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceParticipant>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetFinanceParticipantQueryOptions(
+    ledgerId,
+    participantId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export type renameFinanceParticipantResponse200 = {
+  data: ParticipantResponse;
+  status: 200;
+};
+
+export type renameFinanceParticipantResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type renameFinanceParticipantResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type renameFinanceParticipantResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type renameFinanceParticipantResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type renameFinanceParticipantResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type renameFinanceParticipantResponseSuccess =
+  renameFinanceParticipantResponse200 & {
+    headers: Headers;
+  };
+export type renameFinanceParticipantResponseError = (
+  | renameFinanceParticipantResponse403
+  | renameFinanceParticipantResponse404
+  | renameFinanceParticipantResponse422
+  | renameFinanceParticipantResponse500
+  | renameFinanceParticipantResponse503
+) & {
+  headers: Headers;
+};
+
+export const getRenameFinanceParticipantUrl = (
+  ledgerId: string,
+  participantId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/participants/${participantId}`;
+};
+
+/**
+ * Renames active or archived identity metadata without changing its UUID, Ledger, status, historical attribution, or financial effects.
+ * @summary Rename a private Ledger Participant
+ */
+export const renameFinanceParticipant = async (
+  ledgerId: string,
+  participantId: string,
+  participantNameRequest: ParticipantNameRequest,
+  options?: RequestInit,
+): Promise<renameFinanceParticipantResponseSuccess> => {
+  const getHeaders = (
+    defaults: HeadersInit,
+    overrides?: HeadersInit,
+  ): Headers => {
+    const headers = new Headers(defaults);
+    if (overrides instanceof Headers) {
+      overrides.forEach((value, name) => headers.set(name, value));
+    } else {
+      const entries = Array.isArray(overrides)
+        ? overrides
+        : Object.entries(overrides ?? {});
+      for (const entry of entries) {
+        const [name, value] = entry as [string, string];
+        headers.set(name, value);
+      }
+    }
+    return headers;
+  };
+  const res = await fetch(
+    getRenameFinanceParticipantUrl(ledgerId, participantId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: getHeaders(
+        { "Content-Type": "application/json" },
+        options?.headers,
+      ),
+      body: JSON.stringify(participantNameRequest),
+    },
+  );
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: renameFinanceParticipantResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: renameFinanceParticipantResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: renameFinanceParticipantResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as renameFinanceParticipantResponseSuccess;
+};
+
+export const getRenameFinanceParticipantMutationKey = () =>
+  ["renameFinanceParticipant"] as const;
+
+export const getRenameFinanceParticipantMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof renameFinanceParticipant>>,
+    TError,
+    RenameFinanceParticipantMutationVariables,
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof renameFinanceParticipant>>,
+  TError,
+  RenameFinanceParticipantMutationVariables,
+  TContext
+> => {
+  const mutationKey = getRenameFinanceParticipantMutationKey();
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof renameFinanceParticipant>>,
+    RenameFinanceParticipantMutationVariables
+  > = (props) => {
+    const { ledgerId, participantId, data } = props ?? {};
+
+    return renameFinanceParticipant(
+      ledgerId,
+      participantId,
+      data,
+      fetchOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RenameFinanceParticipantMutationResult = NonNullable<
+  Awaited<ReturnType<typeof renameFinanceParticipant>>
+>;
+export type RenameFinanceParticipantMutationBody = ParticipantNameRequest;
+export type RenameFinanceParticipantMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+export type RenameFinanceParticipantMutationVariables = {
+  ledgerId: string;
+  participantId: string;
+  data: ParticipantNameRequest;
+};
+
+/**
+ * @summary Rename a private Ledger Participant
+ */
+export const useRenameFinanceParticipant = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof renameFinanceParticipant>>,
+      TError,
+      RenameFinanceParticipantMutationVariables,
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof renameFinanceParticipant>>,
+  TError,
+  RenameFinanceParticipantMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getRenameFinanceParticipantMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type archiveFinanceParticipantResponse200 = {
+  data: ParticipantResponse;
+  status: 200;
+};
+
+export type archiveFinanceParticipantResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type archiveFinanceParticipantResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type archiveFinanceParticipantResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type archiveFinanceParticipantResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type archiveFinanceParticipantResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type archiveFinanceParticipantResponseSuccess =
+  archiveFinanceParticipantResponse200 & {
+    headers: Headers;
+  };
+export type archiveFinanceParticipantResponseError = (
+  | archiveFinanceParticipantResponse403
+  | archiveFinanceParticipantResponse404
+  | archiveFinanceParticipantResponse422
+  | archiveFinanceParticipantResponse500
+  | archiveFinanceParticipantResponse503
+) & {
+  headers: Headers;
+};
+
+export const getArchiveFinanceParticipantUrl = (
+  ledgerId: string,
+  participantId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/participants/${participantId}/archive`;
+};
+
+/**
+ * Idempotently archives without deleting identity or changing financial effects. Archived Participants remain inspectable and must not be offered for new Advances.
+ * @summary Archive a private Ledger Participant
+ */
+export const archiveFinanceParticipant = async (
+  ledgerId: string,
+  participantId: string,
+  options?: RequestInit,
+): Promise<archiveFinanceParticipantResponseSuccess> => {
+  const res = await fetch(
+    getArchiveFinanceParticipantUrl(ledgerId, participantId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: archiveFinanceParticipantResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: archiveFinanceParticipantResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: archiveFinanceParticipantResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as archiveFinanceParticipantResponseSuccess;
+};
+
+export const getArchiveFinanceParticipantMutationKey = () =>
+  ["archiveFinanceParticipant"] as const;
+
+export const getArchiveFinanceParticipantMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof archiveFinanceParticipant>>,
+    TError,
+    ArchiveFinanceParticipantMutationVariables,
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof archiveFinanceParticipant>>,
+  TError,
+  ArchiveFinanceParticipantMutationVariables,
+  TContext
+> => {
+  const mutationKey = getArchiveFinanceParticipantMutationKey();
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof archiveFinanceParticipant>>,
+    ArchiveFinanceParticipantMutationVariables
+  > = (props) => {
+    const { ledgerId, participantId } = props ?? {};
+
+    return archiveFinanceParticipant(ledgerId, participantId, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ArchiveFinanceParticipantMutationResult = NonNullable<
+  Awaited<ReturnType<typeof archiveFinanceParticipant>>
+>;
+
+export type ArchiveFinanceParticipantMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+export type ArchiveFinanceParticipantMutationVariables = {
+  ledgerId: string;
+  participantId: string;
+};
+
+/**
+ * @summary Archive a private Ledger Participant
+ */
+export const useArchiveFinanceParticipant = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof archiveFinanceParticipant>>,
+      TError,
+      ArchiveFinanceParticipantMutationVariables,
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof archiveFinanceParticipant>>,
+  TError,
+  ArchiveFinanceParticipantMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getArchiveFinanceParticipantMutationOptions(options),
+    queryClient,
+  );
+};
 
 export type listFinanceTransactionsResponse200 = {
   data: TransactionHistoryPageResponse;

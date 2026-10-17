@@ -40,6 +40,7 @@ const destinations = [
   { label: "Transactions", slug: "transactions" },
   { label: "Accounts", slug: "accounts" },
   { label: "Categories", slug: "categories" },
+  { label: "Participants", slug: "participants" },
 ] as const;
 
 const rememberedLedgerKey = "core-console.finance.last-ledger-id";
@@ -53,6 +54,12 @@ const AccountsDestination = lazy(() =>
 const CategoriesDestination = lazy(() =>
   import("@/components/finance/categories-destination").then((module) => ({
     default: module.CategoriesDestination,
+  })),
+);
+
+const ParticipantsDestination = lazy(() =>
+  import("@/components/finance/participants-destination").then((module) => ({
+    default: module.ParticipantsDestination,
   })),
 );
 
@@ -361,7 +368,10 @@ function FinanceContent() {
           >
             {destination.label}
           </h1>
-          <nav aria-label="Finance navigation" className="flex gap-6">
+          <nav
+            aria-label="Finance navigation"
+            className="flex flex-wrap gap-x-6 gap-y-2"
+          >
             {destinations.map((item) => {
               const active = item.slug === destination.slug;
               return (
@@ -522,6 +532,14 @@ function FinanceContent() {
           }
         >
           <CategoriesDestination
+            key={selectedLedger.id}
+            ledgerId={selectedLedger.id}
+            ledgerName={selectedLedger.name}
+          />
+        </Suspense>
+      ) : selectedLedger && destination.slug === "participants" ? (
+        <Suspense fallback={<p role="status">Loading Participants…</p>}>
+          <ParticipantsDestination
             key={selectedLedger.id}
             ledgerId={selectedLedger.id}
             ledgerName={selectedLedger.name}

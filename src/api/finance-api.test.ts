@@ -77,21 +77,26 @@ const commonTransaction = {
 const financeOperationIds = [
   "archiveFinanceAccount",
   "archiveFinanceCategory",
+  "archiveFinanceParticipant",
   "createBalanceAdjustment",
   "createFinanceAccount",
   "createFinanceCategory",
   "createFinanceLedger",
+  "createFinanceParticipant",
   "createFinanceTransaction",
   "deleteFinanceTransaction",
   "getBalanceAdjustmentContext",
   "getFinanceOverview",
+  "getFinanceParticipant",
   "getFinanceSubmission",
   "getFinanceTransaction",
   "listFinanceAccounts",
   "listFinanceCategories",
   "listFinanceCurrencies",
   "listFinanceLedgers",
+  "listFinanceParticipants",
   "listFinanceTransactions",
+  "renameFinanceParticipant",
   "replaceBalanceAdjustment",
   "replaceFinanceTransaction",
   "unarchiveFinanceAccount",
@@ -209,7 +214,7 @@ describe("generated Finance API boundary", () => {
     ).toBe(false);
   });
 
-  it("contains the complete Finance v1 operation surface", () => {
+  it("contains the Finance v1 and Participant operation surface", () => {
     expect(
       financeOperations.map(({ operationId }) => operationId).sort(),
     ).toEqual(financeOperationIds);

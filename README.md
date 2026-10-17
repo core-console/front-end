@@ -111,8 +111,8 @@ The current backend-owned Finance v1 OpenAPI contract is synchronized into
 Fetch clients, TanStack Query hooks, Zod schemas, MSW handlers, and Faker
 fixtures under `src/api/generated/`.
 
-The synchronized producer is backend T08 at
-`6ed5b384ebea3c7179a19b339da1585c5a538730`. All five Finance create
+The Finance v1 durable-create integration was introduced through backend T08 at
+`6ed5b384ebea3c7179a19b339da1585c5a538730`. All five Finance v1 create
 operations use shared durable browser preparation, correlated evidence, and
 known-submission lookup. Balance Adjustment supports both created Transaction
 identity and terminal noChange without a resource. This cumulative integration
@@ -132,3 +132,27 @@ For Finance product and design authority, start with the
 [approved interaction specification](docs/finance-v1-frontend-interaction-spec.md),
 the [design-authority index](docs/design/finance-v1/README.md), and the
 [Finance visual authority](DESIGN.md#finance-v1-authority).
+
+## Finance v2 Participants (T01)
+
+The synchronized OpenAPI producer is
+`e92194e9d3ac788853a25af2ae1c0b84262216f7`, adding five Participant operations.
+`/finance/participants?ledger=<UUID>` integrates create, list, inspect, rename,
+and archive with the selected Ledger. Names may repeat; UUIDs identify records.
+Archived records remain visible, inspectable, and renameable. There is no delete
+or unarchive action.
+
+Participant operations are metadata changes, outside the Finance v1 durable
+submission protocol. A repeated create assigns a new identity. An unconfirmed
+create is never automatically retried: close the form and refresh the list to
+inspect the outcome before deliberately starting another create. A confirmed
+response updates Query data before list refresh, so refresh failure does not
+turn success into a failed create.
+
+The backend [T01 producer note](https://github.com/core-console/back-end/blob/e92194e9d3ac788853a25af2ae1c0b84262216f7/docs/finance-v2-participants-t01.md)
+and [immutable product specification](https://github.com/core-console/back-end/blob/e206bdd5af48a3f6b3b9b525c27fa6178220bdc7/docs/finance-v2-personal-receivable-settlement-spec.md)
+remain authoritative. Advance and Settlement workflows and their later archived
+attribution checks are outside this consumer. Routed MSW and production-preview
+Chromium tests cover frontend behavior; they do not establish real PostgreSQL
+effects or delivered producer/consumer pair acceptance for
+[Issue #27](https://github.com/core-console/back-end/issues/27).

@@ -41,7 +41,7 @@ describe("Finance foundation", () => {
     server.use(getGetCurrentUserMockHandler(submissionTestUser));
   });
 
-  it("exposes one global Finance destination and four local destinations", async () => {
+  it("exposes one global Finance destination and five local destinations", async () => {
     server.use(getListFinanceLedgersMockHandler([personalLedger]));
 
     renderRoute(`/finance/transactions?ledger=${personalLedger.id}`);
@@ -69,7 +69,13 @@ describe("Finance foundation", () => {
         current: "page",
       }),
     ).toBeVisible();
-    expect(within(localNavigation).getAllByRole("link")).toHaveLength(4);
+    expect(within(localNavigation).getAllByRole("link")).toHaveLength(5);
+    expect(
+      within(localNavigation).getByRole("link", { name: "Participants" }),
+    ).toHaveAttribute(
+      "href",
+      `/finance/participants?ledger=${personalLedger.id}`,
+    );
     expect(
       await screen.findByRole("button", { name: "Personal" }),
     ).toBeVisible();
