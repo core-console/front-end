@@ -80,12 +80,14 @@ const financeOperationIds = [
   "archiveFinanceParticipant",
   "createBalanceAdjustment",
   "createFinanceAccount",
+  "createFinanceAdvance",
   "createFinanceCategory",
   "createFinanceLedger",
   "createFinanceParticipant",
   "createFinanceTransaction",
   "deleteFinanceTransaction",
   "getBalanceAdjustmentContext",
+  "getFinanceAdvance",
   "getFinanceOverview",
   "getFinanceParticipant",
   "getFinanceSubmission",
@@ -94,8 +96,10 @@ const financeOperationIds = [
   "listFinanceCategories",
   "listFinanceCurrencies",
   "listFinanceLedgers",
+  "listFinanceParticipantObligations",
   "listFinanceParticipants",
   "listFinanceTransactions",
+  "previewFinanceAdvance",
   "renameFinanceParticipant",
   "replaceBalanceAdjustment",
   "replaceFinanceTransaction",
@@ -214,7 +218,7 @@ describe("generated Finance API boundary", () => {
     ).toBe(false);
   });
 
-  it("contains the Finance v1 and Participant operation surface", () => {
+  it("contains the Finance v1, Participant and pure Advance operation surface", () => {
     expect(
       financeOperations.map(({ operationId }) => operationId).sort(),
     ).toEqual(financeOperationIds);
@@ -428,6 +432,7 @@ describe("generated Finance API boundary", () => {
       "createFinanceCategory",
       "createFinanceTransaction",
       "createBalanceAdjustment",
+      "createFinanceAdvance",
     ];
     const resources = [
       "ledger",
@@ -435,6 +440,7 @@ describe("generated Finance API boundary", () => {
       "category",
       "transaction",
       "transaction",
+      "advance",
     ];
     for (const [index, operation] of operations.entries()) {
       const receipt = {
@@ -450,7 +456,13 @@ describe("generated Finance API boundary", () => {
           state: "terminal",
           receipt: { ...receipt, outcome },
         }).success;
-      for (const type of ["ledger", "account", "category", "transaction"])
+      for (const type of [
+        "ledger",
+        "account",
+        "category",
+        "transaction",
+        "advance",
+      ])
         expect(
           accepts({ kind: "created", resource: { type, id: transactionId } }),
         ).toBe(type === resources[index]);
@@ -513,6 +525,7 @@ describe("generated Finance API boundary", () => {
         "#/components/schemas/AdjustmentNotFoundResponse",
         "#/components/schemas/AdjustmentConflictResponse",
         "#/components/schemas/AdjustmentValidationResponse",
+        "#/components/schemas/AdvanceFailureResponse",
       ]).toContain(
         response.content?.["application/problem+json"]?.schema?.$ref,
       );

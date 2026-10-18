@@ -10,7 +10,11 @@ import * as zod from "zod";
 export const TransactionArchivedOutcome = zod.strictObject({
   kind: zod.literal("rejected").meta({ title: "Kind" }),
   problem: zod.strictObject({
-    code: zod.enum(["finance_account_archived", "finance_category_archived"]),
+    code: zod.enum([
+      "finance_account_archived",
+      "finance_category_archived",
+      "finance_linked_record_protected",
+    ]),
     detail: zod.string(),
     status: zod.literal(409).meta({ title: "Status" }),
     title: zod.string(),

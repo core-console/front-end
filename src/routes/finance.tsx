@@ -41,9 +41,16 @@ const destinations = [
   { label: "Accounts", slug: "accounts" },
   { label: "Categories", slug: "categories" },
   { label: "Participants", slug: "participants" },
+  { label: "Advances", slug: "advances" },
 ] as const;
 
 const rememberedLedgerKey = "core-console.finance.last-ledger-id";
+
+const AdvancesDestination = lazy(() =>
+  import("@/components/finance/advances-destination").then((module) => ({
+    default: module.AdvancesDestination,
+  })),
+);
 
 const AccountsDestination = lazy(() =>
   import("@/components/finance/accounts-destination").then((module) => ({
@@ -543,6 +550,13 @@ function FinanceContent() {
             key={selectedLedger.id}
             ledgerId={selectedLedger.id}
             ledgerName={selectedLedger.name}
+          />
+        </Suspense>
+      ) : selectedLedger && destination.slug === "advances" ? (
+        <Suspense fallback={<p role="status">Loading Advances…</p>}>
+          <AdvancesDestination
+            key={selectedLedger.id}
+            ledgerId={selectedLedger.id}
           />
         </Suspense>
       ) : selectedLedger ? (

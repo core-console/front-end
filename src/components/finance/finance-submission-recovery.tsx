@@ -206,7 +206,9 @@ export function FinanceSubmissionRecovery({
                           to={
                             record.operation === "createFinanceLedger"
                               ? `/finance/overview?ledger=${outcome.resource.id}`
-                              : `/finance/${record.operation === "createFinanceAccount" ? "accounts" : record.operation === "createFinanceCategory" ? "categories" : "transactions"}?ledger=${record.targetLedgerId}`
+                              : record.operation === "createFinanceAdvance"
+                                ? `/finance/advances?ledger=${record.targetLedgerId}&participant_id=${record.body.participantId}&advance_id=${outcome.resource.id}`
+                                : `/finance/${record.operation === "createFinanceAccount" ? "accounts" : record.operation === "createFinanceCategory" ? "categories" : "transactions"}?ledger=${record.targetLedgerId}`
                           }
                         >
                           {localized ? (
@@ -218,9 +220,12 @@ export function FinanceSubmissionRecovery({
                                 ? "Ledger"
                                 : record.operation === "createFinanceAccount"
                                   ? "Accounts"
-                                  : record.operation === "createFinanceCategory"
-                                    ? "Categories"
-                                    : "Transactions"}
+                                  : record.operation === "createFinanceAdvance"
+                                    ? "Advance"
+                                    : record.operation ===
+                                        "createFinanceCategory"
+                                      ? "Categories"
+                                      : "Transactions"}
                             </>
                           )}
                         </Link>
@@ -238,7 +243,9 @@ export function FinanceSubmissionRecovery({
                           ? copy.refresh
                           : record.operation === "createBalanceAdjustment"
                             ? "Refresh Finance resources"
-                            : `Refresh ${label} list`}
+                            : record.operation === "createFinanceAdvance"
+                              ? "Refresh Advance source"
+                              : `Refresh ${label} list`}
                       </Button>
                     ) : null}
                     <Button

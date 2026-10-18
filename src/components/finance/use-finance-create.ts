@@ -126,6 +126,10 @@ export function useFinanceCreate(
               result.account ||
               result.category ||
               result.transaction ||
+              (command.operation === "createFinanceAdvance" &&
+                result.record.state === "resolved" &&
+                result.record.resolution.kind === "receipt" &&
+                result.record.resolution.receipt.outcome.kind === "created") ||
               (result.record.state === "resolved" &&
                 result.record.resolution.kind === "receipt" &&
                 result.record.resolution.receipt.outcome.kind ===

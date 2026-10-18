@@ -1,6 +1,7 @@
 import { useListFinanceParticipants } from "@/api/generated/core-console";
 import { useIsMutating } from "@tanstack/react-query";
 import { useRef, useState } from "react";
+import { Link } from "react-router";
 import { ParticipantNameDialog } from "@/components/finance/participant-name-dialog";
 import { ParticipantDetailDialog } from "@/components/finance/participant-detail-dialog";
 import { ParticipantResponse } from "@/api/generated/schemas";
@@ -142,6 +143,13 @@ export function ParticipantsDestination({
                         Participant ID {item.id}
                       </p>
                     ) : null}
+                    <Link
+                      className="block text-sm underline underline-offset-4"
+                      aria-label={`View receivables for ${label}`}
+                      to={`/finance/advances?ledger=${ledgerId}&participant_id=${item.id}`}
+                    >
+                      Receivables
+                    </Link>
                   </TableCell>
                   <TableCell>
                     <Badge

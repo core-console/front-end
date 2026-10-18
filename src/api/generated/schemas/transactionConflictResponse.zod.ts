@@ -37,7 +37,11 @@ export const TransactionConflictResponse = zod
         "An unresolved response cannot masquerade as typed terminal evidence.",
       ),
     zod.strictObject({
-      code: zod.enum(["finance_account_archived", "finance_category_archived"]),
+      code: zod.enum([
+        "finance_account_archived",
+        "finance_category_archived",
+        "finance_linked_record_protected",
+      ]),
       detail: zod.union([zod.string(), zod.null()]).optional(),
       instance: zod.union([zod.string(), zod.null()]).optional(),
       status: zod.literal(409).meta({ title: "Status" }),
@@ -53,6 +57,7 @@ export const TransactionConflictResponse = zod
             code: zod.enum([
               "finance_account_archived",
               "finance_category_archived",
+              "finance_linked_record_protected",
             ]),
             detail: zod.string(),
             status: zod.literal(409).meta({ title: "Status" }),

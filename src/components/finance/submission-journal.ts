@@ -8,6 +8,7 @@ import {
   CreateFinanceCategoryBody,
   CreateFinanceTransactionBody,
   CreateBalanceAdjustmentBody,
+  CreateFinanceAdvanceBody,
 } from "@/api/generated/schemas";
 import { resolveApiBaseUrl } from "@/config/env";
 import {
@@ -90,12 +91,20 @@ const adjustmentCommand = z.strictObject({
   body: CreateBalanceAdjustmentBody,
   workflow: z.literal("balanceAdjustment"),
 });
+const advanceCommand = z.strictObject({
+  operation: z.literal("createFinanceAdvance"),
+  endpoint: z.string(),
+  targetLedgerId: z.uuid(),
+  body: CreateFinanceAdvanceBody,
+  workflow: z.literal("advance"),
+});
 export type CreateSubmissionCommand =
   | Omit<z.infer<typeof ledgerCommand>, "endpoint">
   | Omit<z.infer<typeof accountCommand>, "endpoint">
   | Omit<z.infer<typeof categoryCommand>, "endpoint">
   | Omit<z.infer<typeof transactionCommand>, "endpoint">
-  | Omit<z.infer<typeof adjustmentCommand>, "endpoint">;
+  | Omit<z.infer<typeof adjustmentCommand>, "endpoint">
+  | Omit<z.infer<typeof advanceCommand>, "endpoint">;
 function recordsFor<T extends z.ZodRawShape>(shape: T) {
   return z.discriminatedUnion("state", [
     z.strictObject({
@@ -118,6 +127,7 @@ const recordSchema = z
     recordsFor(categoryCommand.shape),
     recordsFor(transactionCommand.shape),
     recordsFor(adjustmentCommand.shape),
+    recordsFor(advanceCommand.shape),
   ])
   .refine(
     (record) =>
@@ -150,6 +160,8 @@ export function submissionLabel(record: Pick<FinanceSubmission, "operation">) {
       return "Transaction";
     case "createBalanceAdjustment":
       return "Balance Adjustment";
+    case "createFinanceAdvance":
+      return "Advance";
   }
 }
 
@@ -162,6 +174,17 @@ export function isQuickEntrySubmission(command: CreateSubmissionCommand) {
 }
 
 export function rejectionMessage(record: FinanceSubmission) {
+  if (record.operation === "createFinanceAdvance") {
+    const stale =
+      record.state === "resolved" &&
+      record.resolution.kind === "receipt" &&
+      record.resolution.receipt.outcome.kind === "rejected" &&
+      record.resolution.receipt.outcome.problem.code ===
+        "finance_advance_preview_stale";
+    return stale
+      ? "The Advance preview is stale. The original action was rejected without financial effects. Refresh the preview and review current consequences before a new confirmation."
+      : "The Advance was rejected without financial effects. Refresh dependencies and the preview before a new confirmation.";
+  }
   if (isQuickEntrySubmission(record)) return recoveryCopy.rejectedGuidance;
   if (record.operation === "createBalanceAdjustment")
     return "The Balance Adjustment command was rejected. Review current Account context before creating a new submission.";
@@ -184,10 +207,14 @@ function endpointFor(command: CreateSubmissionCommand) {
       return `/finance/ledgers/${command.targetLedgerId}/transactions`;
     case "createBalanceAdjustment":
       return `/finance/ledgers/${command.targetLedgerId}/balance-adjustments`;
+    case "createFinanceAdvance":
+      return `/finance/ledgers/${command.targetLedgerId}/advances`;
   }
 }
 
 export function submissionDescription(record: FinanceSubmission) {
+  if (record.operation === "createFinanceAdvance")
+    return `${record.body.amount.amount} ${record.body.amount.currency} · ${record.body.transactionDate} · Participant ${record.body.participantId}`;
   if (record.operation === "createBalanceAdjustment")
     return `Target ${record.body.targetBalance.amount} ${record.body.targetBalance.currency} · ${record.body.transactionDate}`;
   if (record.operation !== "createFinanceTransaction") return record.body.name;

@@ -18,6 +18,13 @@ import {
   createFinanceCategory,
   createFinanceTransaction,
   createBalanceAdjustment,
+  createFinanceAdvance,
+  getFinanceAdvance,
+  getGetFinanceAdvanceQueryKey,
+  getListFinanceParticipantObligationsQueryKey,
+  getGetFinanceOverviewQueryKey,
+  getListFinanceTransactionsQueryKey,
+  getGetBalanceAdjustmentContextQueryKey,
   getCurrentUser,
   getFinanceSubmission,
   getGetCurrentUserQueryKey,
@@ -35,6 +42,7 @@ import {
   AccountResponse,
   CategoryResponse,
   MeResponse,
+  AdvanceResponse,
 } from "@/api/generated/schemas";
 import { env } from "@/config/env";
 import { refreshSubmittedTransaction } from "./transaction-submission-refresh";
@@ -254,6 +262,7 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
         | "account"
         | "category"
         | "transaction"
+        | "advance"
         | "refreshing"
         | "message"
       >
@@ -263,7 +272,12 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
         await assertOwner(record);
         let resource: Pick<
           SubmitResult,
-          "ledger" | "account" | "category" | "transaction" | "refreshing"
+          | "ledger"
+          | "account"
+          | "category"
+          | "transaction"
+          | "advance"
+          | "refreshing"
         > = {};
         const outcome =
           record.state === "resolved" && record.resolution.kind === "receipt"
@@ -295,6 +309,54 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
         if (outcome.kind !== "created") return resource;
         const id = outcome.resource.id;
         switch (record.operation) {
+          case "createFinanceAdvance": {
+            if (!matches(record)) return {};
+            void Promise.allSettled([
+              queryClient.invalidateQueries({
+                queryKey: getListFinanceParticipantObligationsQueryKey(
+                  record.targetLedgerId,
+                  record.body.participantId,
+                ),
+              }),
+              queryClient.invalidateQueries({
+                queryKey: getListFinanceAccountsQueryKey(record.targetLedgerId),
+              }),
+              queryClient.invalidateQueries({
+                queryKey: getListFinanceTransactionsQueryKey(
+                  record.targetLedgerId,
+                ),
+              }),
+              queryClient.invalidateQueries({
+                queryKey: getGetFinanceOverviewQueryKey(record.targetLedgerId),
+              }),
+              queryClient.invalidateQueries({
+                queryKey: getGetBalanceAdjustmentContextQueryKey(
+                  record.targetLedgerId,
+                  record.body.fundingAccountId,
+                ),
+              }),
+            ]);
+            const response = await getFinanceAdvance(
+              record.targetLedgerId,
+              id,
+              { cache: "no-store" },
+            );
+            const advance = AdvanceResponse.refine(
+              (item) =>
+                item.id === id &&
+                item.ledgerId === record.targetLedgerId &&
+                item.obligation.ledgerId === record.targetLedgerId &&
+                item.obligation.advanceId === id &&
+                item.obligation.participantId === record.body.participantId,
+            ).parse(response.data);
+            if (!matches(record)) return {};
+            const key = getGetFinanceAdvanceQueryKey(record.targetLedgerId, id);
+            await queryClient.cancelQueries({ queryKey: key });
+            if (!matches(record)) return {};
+            queryClient.setQueryData(key, { ...response, data: advance });
+            resource = { advance };
+            break;
+          }
           case "createFinanceTransaction": {
             resource = await refreshSubmittedTransaction(
               queryClient,
@@ -353,30 +415,37 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
           resource.ledger ||
           resource.account ||
           resource.category ||
-          resource.transaction
+          resource.transaction ||
+          resource.advance
             ? record.operation === "createFinanceTransaction"
               ? submissionMessage(
                   record,
                   "Transaction creation is confirmed. View Transactions for its current state.",
                   recoveryCopy.confirmed,
                 )
-              : `${label} creation is confirmed. Your ${label} list is current.`
-            : submissionMessage(
-                record,
-                `${label} creation is confirmed. The ${label} is currently unavailable; it will not be recreated.`,
-                recoveryCopy.resourceUnavailable,
-              );
+              : record.operation === "createFinanceAdvance"
+                ? "Advance creation is confirmed. Its source is available; current financial views refresh separately."
+                : `${label} creation is confirmed. Your ${label} list is current.`
+            : record.operation === "createFinanceAdvance"
+              ? "Advance creation is confirmed. Its source could not refresh. Retry the resource read; do not confirm again."
+              : submissionMessage(
+                  record,
+                  `${label} creation is confirmed. The ${label} is currently unavailable; it will not be recreated.`,
+                  recoveryCopy.resourceUnavailable,
+                );
         showMessage(record, message);
         return { ...resource, message };
       } catch {
         const message =
           record.operation === "createBalanceAdjustment"
             ? "Balance Adjustment outcome is confirmed. Current Finance resources could not refresh. Retry the resource refresh; do not submit again."
-            : submissionMessage(
-                record,
-                `${label} creation is confirmed. Your ${label} list could not refresh. Retry the list refresh; do not create again.`,
-                recoveryCopy.refreshFailed,
-              );
+            : record.operation === "createFinanceAdvance"
+              ? "Advance creation is confirmed. Its source could not refresh. Retry the resource read; do not confirm again."
+              : submissionMessage(
+                  record,
+                  `${label} creation is confirmed. Your ${label} list could not refresh. Retry the list refresh; do not create again.`,
+                  recoveryCopy.refreshFailed,
+                );
         showMessage(record, message);
         return { message };
       }
@@ -462,11 +531,17 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
                       record.body,
                       headers,
                     )
-                  : await createFinanceTransaction(
-                      record.targetLedgerId,
-                      record.body,
-                      headers,
-                    );
+                  : record.operation === "createFinanceAdvance"
+                    ? await createFinanceAdvance(
+                        record.targetLedgerId,
+                        record.body,
+                        headers,
+                      )
+                    : await createFinanceTransaction(
+                        record.targetLedgerId,
+                        record.body,
+                        headers,
+                      );
         resolution = createResponseResolution(record, response.data);
         if (!resolution)
           throw new SubmissionRecoveryError(
@@ -548,6 +623,12 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
       await result.refreshing;
       return result;
     },
+  });
+
+  const advanceRetry = useMutation({
+    mutationKey: ["createFinanceAdvance"],
+    mutationFn: ({ record }: { ledgerId: string; record: FinanceSubmission }) =>
+      dispatch(record),
   });
 
   const run = useCallback(
@@ -688,6 +769,7 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
         partitionKey: activeKey,
         isCurrentNamespace: () => Boolean(namespace && matches(namespace)),
         ready: Boolean(namespace) && !visible.storageError,
+        recoveryLoaded: Boolean(namespace) && view.key === activeKey,
         ...visible,
         messages: Object.fromEntries(
           Object.entries(visible.messages).map(([id, message]) => [
@@ -714,7 +796,12 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
                       ledgerId: record.targetLedgerId,
                       record,
                     })
-                  : await dispatch(record);
+                  : record.operation === "createFinanceAdvance"
+                    ? await advanceRetry.mutateAsync({
+                        ledgerId: record.targetLedgerId,
+                        record,
+                      })
+                    : await dispatch(record);
             if (result.message) showMessage(record, result.message);
           });
         },

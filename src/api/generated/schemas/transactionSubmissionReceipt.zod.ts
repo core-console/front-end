@@ -33,6 +33,7 @@ export const TransactionSubmissionReceipt = zod.strictObject({
           code: zod.enum([
             "finance_account_archived",
             "finance_category_archived",
+            "finance_linked_record_protected",
           ]),
           detail: zod.string(),
           status: zod.literal(409).meta({ title: "Status" }),

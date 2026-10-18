@@ -37,6 +37,7 @@ export const AdjustmentSubmissionReceipt = zod.strictObject({
             "finance_account_archived",
             "account_balance_changed",
             "finance_account_semantics_changed",
+            "finance_linked_record_protected",
           ]),
           detail: zod.string(),
           status: zod.literal(409).meta({ title: "Status" }),

@@ -31,6 +31,11 @@ import type {
   AdjustmentNotFoundResponse,
   AdjustmentSuccessReceipt,
   AdjustmentValidationResponse,
+  AdvanceCreatedReceipt,
+  AdvanceDraftV1,
+  AdvanceFailureResponse,
+  AdvancePreview,
+  AdvanceResponse,
   BalanceAdjustmentContextResponse,
   CategoryConflictResponse,
   CategoryCreatedReceipt,
@@ -41,6 +46,8 @@ import type {
   CreateBalanceAdjustmentHeaders,
   CreateFinanceAccountBody,
   CreateFinanceAccountHeaders,
+  CreateFinanceAdvanceBody,
+  CreateFinanceAdvanceHeaders,
   CreateFinanceCategoryBody,
   CreateFinanceCategoryHeaders,
   CreateFinanceLedgerBody,
@@ -62,6 +69,7 @@ import type {
   LedgerValidationResponse,
   ListFinanceTransactionsParams,
   MeResponse,
+  ObligationResponse,
   ParticipantNameRequest,
   ParticipantResponse,
   ProblemDetails,
@@ -1613,6 +1621,11 @@ export type archiveFinanceAccountResponse404 = {
   status: 404;
 };
 
+export type archiveFinanceAccountResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
 export type archiveFinanceAccountResponse422 = {
   data: ProblemDetails;
   status: 422;
@@ -1635,6 +1648,7 @@ export type archiveFinanceAccountResponseSuccess =
 export type archiveFinanceAccountResponseError = (
   | archiveFinanceAccountResponse403
   | archiveFinanceAccountResponse404
+  | archiveFinanceAccountResponse409
   | archiveFinanceAccountResponse422
   | archiveFinanceAccountResponse500
   | archiveFinanceAccountResponse503
@@ -2081,6 +2095,11 @@ export type unarchiveFinanceAccountResponse404 = {
   status: 404;
 };
 
+export type unarchiveFinanceAccountResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
 export type unarchiveFinanceAccountResponse422 = {
   data: ProblemDetails;
   status: 422;
@@ -2103,6 +2122,7 @@ export type unarchiveFinanceAccountResponseSuccess =
 export type unarchiveFinanceAccountResponseError = (
   | unarchiveFinanceAccountResponse403
   | unarchiveFinanceAccountResponse404
+  | unarchiveFinanceAccountResponse409
   | unarchiveFinanceAccountResponse422
   | unarchiveFinanceAccountResponse500
   | unarchiveFinanceAccountResponse503
@@ -2236,6 +2256,675 @@ export const useUnarchiveFinanceAccount = <
     queryClient,
   );
 };
+
+export type createFinanceAdvanceResponse201 = {
+  data: AdvanceCreatedReceipt;
+  status: 201;
+};
+
+export type createFinanceAdvanceResponse400 = {
+  data: ProblemDetails;
+  status: 400;
+};
+
+export type createFinanceAdvanceResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type createFinanceAdvanceResponse404 = {
+  data: AdvanceFailureResponse;
+  status: 404;
+};
+
+export type createFinanceAdvanceResponse409 = {
+  data: AdvanceFailureResponse;
+  status: 409;
+};
+
+export type createFinanceAdvanceResponse422 = {
+  data: AdvanceFailureResponse;
+  status: 422;
+};
+
+export type createFinanceAdvanceResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type createFinanceAdvanceResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type createFinanceAdvanceResponseSuccess =
+  createFinanceAdvanceResponse201 & {
+    headers: Headers;
+  };
+export type createFinanceAdvanceResponseError = (
+  | createFinanceAdvanceResponse400
+  | createFinanceAdvanceResponse403
+  | createFinanceAdvanceResponse404
+  | createFinanceAdvanceResponse409
+  | createFinanceAdvanceResponse422
+  | createFinanceAdvanceResponse500
+  | createFinanceAdvanceResponse503
+) & {
+  headers: Headers;
+};
+
+export const getCreateFinanceAdvanceUrl = (ledgerId: string) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/advances`;
+};
+
+/**
+ * @summary Post Advance
+ */
+export const createFinanceAdvance = async (
+  ledgerId: string,
+  createFinanceAdvanceBody: CreateFinanceAdvanceBody,
+  headers: CreateFinanceAdvanceHeaders,
+  options?: RequestInit,
+): Promise<createFinanceAdvanceResponseSuccess> => {
+  const getHeaders = (
+    defaults: HeadersInit,
+    overrides?: HeadersInit,
+  ): Headers => {
+    const headers = new Headers(defaults);
+    if (overrides instanceof Headers) {
+      overrides.forEach((value, name) => headers.set(name, value));
+    } else {
+      const entries = Array.isArray(overrides)
+        ? overrides
+        : Object.entries(overrides ?? {});
+      for (const entry of entries) {
+        const [name, value] = entry as [string, string];
+        headers.set(name, value);
+      }
+    }
+    return headers;
+  };
+  const res = await fetch(getCreateFinanceAdvanceUrl(ledgerId), {
+    ...options,
+    method: "POST",
+    headers: getHeaders(
+      { "Content-Type": "application/json", ...headers },
+      options?.headers,
+    ),
+    body: JSON.stringify(createFinanceAdvanceBody),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: createFinanceAdvanceResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: createFinanceAdvanceResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: createFinanceAdvanceResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as createFinanceAdvanceResponseSuccess;
+};
+
+export const getCreateFinanceAdvanceMutationKey = () =>
+  ["createFinanceAdvance"] as const;
+
+export const getCreateFinanceAdvanceMutationOptions = <
+  TError = globalThis.Error & {
+    info?: ProblemDetails | AdvanceFailureResponse;
+    status?: number;
+  },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createFinanceAdvance>>,
+    TError,
+    CreateFinanceAdvanceMutationVariables,
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createFinanceAdvance>>,
+  TError,
+  CreateFinanceAdvanceMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreateFinanceAdvanceMutationKey();
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createFinanceAdvance>>,
+    CreateFinanceAdvanceMutationVariables
+  > = (props) => {
+    const { ledgerId, data, headers } = props ?? {};
+
+    return createFinanceAdvance(ledgerId, data, headers, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateFinanceAdvanceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createFinanceAdvance>>
+>;
+export type CreateFinanceAdvanceMutationBody = CreateFinanceAdvanceBody;
+export type CreateFinanceAdvanceMutationError = globalThis.Error & {
+  info?: ProblemDetails | AdvanceFailureResponse;
+  status?: number;
+};
+export type CreateFinanceAdvanceMutationVariables = {
+  ledgerId: string;
+  data: CreateFinanceAdvanceBody;
+  headers: CreateFinanceAdvanceHeaders;
+};
+
+/**
+ * @summary Post Advance
+ */
+export const useCreateFinanceAdvance = <
+  TError = globalThis.Error & {
+    info?: ProblemDetails | AdvanceFailureResponse;
+    status?: number;
+  },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createFinanceAdvance>>,
+      TError,
+      CreateFinanceAdvanceMutationVariables,
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createFinanceAdvance>>,
+  TError,
+  CreateFinanceAdvanceMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getCreateFinanceAdvanceMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type previewFinanceAdvanceResponse200 = {
+  data: AdvancePreview;
+  status: 200;
+};
+
+export type previewFinanceAdvanceResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type previewFinanceAdvanceResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type previewFinanceAdvanceResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type previewFinanceAdvanceResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type previewFinanceAdvanceResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type previewFinanceAdvanceResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type previewFinanceAdvanceResponseSuccess =
+  previewFinanceAdvanceResponse200 & {
+    headers: Headers;
+  };
+export type previewFinanceAdvanceResponseError = (
+  | previewFinanceAdvanceResponse403
+  | previewFinanceAdvanceResponse404
+  | previewFinanceAdvanceResponse409
+  | previewFinanceAdvanceResponse422
+  | previewFinanceAdvanceResponse500
+  | previewFinanceAdvanceResponse503
+) & {
+  headers: Headers;
+};
+
+export const getPreviewFinanceAdvanceUrl = (ledgerId: string) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/advances/preview`;
+};
+
+/**
+ * @summary Post Preview
+ */
+export const previewFinanceAdvance = async (
+  ledgerId: string,
+  advanceDraftV1: AdvanceDraftV1,
+  options?: RequestInit,
+): Promise<previewFinanceAdvanceResponseSuccess> => {
+  const getHeaders = (
+    defaults: HeadersInit,
+    overrides?: HeadersInit,
+  ): Headers => {
+    const headers = new Headers(defaults);
+    if (overrides instanceof Headers) {
+      overrides.forEach((value, name) => headers.set(name, value));
+    } else {
+      const entries = Array.isArray(overrides)
+        ? overrides
+        : Object.entries(overrides ?? {});
+      for (const entry of entries) {
+        const [name, value] = entry as [string, string];
+        headers.set(name, value);
+      }
+    }
+    return headers;
+  };
+  const res = await fetch(getPreviewFinanceAdvanceUrl(ledgerId), {
+    ...options,
+    method: "POST",
+    headers: getHeaders(
+      { "Content-Type": "application/json" },
+      options?.headers,
+    ),
+    body: JSON.stringify(advanceDraftV1),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: previewFinanceAdvanceResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: previewFinanceAdvanceResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: previewFinanceAdvanceResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as previewFinanceAdvanceResponseSuccess;
+};
+
+export const getPreviewFinanceAdvanceMutationKey = () =>
+  ["previewFinanceAdvance"] as const;
+
+export const getPreviewFinanceAdvanceMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof previewFinanceAdvance>>,
+    TError,
+    PreviewFinanceAdvanceMutationVariables,
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof previewFinanceAdvance>>,
+  TError,
+  PreviewFinanceAdvanceMutationVariables,
+  TContext
+> => {
+  const mutationKey = getPreviewFinanceAdvanceMutationKey();
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof previewFinanceAdvance>>,
+    PreviewFinanceAdvanceMutationVariables
+  > = (props) => {
+    const { ledgerId, data } = props ?? {};
+
+    return previewFinanceAdvance(ledgerId, data, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PreviewFinanceAdvanceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof previewFinanceAdvance>>
+>;
+export type PreviewFinanceAdvanceMutationBody = AdvanceDraftV1;
+export type PreviewFinanceAdvanceMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+export type PreviewFinanceAdvanceMutationVariables = {
+  ledgerId: string;
+  data: AdvanceDraftV1;
+};
+
+/**
+ * @summary Post Preview
+ */
+export const usePreviewFinanceAdvance = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof previewFinanceAdvance>>,
+      TError,
+      PreviewFinanceAdvanceMutationVariables,
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof previewFinanceAdvance>>,
+  TError,
+  PreviewFinanceAdvanceMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getPreviewFinanceAdvanceMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type getFinanceAdvanceResponse200 = {
+  data: AdvanceResponse;
+  status: 200;
+};
+
+export type getFinanceAdvanceResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type getFinanceAdvanceResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type getFinanceAdvanceResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type getFinanceAdvanceResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type getFinanceAdvanceResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type getFinanceAdvanceResponseSuccess = getFinanceAdvanceResponse200 & {
+  headers: Headers;
+};
+export type getFinanceAdvanceResponseError = (
+  | getFinanceAdvanceResponse403
+  | getFinanceAdvanceResponse404
+  | getFinanceAdvanceResponse422
+  | getFinanceAdvanceResponse500
+  | getFinanceAdvanceResponse503
+) & {
+  headers: Headers;
+};
+
+export const getGetFinanceAdvanceUrl = (
+  ledgerId: string,
+  advanceId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/advances/${advanceId}`;
+};
+
+/**
+ * @summary Get Advance
+ */
+export const getFinanceAdvance = async (
+  ledgerId: string,
+  advanceId: string,
+  options?: RequestInit,
+): Promise<getFinanceAdvanceResponseSuccess> => {
+  const res = await fetch(getGetFinanceAdvanceUrl(ledgerId, advanceId), {
+    ...options,
+    method: "GET",
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: getFinanceAdvanceResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: getFinanceAdvanceResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: getFinanceAdvanceResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getFinanceAdvanceResponseSuccess;
+};
+
+export const getGetFinanceAdvanceQueryKey = (
+  ledgerId: string,
+  advanceId: string,
+) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/advances/${advanceId}`,
+  ] as const;
+};
+
+export const getGetFinanceAdvanceQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFinanceAdvance>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  advanceId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceAdvance>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetFinanceAdvanceQueryKey(ledgerId, advanceId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getFinanceAdvance>>
+  > = ({ signal }) =>
+    getFinanceAdvance(ledgerId, advanceId, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      ledgerId !== null &&
+      ledgerId !== undefined &&
+      advanceId !== null &&
+      advanceId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFinanceAdvance>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetFinanceAdvanceQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFinanceAdvance>>
+>;
+export type GetFinanceAdvanceQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useGetFinanceAdvance<
+  TData = Awaited<ReturnType<typeof getFinanceAdvance>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  advanceId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceAdvance>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFinanceAdvance>>,
+          TError,
+          Awaited<ReturnType<typeof getFinanceAdvance>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetFinanceAdvance<
+  TData = Awaited<ReturnType<typeof getFinanceAdvance>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  advanceId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceAdvance>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFinanceAdvance>>,
+          TError,
+          Awaited<ReturnType<typeof getFinanceAdvance>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetFinanceAdvance<
+  TData = Awaited<ReturnType<typeof getFinanceAdvance>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  advanceId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceAdvance>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Get Advance
+ */
+
+export function useGetFinanceAdvance<
+  TData = Awaited<ReturnType<typeof getFinanceAdvance>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  advanceId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceAdvance>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetFinanceAdvanceQueryOptions(
+    ledgerId,
+    advanceId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
 
 export type createBalanceAdjustmentResponse200 = {
   data: AdjustmentSuccessReceipt;
@@ -5042,6 +5731,274 @@ export const useArchiveFinanceParticipant = <
   );
 };
 
+export type listFinanceParticipantObligationsResponse200 = {
+  data: ObligationResponse[];
+  status: 200;
+};
+
+export type listFinanceParticipantObligationsResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type listFinanceParticipantObligationsResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type listFinanceParticipantObligationsResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type listFinanceParticipantObligationsResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type listFinanceParticipantObligationsResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type listFinanceParticipantObligationsResponseSuccess =
+  listFinanceParticipantObligationsResponse200 & {
+    headers: Headers;
+  };
+export type listFinanceParticipantObligationsResponseError = (
+  | listFinanceParticipantObligationsResponse403
+  | listFinanceParticipantObligationsResponse404
+  | listFinanceParticipantObligationsResponse422
+  | listFinanceParticipantObligationsResponse500
+  | listFinanceParticipantObligationsResponse503
+) & {
+  headers: Headers;
+};
+
+export const getListFinanceParticipantObligationsUrl = (
+  ledgerId: string,
+  participantId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/participants/${participantId}/obligations`;
+};
+
+/**
+ * @summary Get Obligations
+ */
+export const listFinanceParticipantObligations = async (
+  ledgerId: string,
+  participantId: string,
+  options?: RequestInit,
+): Promise<listFinanceParticipantObligationsResponseSuccess> => {
+  const res = await fetch(
+    getListFinanceParticipantObligationsUrl(ledgerId, participantId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: listFinanceParticipantObligationsResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: listFinanceParticipantObligationsResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: listFinanceParticipantObligationsResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as listFinanceParticipantObligationsResponseSuccess;
+};
+
+export const getListFinanceParticipantObligationsQueryKey = (
+  ledgerId: string,
+  participantId: string,
+) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/participants/${participantId}/obligations`,
+  ] as const;
+};
+
+export const getListFinanceParticipantObligationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFinanceParticipantObligations>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipantObligations>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListFinanceParticipantObligationsQueryKey(ledgerId, participantId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listFinanceParticipantObligations>>
+  > = ({ signal }) =>
+    listFinanceParticipantObligations(ledgerId, participantId, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      ledgerId !== null &&
+      ledgerId !== undefined &&
+      participantId !== null &&
+      participantId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFinanceParticipantObligations>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListFinanceParticipantObligationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFinanceParticipantObligations>>
+>;
+export type ListFinanceParticipantObligationsQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useListFinanceParticipantObligations<
+  TData = Awaited<ReturnType<typeof listFinanceParticipantObligations>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipantObligations>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceParticipantObligations>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceParticipantObligations>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceParticipantObligations<
+  TData = Awaited<ReturnType<typeof listFinanceParticipantObligations>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipantObligations>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceParticipantObligations>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceParticipantObligations>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceParticipantObligations<
+  TData = Awaited<ReturnType<typeof listFinanceParticipantObligations>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipantObligations>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Get Obligations
+ */
+
+export function useListFinanceParticipantObligations<
+  TData = Awaited<ReturnType<typeof listFinanceParticipantObligations>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipantObligations>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListFinanceParticipantObligationsQueryOptions(
+    ledgerId,
+    participantId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
 export type listFinanceTransactionsResponse200 = {
   data: TransactionHistoryPageResponse;
   status: 200;
@@ -5555,6 +6512,11 @@ export type deleteFinanceTransactionResponse404 = {
   status: 404;
 };
 
+export type deleteFinanceTransactionResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
 export type deleteFinanceTransactionResponse422 = {
   data: ProblemDetails;
   status: 422;
@@ -5577,6 +6539,7 @@ export type deleteFinanceTransactionResponseSuccess =
 export type deleteFinanceTransactionResponseError = (
   | deleteFinanceTransactionResponse403
   | deleteFinanceTransactionResponse404
+  | deleteFinanceTransactionResponse409
   | deleteFinanceTransactionResponse422
   | deleteFinanceTransactionResponse500
   | deleteFinanceTransactionResponse503

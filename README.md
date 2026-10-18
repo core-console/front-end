@@ -156,3 +156,28 @@ attribution checks are outside this consumer. Routed MSW and production-preview
 Chromium tests cover frontend behavior; they do not establish real PostgreSQL
 effects or delivered producer/consumer pair acceptance for
 [Issue #27](https://github.com/core-console/back-end/issues/27).
+
+## Finance v2 pure Advance (T02)
+
+The synchronized producer is `8412584fe56c86a7ced239e3a76d450f8655d7cf`.
+`/finance/advances?ledger=<UUID>` records one pure Advance for an active
+Participant from one active Asset Account, with zero owner share. Preview shows
+the exact funding balance before/after, receivable increase, and unchanged owner
+Expense. Confirmation uses the existing durable submission journal and generated
+Fetch/Query/Zod contract. Participant receivables link from Participants and show
+source, principal, cash paid, forgiven, credit applied, and remaining debt;
+confirmed sources can be bookmarked with `participant_id` and `advance_id`.
+
+An uncertain confirmation retains the original key, version, Ledger and body.
+Lookup never executes; explicit retry sends that original command. Only correlated
+terminal evidence or guarded non-admission proof resolves it. A stale-preview
+terminal rejection preserves draft intent, removes confirmation, and requires an
+explicit refreshed preview and deliberate new confirmation with a new identity.
+Resource-read failure never turns a confirmed receipt into an unknown outcome.
+
+The [producer note](https://github.com/core-console/back-end/blob/8412584fe56c86a7ced239e3a76d450f8655d7cf/docs/finance-v2-pure-advance-t02.md)
+and frozen product specification remain authoritative. Routed MSW and Chromium
+keyboard/focus/axe tests establish consumer behavior; fixtures do not establish
+real PostgreSQL effects or delivered P+C acceptance for
+[Issue #28](https://github.com/core-console/back-end/issues/28). Shared purchases,
+repayments, corrections, and cancellation remain later slices.

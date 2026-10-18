@@ -4,6 +4,7 @@ import type {
   AccountResponse,
   CategoryResponse,
   FinanceTransactionResponseOutput,
+  AdvanceResponse,
 } from "@/api/generated/schemas";
 import type {
   FinanceSubmission,
@@ -15,6 +16,7 @@ export type SubmitResult = {
   account?: AccountResponse | undefined;
   category?: CategoryResponse | undefined;
   transaction?: FinanceTransactionResponseOutput | undefined;
+  advance?: AdvanceResponse | undefined;
   refreshing?: Promise<void>;
   message?: string;
 };
@@ -22,6 +24,7 @@ export type SubmissionContext = {
   partitionKey: string;
   isCurrentNamespace: () => boolean;
   ready: boolean;
+  recoveryLoaded: boolean;
   records: FinanceSubmission[];
   storageError: { message: string; localizedMessage: string } | null;
   messages: Record<string, string>;
