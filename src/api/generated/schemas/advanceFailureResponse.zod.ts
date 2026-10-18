@@ -40,7 +40,7 @@ export const AdvanceFailureResponse = zod
       code: zod.literal("validation_error").meta({ title: "Code" }),
       commandValidationRejection: zod.strictObject({
         attemptedBody: zod.record(zod.string(), zod.unknown()),
-        commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
+        commandVersion: zod.enum(["1", "2"]),
         kind: zod.literal("definitivelyNotAdmitted").meta({ title: "Kind" }),
         operation: zod
           .literal("createFinanceAdvance")
@@ -71,7 +71,7 @@ export const AdvanceFailureResponse = zod
       status: zod.union([zod.literal(404), zod.literal(409), zod.literal(422)]),
       submissionReceipt: zod.strictObject({
         admittedAt: zod.iso.datetime({ offset: true }),
-        commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
+        commandVersion: zod.enum(["1", "2"]),
         operation: zod
           .literal("createFinanceAdvance")
           .meta({ title: "Operation" }),

@@ -20,7 +20,319 @@ import {
   advancePreview as preview,
   confirmedAdvance,
   createdAdvanceReceipt,
+  sharedParticipant,
+  cardFunding,
+  sharedPreview,
+  sharedAdvance,
+  sharedAdvanceReceipt,
 } from "@/test/advance-fixtures";
+
+it("previews and confirms a shared card purchase as one action with exact owner and participant effects", async () => {
+  let creates = 0;
+  server.use(
+    getListFinanceParticipantsMockHandler([person, sharedParticipant]),
+    getListFinanceAccountsMockHandler([funding, cardFunding]),
+    http.post(
+      "*/api/finance/ledgers/:ledger/advances/preview",
+      async ({ request }) => {
+        expect(await request.json()).toMatchObject({
+          amount: { amount: "300", currency: "CNY" },
+          ownerShare: { amount: "100", currency: "CNY" },
+          participantShares: [
+            {
+              participantId: person.id,
+              amount: { amount: "120", currency: "CNY" },
+            },
+            {
+              participantId: sharedParticipant.id,
+              amount: { amount: "80", currency: "CNY" },
+            },
+          ],
+        });
+        return HttpResponse.json(sharedPreview);
+      },
+    ),
+    http.post("*/api/finance/ledgers/:ledger/advances", async ({ request }) => {
+      creates++;
+      expect(request.headers.get("Finance-Command-Version")).toBe("2");
+      expect(await request.json()).toMatchObject({
+        previewToken: sharedPreview.previewToken,
+      });
+      return HttpResponse.json(
+        sharedAdvanceReceipt(request.headers.get("Idempotency-Key")!),
+        { status: 201 },
+      );
+    }),
+    http.get("*/api/finance/ledgers/:ledger/advances/:id", () =>
+      HttpResponse.json(sharedAdvance),
+    ),
+  );
+  renderRoute(`/finance/advances?ledger=${ledger.id}`);
+  const { user, dialog } = await sharedDraft();
+  await user.click(
+    within(dialog).getByRole("button", { name: "Preview Advance" }),
+  );
+  const review = await within(dialog).findByRole("region", {
+    name: "Advance preview",
+  });
+  expect(within(review).getAllByText("100.00 CNY")).toHaveLength(2);
+  expect(within(review).getByText("200.00 CNY")).toBeVisible();
+  expect(within(review).getByText("400.00 CNY")).toBeVisible();
+  expect(
+    within(review).getByText(/Liability increases by 300 CNY/),
+  ).toBeVisible();
+  expect(within(review).getByText(/Alex.*120.00 CNY/)).toBeVisible();
+  expect(within(review).getByText(/Blair.*80.00 CNY/)).toBeVisible();
+  expect(creates).toBe(0);
+  await user.click(
+    within(dialog).getByRole("button", { name: "Confirm Advance" }),
+  );
+  const source = await screen.findByRole("region", {
+    name: "Confirmed Advance source",
+  });
+  expect(await within(source).findByText("Shared purchase")).toBeVisible();
+  expect(
+    within(source).getAllByRole("link", { name: "View linked Transaction" }),
+  ).toHaveLength(3);
+  expect(within(source).getByText(/Alex \(active\)/)).toBeVisible();
+  expect(within(source).getByText(/Blair \(active\)/)).toBeVisible();
+  expect(creates).toBe(1);
+});
+
+async function sharedDraft() {
+  const user = userEvent.setup();
+  const record = await screen.findByRole(
+    "button",
+    {
+      name: "Record shared purchase",
+    },
+    { timeout: 5000 },
+  );
+  await waitFor(() => expect(record).toBeEnabled());
+  await user.click(record);
+  const dialog = screen.getByRole("dialog", { name: "Record shared purchase" });
+  await user.selectOptions(
+    within(dialog).getByLabelText("Participant 1"),
+    person.id,
+  );
+  await user.selectOptions(
+    within(dialog).getByLabelText("Funding Account"),
+    cardFunding.id,
+  );
+  await user.type(
+    within(dialog).getByLabelText("Amount", { exact: true }),
+    "300",
+  );
+  await user.type(within(dialog).getByLabelText("Owner share"), "100");
+  await user.type(within(dialog).getByLabelText("Participant 1 share"), "120");
+  await user.click(
+    within(dialog).getByRole("button", { name: "Add Participant" }),
+  );
+  await user.selectOptions(
+    within(dialog).getByLabelText("Participant 2"),
+    sharedParticipant.id,
+  );
+  await user.type(within(dialog).getByLabelText("Participant 2 share"), "80");
+  await user.clear(within(dialog).getByLabelText("Date"));
+  await user.type(within(dialog).getByLabelText("Date"), "2027-01-02");
+  await user.type(within(dialog).getByLabelText("Note"), "Shared purchase");
+  return { user, dialog };
+}
+
+it("focuses the first invalid shared field in reading order when several fields are invalid", async () => {
+  renderRoute(`/finance/advances?ledger=${ledger.id}`);
+  const user = userEvent.setup();
+  const record = await screen.findByRole(
+    "button",
+    { name: "Record shared purchase" },
+    { timeout: 5000 },
+  );
+  await waitFor(() => expect(record).toBeEnabled());
+  await user.click(record);
+  const dialog = screen.getByRole("dialog", { name: "Record shared purchase" });
+  await user.click(
+    within(dialog).getByRole("button", { name: "Preview Advance" }),
+  );
+  expect(
+    within(dialog).getByLabelText("Participant 1", { exact: true }),
+  ).toHaveFocus();
+});
+
+it.each([
+  ["Amount", "300.01"],
+  ["Owner share", "-1"],
+  ["Owner share", "100.000"],
+  ["Participant 2 share", "0"],
+  ["Participant 2 share", "80.001"],
+  ["Participant 2 share", "8e1"],
+])(
+  "rejects inconsistent or inexact shared input in %s without submitting",
+  async (label, value) => {
+    let requests = 0;
+    server.use(
+      getListFinanceParticipantsMockHandler([person, sharedParticipant]),
+      getListFinanceAccountsMockHandler([funding, cardFunding]),
+      http.post("*/api/finance/ledgers/:ledger/advances/preview", () => {
+        requests++;
+        return HttpResponse.json(sharedPreview);
+      }),
+      http.post("*/api/finance/ledgers/:ledger/advances", () => {
+        requests++;
+        return HttpResponse.error();
+      }),
+    );
+    renderRoute(`/finance/advances?ledger=${ledger.id}`);
+    const { user, dialog } = await sharedDraft();
+    const input = within(dialog).getByLabelText(label, { exact: true });
+    await user.clear(input);
+    await user.type(input, value);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Preview Advance" }),
+    );
+    expect(input).toHaveValue(value);
+    expect(input).toHaveFocus();
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(
+      within(dialog).queryByRole("button", { name: "Confirm Advance" }),
+    ).not.toBeInTheDocument();
+    expect(requests).toBe(0);
+  },
+);
+
+it("requires distinct active Participants and invalidates a reviewed preview after share removal or editing", async () => {
+  let previews = 0;
+  server.use(
+    getListFinanceParticipantsMockHandler([
+      person,
+      sharedParticipant,
+      {
+        ...person,
+        id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        status: "archived",
+      },
+    ]),
+    getListFinanceAccountsMockHandler([funding, cardFunding]),
+    http.post("*/api/finance/ledgers/:ledger/advances/preview", () => {
+      previews++;
+      return HttpResponse.json(sharedPreview);
+    }),
+  );
+  renderRoute(`/finance/advances?ledger=${ledger.id}`);
+  const { user, dialog } = await sharedDraft();
+  const second = within(dialog).getByLabelText("Participant 2", {
+    exact: true,
+  });
+  expect(within(second).getAllByRole("option")).toHaveLength(3);
+  await user.selectOptions(second, person.id);
+  await user.click(
+    within(dialog).getByRole("button", { name: "Preview Advance" }),
+  );
+  expect(second).toHaveFocus();
+  expect(second).toHaveAttribute("aria-invalid", "true");
+  expect(previews).toBe(0);
+  await user.selectOptions(second, sharedParticipant.id);
+  await user.click(
+    within(dialog).getByRole("button", { name: "Preview Advance" }),
+  );
+  await within(dialog).findByRole("button", { name: "Confirm Advance" });
+  await user.type(within(dialog).getByLabelText("Note"), " edited");
+  expect(
+    within(dialog).queryByRole("button", { name: "Confirm Advance" }),
+  ).not.toBeInTheDocument();
+  await user.click(
+    within(dialog).getByRole("button", { name: "Preview Advance" }),
+  );
+  await within(dialog).findByRole("button", { name: "Confirm Advance" });
+  await user.click(
+    within(dialog).getByRole("button", { name: "Remove Participant 1" }),
+  );
+  await waitFor(() =>
+    expect(
+      within(dialog).getByLabelText("Participant 1", { exact: true }),
+    ).toHaveFocus(),
+  );
+  expect(within(dialog).getByLabelText("Participant 1 share")).toHaveValue(
+    "80",
+  );
+  expect(
+    within(dialog).queryByRole("button", { name: "Confirm Advance" }),
+  ).not.toBeInTheDocument();
+  await user.click(
+    within(dialog).getByRole("button", { name: "Preview Advance" }),
+  );
+  expect(
+    within(dialog).getByLabelText("Amount", { exact: true }),
+  ).toHaveAttribute("aria-invalid", "true");
+  expect(previews).toBe(2);
+});
+
+it("previews Asset funding with zero owner share and exact amounts beyond floating point precision", async () => {
+  server.use(
+    getListFinanceParticipantsMockHandler([person, sharedParticipant]),
+    getListFinanceAccountsMockHandler([funding, cardFunding]),
+    http.post(
+      "*/api/finance/ledgers/:ledger/advances/preview",
+      async ({ request }) => {
+        expect(await request.json()).toMatchObject({
+          fundingAccountId: funding.id,
+          amount: { amount: "9007199254740993.03", currency: "CNY" },
+          ownerShare: { amount: "0", currency: "CNY" },
+        });
+        return HttpResponse.json({
+          ...sharedPreview,
+          fundingBalanceAfter: {
+            amount: "-9007199254740893.03",
+            currency: "CNY",
+          },
+          ownerExpense: { amount: "0.00", currency: "CNY" },
+          receivableIncrease: {
+            amount: "9007199254740993.03",
+            currency: "CNY",
+          },
+          participantReceivables: [
+            {
+              participantId: person.id,
+              principal: { amount: "9007199254740993.01", currency: "CNY" },
+            },
+            {
+              participantId: sharedParticipant.id,
+              principal: { amount: "0.02", currency: "CNY" },
+            },
+          ],
+        });
+      },
+    ),
+  );
+  renderRoute(`/finance/advances?ledger=${ledger.id}`);
+  const { user, dialog } = await sharedDraft();
+  await user.selectOptions(
+    within(dialog).getByLabelText("Funding Account"),
+    funding.id,
+  );
+  for (const [label, value] of [
+    ["Owner share", "0"],
+    ["Amount", "9007199254740993.03"],
+    ["Participant 1 share", "9007199254740993.01"],
+    ["Participant 2 share", "0.02"],
+  ]) {
+    const field = within(dialog).getByLabelText(label!, { exact: true });
+    await user.clear(field);
+    await user.type(field, value!);
+  }
+  await user.click(
+    within(dialog).getByRole("button", { name: "Preview Advance" }),
+  );
+  const review = await within(dialog).findByRole("region", {
+    name: "Advance preview",
+  });
+  expect(
+    within(review).getByText(/Asset decreases by 9,007,199,254,740,993.03 CNY/),
+  ).toBeVisible();
+  expect(within(review).getByText("0.00 CNY")).toBeVisible();
+  expect(
+    within(review).getByText("-9,007,199,254,740,893.03 CNY"),
+  ).toBeVisible();
+});
 
 beforeEach(() =>
   server.use(
@@ -174,29 +486,94 @@ it("requires a refreshed preview and a deliberate new identity after correlated 
   expect(tokens).toEqual(["a".repeat(64), "b".repeat(64)]);
 });
 
-it("retains an uncertain original command across navigation and retries it unchanged despite missing lookup", async () => {
-  const sent: { key: string; body: unknown }[] = [];
+it.each([false, true])(
+  "retains an uncertain original command across navigation and retries it unchanged despite missing lookup (shared=%s)",
+  async (shared) => {
+    const sent: { key: string; body: unknown }[] = [];
+    server.use(
+      getListFinanceParticipantsMockHandler(
+        shared ? [person, sharedParticipant] : [person],
+      ),
+      getListFinanceAccountsMockHandler(
+        shared ? [funding, cardFunding] : [funding],
+      ),
+      http.post("*/api/finance/ledgers/:ledger/advances/preview", () =>
+        HttpResponse.json(shared ? sharedPreview : preview),
+      ),
+      http.post(
+        "*/api/finance/ledgers/:ledger/advances",
+        async ({ request }) => {
+          const key = request.headers.get("Idempotency-Key")!;
+          expect(request.headers.get("Finance-Command-Version")).toBe(
+            shared ? "2" : "1",
+          );
+          sent.push({ key, body: await request.json() });
+          return sent.length === 1
+            ? HttpResponse.error()
+            : HttpResponse.json(
+                (shared ? sharedAdvanceReceipt : createdAdvanceReceipt)(key),
+                { status: 201 },
+              );
+        },
+      ),
+      http.get("*/api/finance/submissions/:id", () =>
+        HttpResponse.json(
+          { type: "about:blank", title: "Not found", status: 404 },
+          { status: 404 },
+        ),
+      ),
+      getGetFinanceAdvanceMockHandler503(),
+    );
+    const { router } = renderRoute(`/finance/advances?ledger=${ledger.id}`);
+    const { user, dialog } = await (shared ? sharedDraft() : draft());
+    await user.click(
+      within(dialog).getByRole("button", { name: "Preview Advance" }),
+    );
+    await user.click(
+      await within(dialog).findByRole("button", { name: "Confirm Advance" }),
+    );
+    expect(await within(dialog).findByText(/outcome is unknown/)).toBeVisible();
+    expect(within(dialog).getByLabelText("Amount")).toBeDisabled();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Close to recovery" }),
+    );
+    await act(() => router.navigate("/"));
+    await act(() => router.navigate(`/finance/advances?ledger=${ledger.id}`));
+    expect(
+      await screen.findByRole("button", { name: "Record Advance" }),
+    ).toBeDisabled();
+    expect(sent).toHaveLength(1);
+    await user.click(
+      await screen.findByRole("button", { name: "Retry original submission" }),
+    );
+    await screen.findByRole("status", { name: /Advance created:/ });
+    expect(sent).toHaveLength(2);
+    expect(sent[1]).toEqual(sent[0]);
+    expect(
+      await screen.findByRole("link", { name: "Open Advance" }),
+    ).toHaveAttribute("href", expect.stringContaining(confirmedAdvance.id));
+    expect(
+      screen.queryByRole("button", { name: "Retry original submission" }),
+    ).not.toBeInTheDocument();
+  },
+);
+
+it("keeps a shared command unresolved when a same-key receipt has the old command version", async () => {
   server.use(
+    getListFinanceParticipantsMockHandler([person, sharedParticipant]),
+    getListFinanceAccountsMockHandler([funding, cardFunding]),
     http.post("*/api/finance/ledgers/:ledger/advances/preview", () =>
-      HttpResponse.json(preview),
+      HttpResponse.json(sharedPreview),
     ),
-    http.post("*/api/finance/ledgers/:ledger/advances", async ({ request }) => {
-      const key = request.headers.get("Idempotency-Key")!;
-      sent.push({ key, body: await request.json() });
-      return sent.length === 1
-        ? HttpResponse.error()
-        : HttpResponse.json(createdAdvanceReceipt(key), { status: 201 });
-    }),
-    http.get("*/api/finance/submissions/:id", () =>
+    http.post("*/api/finance/ledgers/:ledger/advances", ({ request }) =>
       HttpResponse.json(
-        { type: "about:blank", title: "Not found", status: 404 },
-        { status: 404 },
+        createdAdvanceReceipt(request.headers.get("Idempotency-Key")!),
+        { status: 201 },
       ),
     ),
-    getGetFinanceAdvanceMockHandler503(),
   );
-  const { router } = renderRoute(`/finance/advances?ledger=${ledger.id}`);
-  const { user, dialog } = await draft();
+  renderRoute(`/finance/advances?ledger=${ledger.id}`);
+  const { user, dialog } = await sharedDraft();
   await user.click(
     within(dialog).getByRole("button", { name: "Preview Advance" }),
   );
@@ -204,27 +581,18 @@ it("retains an uncertain original command across navigation and retries it uncha
     await within(dialog).findByRole("button", { name: "Confirm Advance" }),
   );
   expect(await within(dialog).findByText(/outcome is unknown/)).toBeVisible();
-  expect(within(dialog).getByLabelText("Amount")).toBeDisabled();
+  expect(within(dialog).getByLabelText("Owner share")).toBeDisabled();
+  expect(
+    within(dialog).getByRole("button", { name: "Confirm Advance" }),
+  ).toBeDisabled();
   await user.click(
     within(dialog).getByRole("button", { name: "Close to recovery" }),
   );
-  await act(() => router.navigate("/"));
-  await act(() => router.navigate(`/finance/advances?ledger=${ledger.id}`));
   expect(
-    await screen.findByRole("button", { name: "Record Advance" }),
+    screen.getByRole("button", { name: "Record shared purchase" }),
   ).toBeDisabled();
-  expect(sent).toHaveLength(1);
-  await user.click(
-    await screen.findByRole("button", { name: "Retry original submission" }),
-  );
-  await screen.findByRole("status", { name: /Advance created:/ });
-  expect(sent).toHaveLength(2);
-  expect(sent[1]).toEqual(sent[0]);
   expect(
-    await screen.findByRole("link", { name: "Open Advance" }),
-  ).toHaveAttribute("href", expect.stringContaining(confirmedAdvance.id));
-  expect(
-    screen.queryByRole("button", { name: "Retry original submission" }),
+    screen.queryByRole("link", { name: "Open Advance" }),
   ).not.toBeInTheDocument();
 });
 

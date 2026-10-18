@@ -46,7 +46,6 @@ const commandShape = {
   ...namespaceSchema.shape,
   localSchemaVersion: z.literal(1),
   submissionId: z.uuidv4(),
-  commandVersion: z.literal("1"),
   preparedAt: z.iso.datetime(),
   integrityBlocked: z.boolean(),
 };
@@ -105,16 +104,21 @@ export type CreateSubmissionCommand =
   | Omit<z.infer<typeof transactionCommand>, "endpoint">
   | Omit<z.infer<typeof adjustmentCommand>, "endpoint">
   | Omit<z.infer<typeof advanceCommand>, "endpoint">;
-function recordsFor<T extends z.ZodRawShape>(shape: T) {
+function recordsFor<T extends z.ZodRawShape, V extends z.ZodType>(
+  shape: T,
+  commandVersion: V,
+) {
   return z.discriminatedUnion("state", [
     z.strictObject({
       ...commandShape,
       ...shape,
+      commandVersion,
       state: z.literal("unresolved"),
     }),
     z.strictObject({
       ...commandShape,
       ...shape,
+      commandVersion,
       state: z.literal("resolved"),
       resolution: submissionResolutionSchema,
     }),
@@ -122,13 +126,19 @@ function recordsFor<T extends z.ZodRawShape>(shape: T) {
 }
 const recordSchema = z
   .discriminatedUnion("operation", [
-    recordsFor(ledgerCommand.shape),
-    recordsFor(accountCommand.shape),
-    recordsFor(categoryCommand.shape),
-    recordsFor(transactionCommand.shape),
-    recordsFor(adjustmentCommand.shape),
-    recordsFor(advanceCommand.shape),
+    recordsFor(ledgerCommand.shape, z.literal("1")),
+    recordsFor(accountCommand.shape, z.literal("1")),
+    recordsFor(categoryCommand.shape, z.literal("1")),
+    recordsFor(transactionCommand.shape, z.literal("1")),
+    recordsFor(adjustmentCommand.shape, z.literal("1")),
+    recordsFor(advanceCommand.shape, z.enum(["1", "2"])),
   ])
+  .refine(
+    (record) =>
+      record.operation !== "createFinanceAdvance" ||
+      (record.commandVersion === "2") === "participantShares" in record.body,
+    "Advance grammar does not match its command version.",
+  )
   .refine(
     (record) =>
       record.operation !== "createFinanceTransaction" ||
@@ -214,7 +224,7 @@ function endpointFor(command: CreateSubmissionCommand) {
 
 export function submissionDescription(record: FinanceSubmission) {
   if (record.operation === "createFinanceAdvance")
-    return `${record.body.amount.amount} ${record.body.amount.currency} · ${record.body.transactionDate} · Participant ${record.body.participantId}`;
+    return `${record.body.amount.amount} ${record.body.amount.currency} · ${record.body.transactionDate} · Participants ${"participantShares" in record.body ? record.body.participantShares.map((share) => share.participantId).join(", ") : record.body.participantId}`;
   if (record.operation === "createBalanceAdjustment")
     return `Target ${record.body.targetBalance.amount} ${record.body.targetBalance.currency} · ${record.body.transactionDate}`;
   if (record.operation !== "createFinanceTransaction") return record.body.name;
@@ -386,7 +396,11 @@ export async function prepareSubmission(
     ...namespaceSchema.parse(namespace),
     localSchemaVersion: 1,
     submissionId: crypto.randomUUID(),
-    commandVersion: "1",
+    commandVersion:
+      command.operation === "createFinanceAdvance" &&
+      "participantShares" in command.body
+        ? "2"
+        : "1",
     ...structuredClone(command),
     endpoint: endpointFor(command),
     preparedAt: new Date().toISOString(),

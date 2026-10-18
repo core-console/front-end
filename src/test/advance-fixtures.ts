@@ -70,3 +70,66 @@ export function createdAdvanceReceipt(submissionId: string) {
     },
   });
 }
+
+export const sharedParticipant: ParticipantResponse = {
+  ...advanceParticipant,
+  id: "88888888-8888-4888-8888-888888888888",
+  name: "Blair",
+};
+export const cardFunding: AccountResponse = {
+  ...advanceFunding,
+  id: "99999999-9999-4999-8999-999999999999",
+  name: "Credit card",
+  nature: "liability",
+};
+export const sharedPreview = {
+  ...advancePreview,
+  fundingBalanceAfter: { amount: "400.00", currency: "CNY" as const },
+  ownerExpense: { amount: "100.00", currency: "CNY" as const },
+  receivableIncrease: { amount: "200.00", currency: "CNY" as const },
+  participantReceivables: [
+    {
+      participantId: advanceParticipant.id,
+      principal: { amount: "120.00", currency: "CNY" as const },
+    },
+    {
+      participantId: sharedParticipant.id,
+      principal: { amount: "80.00", currency: "CNY" as const },
+    },
+  ],
+};
+export const sharedAdvance = {
+  id: confirmedAdvance.id,
+  ledgerId: advanceLedger.id,
+  fundingAccountId: cardFunding.id,
+  transactionDate: confirmedAdvance.transactionDate,
+  confirmedAt: confirmedAdvance.confirmedAt,
+  note: "Shared purchase",
+  amount: { amount: "300.00", currency: "CNY" as const },
+  ownerShare: { amount: "100.00", currency: "CNY" as const },
+  transactionIds: [
+    confirmedAdvance.transactionId,
+    "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  ],
+  obligations: sharedPreview.participantReceivables.map((share, index) => ({
+    ...confirmedAdvance.obligation,
+    id:
+      index === 0
+        ? confirmedAdvance.obligation.id
+        : "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    participantId: share.participantId,
+    receivableAccountId:
+      index === 0
+        ? confirmedAdvance.obligation.receivableAccountId
+        : "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    principal: share.principal,
+    remaining: share.principal,
+  })),
+};
+export function sharedAdvanceReceipt(submissionId: string) {
+  return AdvanceCreatedReceipt.parse({
+    ...createdAdvanceReceipt(submissionId),
+    commandVersion: "2",
+  });
+}

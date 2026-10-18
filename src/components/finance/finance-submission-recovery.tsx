@@ -207,7 +207,7 @@ export function FinanceSubmissionRecovery({
                             record.operation === "createFinanceLedger"
                               ? `/finance/overview?ledger=${outcome.resource.id}`
                               : record.operation === "createFinanceAdvance"
-                                ? `/finance/advances?ledger=${record.targetLedgerId}&participant_id=${record.body.participantId}&advance_id=${outcome.resource.id}`
+                                ? `/finance/advances?ledger=${record.targetLedgerId}${"participantId" in record.body ? `&participant_id=${record.body.participantId}` : ""}&advance_id=${outcome.resource.id}`
                                 : `/finance/${record.operation === "createFinanceAccount" ? "accounts" : record.operation === "createFinanceCategory" ? "categories" : "transactions"}?ledger=${record.targetLedgerId}`
                           }
                         >

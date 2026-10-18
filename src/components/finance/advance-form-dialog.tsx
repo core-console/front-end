@@ -8,6 +8,7 @@ import {
 import { usePreviewFinanceAdvance } from "@/api/generated/core-console";
 import {
   AdvancePreview,
+  SharedAdvancePreview,
   PreviewFinanceAdvanceBody,
   FinanceRequestDate,
   type AccountResponse,
@@ -32,6 +33,7 @@ import {
   Field,
   FieldGroup,
   FieldSet,
+  FieldLegend,
   FieldLabel,
   FieldError,
 } from "@/components/ui/field";
@@ -47,7 +49,21 @@ function today() {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+// Compare integer minor units: binary floating point must never decide share totals.
+function exactUnits(value: string, precision: number, allowZero = false) {
+  if (
+    !/^\d+(?:\.\d+)?$/.test(value) ||
+    value.split(".")[0]!.replace(/^0+/, "").length > 131072 ||
+    (value.split(".")[1]?.length ?? 0) > precision ||
+    (!allowZero && !/[1-9]/.test(value))
+  )
+    return null;
+  const [integer, fraction = ""] = value.split(".");
+  return BigInt(integer! + fraction.padEnd(precision, "0"));
+}
+
 export function AdvanceFormDialog({
+  shared = false,
   ledgerId,
   accounts,
   participants,
@@ -57,6 +73,7 @@ export function AdvanceFormDialog({
   finalFocus,
   refreshDependencies,
 }: {
+  shared?: boolean;
   ledgerId: string;
   accounts: AccountResponse[];
   participants: ParticipantResponse[];
@@ -67,6 +84,11 @@ export function AdvanceFormDialog({
   refreshDependencies: () => Promise<void>;
 }) {
   const [participantId, setParticipantId] = useState("");
+  const [ownerShare, setOwnerShare] = useState("");
+  const [shares, setShares] = useState([
+    { key: 0, participantId: "", amount: "" },
+  ]);
+  const nextShare = useRef(1);
   const [fundingAccountId, setFundingAccountId] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(today);
@@ -76,7 +98,7 @@ export function AdvanceFormDialog({
   const [refreshing, setRefreshing] = useState(false);
   const [review, setReview] = useState<{
     draft: PreviewFinanceAdvanceBody;
-    preview: AdvancePreview;
+    preview: AdvancePreview | SharedAdvancePreview;
   } | null>(null);
   const preview = usePreviewFinanceAdvance({ mutation: { retry: false } });
   const first = useRef<HTMLSelectElement>(null);
@@ -91,7 +113,7 @@ export function AdvanceFormDialog({
       )
         onConfirmed(
           result.record.resolution.receipt.outcome.resource.id,
-          participantId,
+          shared ? shares[0]!.participantId : participantId,
         );
     },
     ledgerId,
@@ -110,7 +132,7 @@ export function AdvanceFormDialog({
   const locked = create.pending || create.unresolved;
   const labels = buildAccountWorkflowLabels(accounts);
   const eligibleAccounts = accounts.filter(
-    (item) => item.status === "active" && item.nature === "asset",
+    (item) => item.status === "active" && (shared || item.nature === "asset"),
   );
   const eligiblePeople = participants.filter(
     (item) => item.status === "active",
@@ -137,18 +159,41 @@ export function AdvanceFormDialog({
     const person = eligiblePeople.find((item) => item.id === participantId);
     const currency = currencies.find((item) => item.code === account?.currency);
     const invalid: Record<string, string> = {};
-    if (!person) invalid.participant = "Choose an active Participant.";
+    if (!shared && !person)
+      invalid.participant = "Choose an active Participant.";
     if (!account || !currency)
       invalid.funding =
-        "Choose an active Asset Account with an available currency.";
-    if (
-      !/^\d+(?:\.\d+)?$/.test(amount) ||
-      !/[1-9]/.test(amount) ||
-      amount.split(".")[0]!.replace(/^0+/, "").length > 131072 ||
-      (amount.split(".")[1]?.length ?? 0) > (currency?.minorUnit ?? 0)
-    )
+        "Choose an eligible active funding Account with an available currency.";
+    const precision = currency?.minorUnit ?? 0;
+    const total = exactUnits(amount, precision);
+    if (total === null)
       invalid.amount =
         "Enter a positive exact amount within the currency precision. Amounts are never rounded.";
+    if (shared) {
+      const owner = exactUnits(ownerShare, precision, true);
+      if (owner === null)
+        invalid.owner =
+          "Enter an exact non-negative owner share. Amounts are never rounded.";
+      const seen = new Set<string>();
+      let sum = owner ?? 0n;
+      shares.forEach((share) => {
+        if (
+          !eligiblePeople.some((item) => item.id === share.participantId) ||
+          seen.has(share.participantId)
+        )
+          invalid[`participant-${share.key}`] =
+            "Choose a distinct active Participant.";
+        seen.add(share.participantId);
+        const value = exactUnits(share.amount, precision);
+        if (value === null)
+          invalid[`share-${share.key}`] =
+            "Enter a positive exact Participant share within the currency precision.";
+        else sum += value;
+      });
+      if (!Object.keys(invalid).length && sum !== total)
+        invalid.amount =
+          "Owner and Participant shares must equal the total funding exactly. Nothing is rounded or allocated automatically.";
+    }
     if (
       !FinanceRequestDate.safeParse(date).success ||
       (account && date < account.trackingStartDate)
@@ -157,25 +202,40 @@ export function AdvanceFormDialog({
         "Enter a valid date on or after the Account Tracking Start Date.";
     setErrors(invalid);
     if (Object.keys(invalid).length) {
-      document.getElementById(`advance-${Object.keys(invalid)[0]}`)?.focus();
+      const firstInvalid = fields.find((field) => invalid[field.id]);
+      document.getElementById(`advance-${firstInvalid?.id}`)?.focus();
       return;
     }
     if (!account) return;
     const money = { amount, currency: account.currency };
     const draft = PreviewFinanceAdvanceBody.parse({
       fundingAccountId,
-      participantId,
+      ...(!shared
+        ? { participantId, participantShare: money }
+        : {
+            participantShares: shares.map((share) => ({
+              participantId: share.participantId,
+              amount: { amount: share.amount, currency: account.currency },
+            })),
+          }),
       transactionDate: date,
       amount: money,
-      ownerShare: { amount: "0", currency: account.currency },
-      participantShare: money,
+      ownerShare: {
+        amount: shared ? ownerShare : "0",
+        currency: account.currency,
+      },
       note: note || null,
     });
     setReview(null);
     setError("");
     try {
       const response = await preview.mutateAsync({ ledgerId, data: draft });
-      setReview({ draft, preview: AdvancePreview.parse(response.data) });
+      setReview({
+        draft,
+        preview: shared
+          ? SharedAdvancePreview.parse(response.data)
+          : AdvancePreview.parse(response.data),
+      });
     } catch {
       setError(
         "Preview could not be loaded. Check the Account, Participant, date and amount, then refresh dependencies and try again. Nothing was confirmed.",
@@ -183,35 +243,145 @@ export function AdvanceFormDialog({
     }
   }
   const fields = [
-    {
-      id: "participant",
-      label: "Participant",
-      control: (
-        <NativeSelect
-          ref={first}
-          id="advance-participant"
-          value={participantId}
-          aria-invalid={!!errors.participant}
-          aria-describedby={
-            errors.participant ? "advance-participant-error" : undefined
-          }
-          onChange={(event) => {
-            edit();
-            setParticipantId(event.target.value);
-          }}
-        >
-          <NativeSelectOption value="">Choose Participant</NativeSelectOption>
-          {eligiblePeople.map((item) => (
-            <NativeSelectOption key={item.id} value={item.id}>
-              {item.name} · {item.id}
-            </NativeSelectOption>
-          ))}
-        </NativeSelect>
-      ),
-    },
+    ...(shared
+      ? shares.flatMap((share, index) => [
+          {
+            id: `participant-${share.key}`,
+            label: `Participant ${index + 1}`,
+            control: (
+              <NativeSelect
+                ref={index === 0 ? first : undefined}
+                id={`advance-participant-${share.key}`}
+                value={share.participantId}
+                aria-invalid={!!errors[`participant-${share.key}`]}
+                aria-describedby={
+                  errors[`participant-${share.key}`]
+                    ? `advance-participant-${share.key}-error`
+                    : undefined
+                }
+                onChange={(event) => {
+                  edit();
+                  setShares(
+                    shares.map((item) =>
+                      item.key === share.key
+                        ? { ...item, participantId: event.target.value }
+                        : item,
+                    ),
+                  );
+                }}
+              >
+                <NativeSelectOption value="">
+                  Choose Participant
+                </NativeSelectOption>
+                {eligiblePeople.map((item) => (
+                  <NativeSelectOption key={item.id} value={item.id}>
+                    {item.name} · {item.id}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            ),
+          },
+          {
+            id: `share-${share.key}`,
+            label: `Participant ${index + 1} share`,
+            control: (
+              <>
+                <Input
+                  id={`advance-share-${share.key}`}
+                  inputMode="decimal"
+                  value={share.amount}
+                  aria-invalid={!!errors[`share-${share.key}`]}
+                  aria-describedby={
+                    errors[`share-${share.key}`]
+                      ? `advance-share-${share.key}-error`
+                      : undefined
+                  }
+                  onChange={(event) => {
+                    edit();
+                    setShares(
+                      shares.map((item) =>
+                        item.key === share.key
+                          ? { ...item, amount: event.target.value }
+                          : item,
+                      ),
+                    );
+                  }}
+                />
+                {shares.length > 1 ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      edit();
+                      setShares(
+                        shares.filter((item) => item.key !== share.key),
+                      );
+                      requestAnimationFrame(() => first.current?.focus());
+                    }}
+                  >
+                    Remove Participant {index + 1}
+                  </Button>
+                ) : null}
+              </>
+            ),
+          },
+        ])
+      : [
+          {
+            id: "participant",
+            label: "Participant",
+            control: (
+              <NativeSelect
+                ref={first}
+                id="advance-participant"
+                value={participantId}
+                aria-invalid={!!errors.participant}
+                aria-describedby={
+                  errors.participant ? "advance-participant-error" : undefined
+                }
+                onChange={(event) => {
+                  edit();
+                  setParticipantId(event.target.value);
+                }}
+              >
+                <NativeSelectOption value="">
+                  Choose Participant
+                </NativeSelectOption>
+                {eligiblePeople.map((item) => (
+                  <NativeSelectOption key={item.id} value={item.id}>
+                    {item.name} · {item.id}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            ),
+          },
+        ]),
+    ...(shared
+      ? [
+          {
+            id: "owner",
+            label: "Owner share",
+            control: (
+              <Input
+                id="advance-owner"
+                inputMode="decimal"
+                value={ownerShare}
+                aria-invalid={!!errors.owner}
+                aria-describedby={
+                  errors.owner ? "advance-owner-error" : undefined
+                }
+                onChange={(event) => {
+                  edit();
+                  setOwnerShare(event.target.value);
+                }}
+              />
+            ),
+          },
+        ]
+      : []),
     {
       id: "funding",
-      label: "Funding Asset Account",
+      label: shared ? "Funding Account" : "Funding Asset Account",
       control: (
         <NativeSelect
           id="advance-funding"
@@ -225,10 +395,13 @@ export function AdvanceFormDialog({
             setFundingAccountId(event.target.value);
           }}
         >
-          <NativeSelectOption value="">Choose Asset Account</NativeSelectOption>
+          <NativeSelectOption value="">
+            Choose {shared ? "funding" : "Asset"} Account
+          </NativeSelectOption>
           {eligibleAccounts.map((item) => (
             <NativeSelectOption key={item.id} value={item.id}>
-              {labels.get(item.id)} · {item.currency}
+              {labels.get(item.id)} · {item.currency} ·{" "}
+              {item.nature === "liability" ? "Liability" : "Asset"}
             </NativeSelectOption>
           ))}
         </NativeSelect>
@@ -296,10 +469,14 @@ export function AdvanceFormDialog({
         className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-xl"
       >
         <DialogHeader>
-          <DialogTitle>Record pure Advance</DialogTitle>
+          <DialogTitle>
+            {shared ? "Record shared purchase" : "Record pure Advance"}
+          </DialogTitle>
           <DialogDescription>
-            One Participant, one Asset Account, zero owner share. Future-dated
-            recording affects Current Balance immediately.
+            {shared
+              ? "Explicit owner and Participant shares, one Asset or Liability funding Account. Shares must equal total funding exactly. "
+              : "One Participant, one Asset Account, zero owner share. "}
+            Future-dated recording affects Current Balance immediately.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -308,19 +485,43 @@ export function AdvanceFormDialog({
         >
           <FieldGroup>
             <FieldSet disabled={preview.isPending || locked || refreshing}>
-              {fields.map((field) => (
-                <Field key={field.id} data-invalid={!!errors[field.id]}>
-                  <FieldLabel htmlFor={`advance-${field.id}`}>
-                    {field.label}
-                  </FieldLabel>
-                  {field.control}
-                  {errors[field.id] ? (
-                    <FieldError id={`advance-${field.id}-error`}>
-                      {errors[field.id]}
-                    </FieldError>
-                  ) : null}
-                </Field>
-              ))}
+              <FieldLegend className="sr-only">Advance details</FieldLegend>
+              <FieldGroup>
+                {fields.map((field) => (
+                  <Field key={field.id} data-invalid={!!errors[field.id]}>
+                    <FieldLabel htmlFor={`advance-${field.id}`}>
+                      {field.label}
+                    </FieldLabel>
+                    {field.control}
+                    {errors[field.id] ? (
+                      <FieldError id={`advance-${field.id}-error`}>
+                        {errors[field.id]}
+                      </FieldError>
+                    ) : null}
+                  </Field>
+                ))}
+                {shared ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      edit();
+                      const key = nextShare.current++;
+                      setShares([
+                        ...shares,
+                        { key, participantId: "", amount: "" },
+                      ]);
+                      requestAnimationFrame(() =>
+                        document
+                          .getElementById(`advance-participant-${key}`)
+                          ?.focus(),
+                      );
+                    }}
+                  >
+                    Add Participant
+                  </Button>
+                ) : null}
+              </FieldGroup>
             </FieldSet>
           </FieldGroup>
           {error ? (
@@ -356,19 +557,49 @@ export function AdvanceFormDialog({
               className="flex flex-col gap-2 [overflow-wrap:anywhere]"
             >
               <h2 className="font-semibold">Financial preview</h2>
-              <p>
-                Participant:{" "}
-                {
-                  participants.find(
-                    (item) => item.id === review.draft.participantId,
-                  )?.name
-                }{" "}
-                · {review.draft.participantId}
-              </p>
+              {"participantShares" in review.draft ? null : (
+                <p>
+                  Participant:{" "}
+                  {
+                    participants.find(
+                      (item) =>
+                        "participantId" in review.draft &&
+                        item.id === review.draft.participantId,
+                    )?.name
+                  }{" "}
+                  · {review.draft.participantId}
+                </p>
+              )}
               <p>
                 Funding Account: {labels.get(review.draft.fundingAccountId)} ·{" "}
                 {review.draft.fundingAccountId}
               </p>
+              {shared ? (
+                <p>
+                  {accounts.find(
+                    (item) => item.id === review.draft.fundingAccountId,
+                  )?.nature === "liability"
+                    ? "Liability increases"
+                    : "Asset decreases"}{" "}
+                  by {formatFinanceMoney(review.draft.amount)}. Participant
+                  principal is not personal Expense. Income is unchanged.
+                </p>
+              ) : null}
+              {"participantReceivables" in review.preview ? (
+                <ul aria-label="Participant receivables">
+                  {review.preview.participantReceivables.map((share) => (
+                    <li key={share.participantId}>
+                      {
+                        participants.find(
+                          (item) => item.id === share.participantId,
+                        )?.name
+                      }{" "}
+                      · {share.participantId}:{" "}
+                      {formatFinanceMoney(share.principal)}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               <p>
                 Date: {review.draft.transactionDate}. Note:{" "}
                 {review.draft.note || "—"}
@@ -391,11 +622,13 @@ export function AdvanceFormDialog({
                   </div>
                 ))}
               </dl>
-              <p>
-                Participant share:{" "}
-                {formatFinanceMoney(review.draft.participantShare)}. Owner
-                share: {formatFinanceMoney(review.draft.ownerShare)}.
-              </p>
+              {"participantShare" in review.draft ? (
+                <p>
+                  Participant share:{" "}
+                  {formatFinanceMoney(review.draft.participantShare)}. Owner
+                  share: {formatFinanceMoney(review.draft.ownerShare)}.
+                </p>
+              ) : null}
             </section>
           ) : null}
           <DialogFooter className="flex-wrap">

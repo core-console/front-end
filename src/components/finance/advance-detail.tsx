@@ -1,11 +1,11 @@
 import { Link } from "react-router";
 import { useGetFinanceAdvance } from "@/api/generated/core-console";
 import {
-  AdvanceResponse,
   type AccountResponse,
   type ParticipantResponse,
 } from "@/api/generated/schemas";
 import { formatFinanceMoney } from "./finance-money";
+import { parseAdvanceSource, advanceObligations } from "./advance-source";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -23,21 +23,12 @@ export function AdvanceDetail({
   const query = useGetFinanceAdvance(ledgerId, advanceId, {
     query: {
       select: (response) =>
-        AdvanceResponse.refine(
-          (item) =>
-            item.id === advanceId &&
-            item.ledgerId === ledgerId &&
-            item.obligation.ledgerId === ledgerId &&
-            item.obligation.advanceId === advanceId,
-        ).parse(response.data),
+        parseAdvanceSource(response.data, ledgerId, advanceId),
     },
   });
   const item = query.data;
   const funding = accounts.find(
     (account) => account.id === item?.fundingAccountId,
-  );
-  const person = participants.find(
-    (participant) => participant.id === item?.obligation.participantId,
   );
   return (
     <section
@@ -67,22 +58,14 @@ export function AdvanceDetail({
             {[
               ["Advance ID", item.id],
               [
-                "Participant",
-                person
-                  ? `${person.name} (${person.status}) · ${person.id}`
-                  : item.obligation.participantId,
-              ],
-              [
-                "Funding Asset Account",
+                "Funding Account",
                 funding
-                  ? `${funding.name} · ${funding.id}`
+                  ? `${funding.name} · ${funding.nature === "liability" ? "Liability" : "Asset"} · ${funding.id}`
                   : item.fundingAccountId,
               ],
               ["Source date", item.transactionDate],
-              ["Principal", formatFinanceMoney(item.amount)],
+              ["Total funding", formatFinanceMoney(item.amount)],
               ["Owner share", formatFinanceMoney(item.ownerShare)],
-              ["Receivable Account ID", item.obligation.receivableAccountId],
-              ["Transaction ID", item.transactionId],
               ["Confirmed at", item.confirmedAt],
               ["Note", item.note || "—"],
             ].map(([label, value]) => (
@@ -92,18 +75,69 @@ export function AdvanceDetail({
               </div>
             ))}
           </dl>
+          {advanceObligations(item).map((obligation) => {
+            const person = participants.find(
+              (participant) => participant.id === obligation.participantId,
+            );
+            return (
+              <section
+                key={obligation.id}
+                aria-label={`Participant ${obligation.participantId}`}
+                className="flex flex-col gap-2"
+              >
+                <h3 className="font-semibold">
+                  {person
+                    ? `${person.name} (${person.status}) · ${person.id}`
+                    : obligation.participantId}
+                </h3>
+                <dl className="grid gap-2 sm:grid-cols-2">
+                  {[
+                    ["Obligation ID", obligation.id],
+                    ["Receivable Account ID", obligation.receivableAccountId],
+                    ["Principal", formatFinanceMoney(obligation.principal)],
+                    ["Remaining", formatFinanceMoney(obligation.remaining)],
+                    ["Cash paid", formatFinanceMoney(obligation.cashPaid)],
+                    ["Forgiven", formatFinanceMoney(obligation.forgiven)],
+                    [
+                      "Credit applied",
+                      formatFinanceMoney(obligation.creditApplied),
+                    ],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <dt className="text-sm text-muted-foreground">{label}</dt>
+                      <dd>{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <Link
+                  className="underline underline-offset-4"
+                  to={`/finance/advances?ledger=${ledgerId}&participant_id=${obligation.participantId}&advance_id=${item.id}`}
+                >
+                  Inspect Participant receivables
+                </Link>
+              </section>
+            );
+          })}
           <p className="text-sm text-muted-foreground">
-            Funding decreased and the dedicated receivable increased by{" "}
-            {formatFinanceMoney(item.amount)}. Owner purchase Expense and Income
-            are unchanged. The receivable is already included in the Ledger
-            financial position.
+            Total funding: {formatFinanceMoney(item.amount)}. Owner purchase
+            Expense: {formatFinanceMoney(item.ownerShare)}. Participant
+            principal is not personal Expense. Income is unchanged. Receivables
+            are already included in the Ledger financial position.
           </p>
-          <Link
-            className="underline underline-offset-4"
-            to={`/finance/transactions/${item.transactionId}?ledger=${ledgerId}`}
-          >
-            View linked Transaction
-          </Link>
+          {("transactionIds" in item
+            ? item.transactionIds
+            : [item.transactionId]
+          ).map((transactionId) => (
+            <div key={transactionId} className="flex flex-col gap-1">
+              <span>{transactionId}</span>
+              <Link
+                className="underline underline-offset-4"
+                to={`/finance/transactions/${transactionId}?ledger=${ledgerId}`}
+              >
+                View linked Transaction
+              </Link>
+            </div>
+          ))}
         </>
       ) : null}
     </section>

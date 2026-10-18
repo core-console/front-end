@@ -33,6 +33,7 @@ import type {
   AdjustmentValidationResponse,
   AdvanceCreatedReceipt,
   AdvanceDraftV1,
+  AdvanceDraftV2,
   AdvanceFailureResponse,
   AdvancePreview,
   AdvanceResponse,
@@ -78,6 +79,8 @@ import type {
   ReplaceExpenseTransactionRequest,
   ReplaceIncomeTransactionRequest,
   ReplaceInternalTransferTransactionRequest,
+  SharedAdvancePreview,
+  SharedAdvanceResponse,
   SubmissionNonterminalProblem,
   TransactionConflictResponse,
   TransactionCreatedReceipt,
@@ -2318,6 +2321,7 @@ export const getCreateFinanceAdvanceUrl = (ledgerId: string) => {
 };
 
 /**
+ * Confirm one atomic Advance under the retained submission protocol. Finance-Command-Version: 1 accepts the frozen single-participant, Asset-funded pure Advance body. Version 2 accepts participantShares, an explicit non-negative ownerShare and Asset or Liability funding. Each body's previewToken must come from its matching preview. All linked effects share one terminal outcome.
  * @summary Post Advance
  */
 export const createFinanceAdvance = async (
@@ -2468,7 +2472,7 @@ export const useCreateFinanceAdvance = <
 };
 
 export type previewFinanceAdvanceResponse200 = {
-  data: AdvancePreview;
+  data: SharedAdvancePreview | AdvancePreview;
   status: 200;
 };
 
@@ -2526,7 +2530,7 @@ export const getPreviewFinanceAdvanceUrl = (ledgerId: string) => {
  */
 export const previewFinanceAdvance = async (
   ledgerId: string,
-  advanceDraftV1: AdvanceDraftV1,
+  advanceDraftV1AdvanceDraftV2: AdvanceDraftV1 | AdvanceDraftV2,
   options?: RequestInit,
 ): Promise<previewFinanceAdvanceResponseSuccess> => {
   const getHeaders = (
@@ -2554,7 +2558,7 @@ export const previewFinanceAdvance = async (
       { "Content-Type": "application/json" },
       options?.headers,
     ),
-    body: JSON.stringify(advanceDraftV1),
+    body: JSON.stringify(advanceDraftV1AdvanceDraftV2),
   });
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
@@ -2624,14 +2628,14 @@ export const getPreviewFinanceAdvanceMutationOptions = <
 export type PreviewFinanceAdvanceMutationResult = NonNullable<
   Awaited<ReturnType<typeof previewFinanceAdvance>>
 >;
-export type PreviewFinanceAdvanceMutationBody = AdvanceDraftV1;
+export type PreviewFinanceAdvanceMutationBody = AdvanceDraftV1 | AdvanceDraftV2;
 export type PreviewFinanceAdvanceMutationError = globalThis.Error & {
   info?: ProblemDetails;
   status?: number;
 };
 export type PreviewFinanceAdvanceMutationVariables = {
   ledgerId: string;
-  data: AdvanceDraftV1;
+  data: AdvanceDraftV1 | AdvanceDraftV2;
 };
 
 /**
@@ -2664,7 +2668,7 @@ export const usePreviewFinanceAdvance = <
 };
 
 export type getFinanceAdvanceResponse200 = {
-  data: AdvanceResponse;
+  data: AdvanceResponse | SharedAdvanceResponse;
   status: 200;
 };
 

@@ -1,6 +1,6 @@
 import { it, expect } from "vitest";
 import type { RequestHandler } from "msw";
-import type { ZodType } from "zod";
+import { z, type ZodType } from "zod";
 
 import openApi from "../../openapi/openapi.json";
 import * as fakerFixtures from "@/api/generated/core-console.faker";
@@ -13,6 +13,7 @@ type ResponseSchema = {
   $ref?: string;
   type?: string;
   items?: { $ref: string };
+  anyOf?: { $ref: string }[];
 };
 type Operation = {
   operationId: string;
@@ -56,9 +57,13 @@ it.each(cases)(
       seedMockData();
       expect(factory!()).toEqual(fixture);
       const schema = media[1].schema;
-      const reference =
-        schema.type === "array" ? schema.items!.$ref : schema.$ref!;
-      const validator = responseSchemas[reference.split("/").at(-1)!]!;
+      const variants = schema.anyOf ?? [
+        schema.type === "array" ? schema.items! : schema,
+      ];
+      const validators = variants.map(
+        (variant) => responseSchemas[variant.$ref!.split("/").at(-1)!]!,
+      );
+      const validator = z.union(validators);
       if (schema.type === "array") {
         expect(Array.isArray(fixture)).toBe(true);
         for (const item of fixture as unknown[]) {

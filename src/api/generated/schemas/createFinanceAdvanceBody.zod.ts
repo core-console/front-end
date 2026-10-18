@@ -7,41 +7,88 @@
  */
 import * as zod from "zod";
 
-export const createFinanceAdvanceBodyPreviewTokenRegExp = new RegExp(
+export const createFinanceAdvanceBodyOnePreviewTokenRegExp = new RegExp(
   "^[0-9a-f]{64}$",
 );
 
-export const CreateFinanceAdvanceBody = zod.strictObject({
-  amount: zod.strictObject({
-    amount: zod
+export const createFinanceAdvanceBodyTwoPreviewTokenRegExp = new RegExp(
+  "^[0-9a-f]{64}$",
+);
+
+export const CreateFinanceAdvanceBody = zod.union([
+  zod.strictObject({
+    amount: zod.strictObject({
+      amount: zod
+        .string()
+        .describe(
+          "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+        ),
+      currency: zod.enum(["CNY", "JPY", "USD"]),
+    }),
+    fundingAccountId: zod.uuid(),
+    note: zod.union([zod.string(), zod.null()]).optional(),
+    ownerShare: zod.strictObject({
+      amount: zod
+        .string()
+        .describe(
+          "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+        ),
+      currency: zod.enum(["CNY", "JPY", "USD"]),
+    }),
+    participantId: zod.uuid(),
+    participantShare: zod.strictObject({
+      amount: zod
+        .string()
+        .describe(
+          "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+        ),
+      currency: zod.enum(["CNY", "JPY", "USD"]),
+    }),
+    previewToken: zod
       .string()
-      .describe(
-        "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
-      ),
-    currency: zod.enum(["CNY", "JPY", "USD"]),
+      .regex(createFinanceAdvanceBodyOnePreviewTokenRegExp),
+    transactionDate: zod.iso.date(),
   }),
-  fundingAccountId: zod.uuid(),
-  note: zod.union([zod.string(), zod.null()]).optional(),
-  ownerShare: zod.strictObject({
-    amount: zod
+  zod.strictObject({
+    amount: zod.strictObject({
+      amount: zod
+        .string()
+        .describe(
+          "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+        ),
+      currency: zod.enum(["CNY", "JPY", "USD"]),
+    }),
+    fundingAccountId: zod.uuid(),
+    note: zod.union([zod.string(), zod.null()]).optional(),
+    ownerShare: zod.strictObject({
+      amount: zod
+        .string()
+        .describe(
+          "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+        ),
+      currency: zod.enum(["CNY", "JPY", "USD"]),
+    }),
+    participantShares: zod
+      .array(
+        zod.strictObject({
+          amount: zod.strictObject({
+            amount: zod
+              .string()
+              .describe(
+                "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+              ),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          }),
+          participantId: zod.uuid(),
+        }),
+      )
+      .min(1),
+    previewToken: zod
       .string()
-      .describe(
-        "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
-      ),
-    currency: zod.enum(["CNY", "JPY", "USD"]),
+      .regex(createFinanceAdvanceBodyTwoPreviewTokenRegExp),
+    transactionDate: zod.iso.date(),
   }),
-  participantId: zod.uuid(),
-  participantShare: zod.strictObject({
-    amount: zod
-      .string()
-      .describe(
-        "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
-      ),
-    currency: zod.enum(["CNY", "JPY", "USD"]),
-  }),
-  previewToken: zod.string().regex(createFinanceAdvanceBodyPreviewTokenRegExp),
-  transactionDate: zod.iso.date(),
-});
+]);
 
 export type CreateFinanceAdvanceBody = zod.input<
   typeof CreateFinanceAdvanceBody

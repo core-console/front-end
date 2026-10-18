@@ -4,8 +4,8 @@ import type {
   AccountResponse,
   CategoryResponse,
   FinanceTransactionResponseOutput,
-  AdvanceResponse,
 } from "@/api/generated/schemas";
+import type { AdvanceSource } from "./advance-source";
 import type {
   FinanceSubmission,
   CreateSubmissionCommand,
@@ -16,7 +16,7 @@ export type SubmitResult = {
   account?: AccountResponse | undefined;
   category?: CategoryResponse | undefined;
   transaction?: FinanceTransactionResponseOutput | undefined;
-  advance?: AdvanceResponse | undefined;
+  advance?: AdvanceSource | undefined;
   refreshing?: Promise<void>;
   message?: string;
 };

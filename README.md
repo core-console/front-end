@@ -179,5 +179,32 @@ The [producer note](https://github.com/core-console/back-end/blob/8412584fe56c86
 and frozen product specification remain authoritative. Routed MSW and Chromium
 keyboard/focus/axe tests establish consumer behavior; fixtures do not establish
 real PostgreSQL effects or delivered P+C acceptance for
-[Issue #28](https://github.com/core-console/back-end/issues/28). Shared purchases,
-repayments, corrections, and cancellation remain later slices.
+[Issue #28](https://github.com/core-console/back-end/issues/28).
+
+## Finance v2 shared purchases (T03)
+
+The current synchronized OpenAPI producer is
+`f9d77ca7702c44c9dec8474a1857dc376b560c01`. The Advances route now offers
+**Record shared purchase** for explicit owner and multiple Participant shares,
+including zero owner share, funded from one active Asset or Liability Account.
+Shares use the funding currency and must equal the total exactly; no amount is
+rounded or assigned automatically. Preview shows total funding, Account balance
+before/after, owner Expense, total receivables and each Participant's principal.
+Asset funding decreases the Asset; Liability funding increases the Liability.
+Only the owner share is personal Expense; Income is unchanged.
+
+Shared commands use version `2` and one durable submission for the complete
+group. Recovery preserves its original version, key, Ledger and body. T02's
+pure Advance entry and retained version `1` commands remain supported. Both
+versions require correlated evidence; stale rejection requires renewed preview
+and deliberate confirmation. Confirmed sources show all Obligations and linked
+Transactions, including archived Participant attribution. Resource refresh
+failure never permits another financial submission for a confirmed action.
+
+The [T03 producer note](https://github.com/core-console/back-end/blob/f9d77ca7702c44c9dec8474a1857dc376b560c01/docs/finance-v2-shared-advance-t03.md)
+and frozen product specification own financial and contract semantics. Routed
+MSW and production-preview Chromium checks cover this consumer, including
+keyboard/focus, axe, pending, stale and response-loss recovery. They do not
+establish PostgreSQL effects or delivered P+C acceptance for
+[Issue #29](https://github.com/core-console/back-end/issues/29). Repayment,
+forgiveness and correction workflows remain outside this consumer.

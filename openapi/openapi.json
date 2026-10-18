@@ -41,9 +41,9 @@
         "required": [
           "kind",
           "submissionId",
-          "commandVersion",
           "ownerId",
           "attemptedBody",
+          "commandVersion",
           "operation",
           "targetLedgerId"
         ],
@@ -97,9 +97,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -180,9 +180,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -295,9 +295,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -342,8 +342,8 @@
         "required": [
           "state",
           "submissionId",
-          "commandVersion",
           "admittedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId"
         ],
@@ -481,9 +481,9 @@
         "required": [
           "kind",
           "submissionId",
-          "commandVersion",
           "ownerId",
           "attemptedBody",
+          "commandVersion",
           "operation",
           "targetLedgerId"
         ],
@@ -563,9 +563,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -706,9 +706,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -814,9 +814,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -953,9 +953,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -1000,8 +1000,8 @@
         "required": [
           "state",
           "submissionId",
-          "commandVersion",
           "admittedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId"
         ],
@@ -1058,9 +1058,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -1137,7 +1137,7 @@
             "type": "object"
           },
           "commandVersion": {
-            "const": "1",
+            "enum": ["1", "2"],
             "title": "Commandversion",
             "type": "string"
           },
@@ -1166,9 +1166,9 @@
         "required": [
           "kind",
           "submissionId",
-          "commandVersion",
           "ownerId",
           "attemptedBody",
+          "commandVersion",
           "operation",
           "targetLedgerId"
         ],
@@ -1216,7 +1216,7 @@
             "type": "string"
           },
           "commandVersion": {
-            "const": "1",
+            "enum": ["1", "2"],
             "title": "Commandversion",
             "type": "string"
           },
@@ -1244,9 +1244,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -1302,6 +1302,43 @@
           "participantShare"
         ],
         "title": "AdvanceDraftV1",
+        "type": "object"
+      },
+      "AdvanceDraftV2": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": { "$ref": "#/components/schemas/OpeningBalanceV1" },
+          "fundingAccountId": {
+            "format": "uuid",
+            "title": "Fundingaccountid",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "maxLength": 500,
+            "title": "Note"
+          },
+          "ownerShare": { "$ref": "#/components/schemas/OpeningBalanceV1" },
+          "participantShares": {
+            "items": { "$ref": "#/components/schemas/ParticipantShareV2" },
+            "minItems": 1,
+            "title": "Participantshares",
+            "type": "array"
+          },
+          "transactionDate": {
+            "format": "date",
+            "title": "Transactiondate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transactionDate",
+          "fundingAccountId",
+          "amount",
+          "ownerShare",
+          "participantShares"
+        ],
+        "title": "AdvanceDraftV2",
         "type": "object"
       },
       "AdvanceFailureResponse": {
@@ -1409,7 +1446,7 @@
             "type": "string"
           },
           "commandVersion": {
-            "const": "1",
+            "enum": ["1", "2"],
             "title": "Commandversion",
             "type": "string"
           },
@@ -1437,9 +1474,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -1488,12 +1525,12 @@
           "id",
           "ledgerId",
           "fundingAccountId",
-          "transactionId",
           "transactionDate",
           "note",
           "confirmedAt",
           "amount",
           "ownerShare",
+          "transactionId",
           "obligation"
         ],
         "title": "AdvanceResponse",
@@ -1508,7 +1545,7 @@
             "type": "string"
           },
           "commandVersion": {
-            "const": "1",
+            "enum": ["1", "2"],
             "title": "Commandversion",
             "type": "string"
           },
@@ -1549,9 +1586,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -1568,7 +1605,7 @@
             "type": "string"
           },
           "commandVersion": {
-            "const": "1",
+            "enum": ["1", "2"],
             "title": "Commandversion",
             "type": "string"
           },
@@ -1596,8 +1633,8 @@
         "required": [
           "state",
           "submissionId",
-          "commandVersion",
           "admittedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId"
         ],
@@ -1876,9 +1913,9 @@
         "required": [
           "kind",
           "submissionId",
-          "commandVersion",
           "ownerId",
           "attemptedBody",
+          "commandVersion",
           "operation",
           "targetLedgerId"
         ],
@@ -1940,9 +1977,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -2023,9 +2060,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -2116,9 +2153,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -2163,8 +2200,8 @@
         "required": [
           "state",
           "submissionId",
-          "commandVersion",
           "admittedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId"
         ],
@@ -2693,9 +2730,9 @@
         "required": [
           "kind",
           "submissionId",
-          "commandVersion",
           "ownerId",
           "attemptedBody",
+          "commandVersion",
           "operation",
           "targetLedgerId"
         ],
@@ -2753,9 +2790,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -2816,9 +2853,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -2900,9 +2937,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -2943,8 +2980,8 @@
         "required": [
           "state",
           "submissionId",
-          "commandVersion",
           "admittedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId"
         ],
@@ -3172,6 +3209,20 @@
         "title": "ParticipantNameRequest",
         "type": "object"
       },
+      "ParticipantReceivablePreview": {
+        "additionalProperties": false,
+        "properties": {
+          "participantId": {
+            "format": "uuid",
+            "title": "Participantid",
+            "type": "string"
+          },
+          "principal": { "$ref": "#/components/schemas/MoneyResponse" }
+        },
+        "required": ["participantId", "principal"],
+        "title": "ParticipantReceivablePreview",
+        "type": "object"
+      },
       "ParticipantResponse": {
         "additionalProperties": false,
         "description": "Stable Ledger-local identity; names are descriptive and may be duplicated.",
@@ -3191,6 +3242,20 @@
         },
         "required": ["id", "ledgerId", "name", "status"],
         "title": "ParticipantResponse",
+        "type": "object"
+      },
+      "ParticipantShareV2": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": { "$ref": "#/components/schemas/OpeningBalanceV1" },
+          "participantId": {
+            "format": "uuid",
+            "title": "Participantid",
+            "type": "string"
+          }
+        },
+        "required": ["participantId", "amount"],
+        "title": "ParticipantShareV2",
         "type": "object"
       },
       "ProblemDetails": {
@@ -3401,6 +3466,91 @@
         "title": "ReplaceInternalTransferTransactionRequest",
         "type": "object"
       },
+      "SharedAdvancePreview": {
+        "additionalProperties": false,
+        "properties": {
+          "fundingBalance": { "$ref": "#/components/schemas/MoneyResponse" },
+          "fundingBalanceAfter": {
+            "$ref": "#/components/schemas/MoneyResponse"
+          },
+          "ownerExpense": { "$ref": "#/components/schemas/MoneyResponse" },
+          "participantReceivables": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipantReceivablePreview"
+            },
+            "title": "Participantreceivables",
+            "type": "array"
+          },
+          "previewToken": { "title": "Previewtoken", "type": "string" },
+          "receivableIncrease": { "$ref": "#/components/schemas/MoneyResponse" }
+        },
+        "required": [
+          "previewToken",
+          "fundingBalance",
+          "fundingBalanceAfter",
+          "ownerExpense",
+          "receivableIncrease",
+          "participantReceivables"
+        ],
+        "title": "SharedAdvancePreview",
+        "type": "object"
+      },
+      "SharedAdvanceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": { "$ref": "#/components/schemas/MoneyResponse" },
+          "confirmedAt": {
+            "format": "date-time",
+            "title": "Confirmedat",
+            "type": "string"
+          },
+          "fundingAccountId": {
+            "format": "uuid",
+            "title": "Fundingaccountid",
+            "type": "string"
+          },
+          "id": { "format": "uuid", "title": "Id", "type": "string" },
+          "ledgerId": {
+            "format": "uuid",
+            "title": "Ledgerid",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Note"
+          },
+          "obligations": {
+            "items": { "$ref": "#/components/schemas/ObligationResponse" },
+            "title": "Obligations",
+            "type": "array"
+          },
+          "ownerShare": { "$ref": "#/components/schemas/MoneyResponse" },
+          "transactionDate": {
+            "format": "date",
+            "title": "Transactiondate",
+            "type": "string"
+          },
+          "transactionIds": {
+            "items": { "format": "uuid", "type": "string" },
+            "title": "Transactionids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "ledgerId",
+          "fundingAccountId",
+          "transactionDate",
+          "note",
+          "confirmedAt",
+          "amount",
+          "ownerShare",
+          "transactionIds",
+          "obligations"
+        ],
+        "title": "SharedAdvanceResponse",
+        "type": "object"
+      },
       "SubmissionNonterminalProblem": {
         "additionalProperties": false,
         "description": "An unresolved response cannot masquerade as typed terminal evidence.",
@@ -3565,9 +3715,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -3651,9 +3801,9 @@
         "required": [
           "kind",
           "submissionId",
-          "commandVersion",
           "ownerId",
           "attemptedBody",
+          "commandVersion",
           "operation",
           "targetLedgerId"
         ],
@@ -3745,9 +3895,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -3853,9 +4003,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -3963,9 +4113,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -4091,9 +4241,9 @@
         },
         "required": [
           "submissionId",
-          "commandVersion",
           "admittedAt",
           "resolvedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId",
           "outcome"
@@ -4138,8 +4288,8 @@
         "required": [
           "state",
           "submissionId",
-          "commandVersion",
           "admittedAt",
+          "commandVersion",
           "operation",
           "targetLedgerId"
         ],
@@ -5239,6 +5389,7 @@
     },
     "/finance/ledgers/{ledgerId}/advances": {
       "post": {
+        "description": "Confirm one atomic Advance under the retained submission protocol. Finance-Command-Version: 1 accepts the frozen single-participant, Asset-funded pure Advance body. Version 2 accepts participantShares, an explicit non-negative ownerShare and Asset or Liability funding. Each body's previewToken must come from its matching preview. All linked effects share one terminal outcome.",
         "operationId": "createFinanceAdvance",
         "parameters": [
           {
@@ -5274,99 +5425,210 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": false,
-                "properties": {
-                  "amount": {
+                "anyOf": [
+                  {
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
-                        "description": "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
-                        "title": "Amount",
+                        "additionalProperties": false,
+                        "properties": {
+                          "amount": {
+                            "description": "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+                            "title": "Amount",
+                            "type": "string"
+                          },
+                          "currency": {
+                            "enum": ["CNY", "JPY", "USD"],
+                            "title": "Currency",
+                            "type": "string"
+                          }
+                        },
+                        "required": ["amount", "currency"],
+                        "title": "OpeningBalanceV1",
+                        "type": "object"
+                      },
+                      "fundingAccountId": {
+                        "format": "uuid",
+                        "title": "Fundingaccountid",
                         "type": "string"
                       },
-                      "currency": {
-                        "enum": ["CNY", "JPY", "USD"],
-                        "title": "Currency",
+                      "note": {
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
+                        "maxLength": 500,
+                        "title": "Note"
+                      },
+                      "ownerShare": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "amount": {
+                            "description": "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+                            "title": "Amount",
+                            "type": "string"
+                          },
+                          "currency": {
+                            "enum": ["CNY", "JPY", "USD"],
+                            "title": "Currency",
+                            "type": "string"
+                          }
+                        },
+                        "required": ["amount", "currency"],
+                        "title": "OpeningBalanceV1",
+                        "type": "object"
+                      },
+                      "participantId": {
+                        "format": "uuid",
+                        "title": "Participantid",
+                        "type": "string"
+                      },
+                      "participantShare": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "amount": {
+                            "description": "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+                            "title": "Amount",
+                            "type": "string"
+                          },
+                          "currency": {
+                            "enum": ["CNY", "JPY", "USD"],
+                            "title": "Currency",
+                            "type": "string"
+                          }
+                        },
+                        "required": ["amount", "currency"],
+                        "title": "OpeningBalanceV1",
+                        "type": "object"
+                      },
+                      "previewToken": {
+                        "pattern": "^[0-9a-f]{64}$",
+                        "title": "Previewtoken",
+                        "type": "string"
+                      },
+                      "transactionDate": {
+                        "format": "date",
+                        "title": "Transactiondate",
                         "type": "string"
                       }
                     },
-                    "required": ["amount", "currency"],
-                    "title": "OpeningBalanceV1",
+                    "required": [
+                      "transactionDate",
+                      "fundingAccountId",
+                      "participantId",
+                      "amount",
+                      "ownerShare",
+                      "participantShare",
+                      "previewToken"
+                    ],
+                    "title": "AdvanceCommandV1",
                     "type": "object"
                   },
-                  "fundingAccountId": {
-                    "format": "uuid",
-                    "title": "Fundingaccountid",
-                    "type": "string"
-                  },
-                  "note": {
-                    "anyOf": [{ "type": "string" }, { "type": "null" }],
-                    "maxLength": 500,
-                    "title": "Note"
-                  },
-                  "ownerShare": {
+                  {
                     "additionalProperties": false,
                     "properties": {
                       "amount": {
-                        "description": "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
-                        "title": "Amount",
+                        "additionalProperties": false,
+                        "properties": {
+                          "amount": {
+                            "description": "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+                            "title": "Amount",
+                            "type": "string"
+                          },
+                          "currency": {
+                            "enum": ["CNY", "JPY", "USD"],
+                            "title": "Currency",
+                            "type": "string"
+                          }
+                        },
+                        "required": ["amount", "currency"],
+                        "title": "OpeningBalanceV1",
+                        "type": "object"
+                      },
+                      "fundingAccountId": {
+                        "format": "uuid",
+                        "title": "Fundingaccountid",
                         "type": "string"
                       },
-                      "currency": {
-                        "enum": ["CNY", "JPY", "USD"],
-                        "title": "Currency",
+                      "note": {
+                        "anyOf": [{ "type": "string" }, { "type": "null" }],
+                        "maxLength": 500,
+                        "title": "Note"
+                      },
+                      "ownerShare": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "amount": {
+                            "description": "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+                            "title": "Amount",
+                            "type": "string"
+                          },
+                          "currency": {
+                            "enum": ["CNY", "JPY", "USD"],
+                            "title": "Currency",
+                            "type": "string"
+                          }
+                        },
+                        "required": ["amount", "currency"],
+                        "title": "OpeningBalanceV1",
+                        "type": "object"
+                      },
+                      "participantShares": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "amount": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "amount": {
+                                  "description": "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+                                  "title": "Amount",
+                                  "type": "string"
+                                },
+                                "currency": {
+                                  "enum": ["CNY", "JPY", "USD"],
+                                  "title": "Currency",
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["amount", "currency"],
+                              "title": "OpeningBalanceV1",
+                              "type": "object"
+                            },
+                            "participantId": {
+                              "format": "uuid",
+                              "title": "Participantid",
+                              "type": "string"
+                            }
+                          },
+                          "required": ["participantId", "amount"],
+                          "title": "ParticipantShareV2",
+                          "type": "object"
+                        },
+                        "minItems": 1,
+                        "title": "Participantshares",
+                        "type": "array"
+                      },
+                      "previewToken": {
+                        "pattern": "^[0-9a-f]{64}$",
+                        "title": "Previewtoken",
+                        "type": "string"
+                      },
+                      "transactionDate": {
+                        "format": "date",
+                        "title": "Transactiondate",
                         "type": "string"
                       }
                     },
-                    "required": ["amount", "currency"],
-                    "title": "OpeningBalanceV1",
+                    "required": [
+                      "transactionDate",
+                      "fundingAccountId",
+                      "amount",
+                      "ownerShare",
+                      "participantShares",
+                      "previewToken"
+                    ],
+                    "title": "AdvanceCommandV2",
                     "type": "object"
-                  },
-                  "participantId": {
-                    "format": "uuid",
-                    "title": "Participantid",
-                    "type": "string"
-                  },
-                  "participantShare": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "amount": {
-                        "description": "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
-                        "title": "Amount",
-                        "type": "string"
-                      },
-                      "currency": {
-                        "enum": ["CNY", "JPY", "USD"],
-                        "title": "Currency",
-                        "type": "string"
-                      }
-                    },
-                    "required": ["amount", "currency"],
-                    "title": "OpeningBalanceV1",
-                    "type": "object"
-                  },
-                  "previewToken": {
-                    "pattern": "^[0-9a-f]{64}$",
-                    "title": "Previewtoken",
-                    "type": "string"
-                  },
-                  "transactionDate": {
-                    "format": "date",
-                    "title": "Transactiondate",
-                    "type": "string"
                   }
-                },
-                "required": [
-                  "transactionDate",
-                  "fundingAccountId",
-                  "participantId",
-                  "amount",
-                  "ownerShare",
-                  "participantShare",
-                  "previewToken"
-                ],
-                "title": "AdvanceCommandV1",
-                "type": "object"
+                ]
               }
             }
           },
@@ -5469,7 +5731,13 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/AdvanceDraftV1" }
+              "schema": {
+                "anyOf": [
+                  { "$ref": "#/components/schemas/AdvanceDraftV1" },
+                  { "$ref": "#/components/schemas/AdvanceDraftV2" }
+                ],
+                "title": "Draft"
+              }
             }
           },
           "required": true
@@ -5478,7 +5746,13 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AdvancePreview" }
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/SharedAdvancePreview" },
+                    { "$ref": "#/components/schemas/AdvancePreview" }
+                  ],
+                  "title": "Response Previewfinanceadvance"
+                }
               }
             },
             "description": "Successful Response"
@@ -5566,7 +5840,13 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AdvanceResponse" }
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/AdvanceResponse" },
+                    { "$ref": "#/components/schemas/SharedAdvanceResponse" }
+                  ],
+                  "title": "Response Getfinanceadvance"
+                }
               }
             },
             "description": "Successful Response"

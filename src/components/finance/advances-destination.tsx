@@ -25,8 +25,9 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 
 export function AdvancesDestination({ ledgerId }: { ledgerId: string }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<"pure" | "shared" | null>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const sharedTrigger = useRef<HTMLButtonElement>(null);
   const [params, setParams] = useSearchParams();
   const journal = useFinanceSubmissions();
   const pending = useIsMutating({ mutationKey: ["createFinanceAdvance"] }) > 0;
@@ -78,7 +79,8 @@ export function AdvancesDestination({ ledgerId }: { ledgerId: string }) {
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        Record money advanced to one Participant and inspect the remaining
+        Record Advances or shared purchases with explicit shares, funded by an
+        Asset or Liability Account. Inspect each Participant's remaining
         receivable.
       </p>
       <div className="flex flex-wrap gap-2">
@@ -91,9 +93,22 @@ export function AdvancesDestination({ ledgerId }: { ledgerId: string }) {
             pending ||
             retained
           }
-          onClick={() => setOpen(true)}
+          onClick={() => setOpen("pure")}
         >
           Record Advance
+        </Button>
+        <Button
+          ref={sharedTrigger}
+          disabled={
+            !ready ||
+            !journal.ready ||
+            !journal.recoveryLoaded ||
+            pending ||
+            retained
+          }
+          onClick={() => setOpen("shared")}
+        >
+          Record shared purchase
         </Button>
         <Button variant="outline" onClick={refresh}>
           Refresh dependencies
@@ -167,20 +182,21 @@ export function AdvancesDestination({ ledgerId }: { ledgerId: string }) {
       ) : null}
       {open && accounts.data && participants.data && currencies.data ? (
         <AdvanceFormDialog
+          shared={open === "shared"}
           ledgerId={ledgerId}
           accounts={accounts.data}
           participants={participants.data}
           currencies={currencies.data}
-          onClose={() => setOpen(false)}
+          onClose={() => setOpen(null)}
           onConfirmed={(id, participantId) => {
-            setOpen(false);
+            setOpen(null);
             setParams({
               ledger: ledgerId,
               participant_id: participantId,
               advance_id: id,
             });
           }}
-          finalFocus={trigger}
+          finalFocus={open === "shared" ? sharedTrigger : trigger}
           refreshDependencies={refresh}
         />
       ) : null}

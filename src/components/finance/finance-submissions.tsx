@@ -42,9 +42,9 @@ import {
   AccountResponse,
   CategoryResponse,
   MeResponse,
-  AdvanceResponse,
 } from "@/api/generated/schemas";
 import { env } from "@/config/env";
+import { parseAdvanceSource, advanceObligations } from "./advance-source";
 import { refreshSubmittedTransaction } from "./transaction-submission-refresh";
 import {
   correlates,
@@ -312,12 +312,19 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
           case "createFinanceAdvance": {
             if (!matches(record)) return {};
             void Promise.allSettled([
-              queryClient.invalidateQueries({
-                queryKey: getListFinanceParticipantObligationsQueryKey(
-                  record.targetLedgerId,
-                  record.body.participantId,
-                ),
-              }),
+              ...("participantShares" in record.body
+                ? record.body.participantShares.map(
+                    (share) => share.participantId,
+                  )
+                : [record.body.participantId]
+              ).map((participantId) =>
+                queryClient.invalidateQueries({
+                  queryKey: getListFinanceParticipantObligationsQueryKey(
+                    record.targetLedgerId,
+                    participantId,
+                  ),
+                }),
+              ),
               queryClient.invalidateQueries({
                 queryKey: getListFinanceAccountsQueryKey(record.targetLedgerId),
               }),
@@ -341,14 +348,29 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
               id,
               { cache: "no-store" },
             );
-            const advance = AdvanceResponse.refine(
-              (item) =>
-                item.id === id &&
-                item.ledgerId === record.targetLedgerId &&
-                item.obligation.ledgerId === record.targetLedgerId &&
-                item.obligation.advanceId === id &&
-                item.obligation.participantId === record.body.participantId,
-            ).parse(response.data);
+            const advance = parseAdvanceSource(
+              response.data,
+              record.targetLedgerId,
+              id,
+            );
+            const participantIds =
+              "participantShares" in record.body
+                ? record.body.participantShares.map(
+                    (share) => share.participantId,
+                  )
+                : [record.body.participantId];
+            const obligations = advanceObligations(advance);
+            if (
+              obligations.length !== participantIds.length ||
+              !participantIds.every((participantId) =>
+                obligations.some(
+                  (item) => item.participantId === participantId,
+                ),
+              )
+            )
+              throw new Error(
+                "Advance source attribution does not match the confirmed command.",
+              );
             if (!matches(record)) return {};
             const key = getGetFinanceAdvanceQueryKey(record.targetLedgerId, id);
             await queryClient.cancelQueries({ queryKey: key });
