@@ -72,6 +72,17 @@ import type {
   ParticipantResponse,
   ProblemDetails,
   ReplaceBalanceAdjustmentResultResponse,
+  SettlementConflictProblem,
+  SettlementCreatedOutcome,
+  SettlementCreatedReceipt,
+  SettlementFailureResponse,
+  SettlementInvalidProblem,
+  SettlementMissingProblem,
+  SettlementPreview,
+  SettlementRejectedOutcome,
+  SettlementResponse,
+  SettlementSubmissionReceipt,
+  SettlementSubmissionUnfinished,
   SharedAdvancePreview,
   SharedAdvanceResponse,
   SubmissionNonterminalProblem,
@@ -4901,6 +4912,1001 @@ export const getListFinanceParticipantObligationsResponseMock503 = (
   ...overrideResponse,
 });
 
+export const getListFinanceParticipantSettlementsResponseMock =
+  (): SettlementResponse[] =>
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      id: faker.string.uuid(),
+      ledgerId: faker.string.uuid(),
+      note: faker.helpers.arrayElement([
+        faker.string.alpha({ length: { min: 10, max: 20 } }),
+        null,
+      ]),
+      participantId: faker.string.uuid(),
+      receivingAccountId: faker.string.uuid(),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+    }));
+
+export const getListFinanceParticipantSettlementsResponseMock200 =
+  (): SettlementResponse[] =>
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      id: faker.string.uuid(),
+      ledgerId: faker.string.uuid(),
+      note: faker.helpers.arrayElement([
+        faker.string.alpha({ length: { min: 10, max: 20 } }),
+        null,
+      ]),
+      participantId: faker.string.uuid(),
+      receivingAccountId: faker.string.uuid(),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+    }));
+
+export const getListFinanceParticipantSettlementsResponseMock403 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getListFinanceParticipantSettlementsResponseMock404 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getListFinanceParticipantSettlementsResponseMock422 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getListFinanceParticipantSettlementsResponseMock500 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getListFinanceParticipantSettlementsResponseMock503 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getCreateFinanceSettlementResponseMock = (
+  overrideResponse: Partial<Extract<SettlementCreatedReceipt, object>> = {},
+): SettlementCreatedReceipt => ({
+  admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  commandVersion: "1",
+  operation: "createFinanceSettlement",
+  outcome: {
+    kind: "created",
+    resource: { id: faker.string.uuid(), type: "settlement" },
+  },
+  resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  submissionId: faker.string.uuid(),
+  targetLedgerId: faker.string.uuid(),
+  ...overrideResponse,
+});
+
+export const getCreateFinanceSettlementResponseMock201 = (
+  overrideResponse: Partial<Extract<SettlementCreatedReceipt, object>> = {},
+): SettlementCreatedReceipt => ({
+  admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  commandVersion: "1",
+  operation: "createFinanceSettlement",
+  outcome: {
+    kind: "created",
+    resource: { id: faker.string.uuid(), type: "settlement" },
+  },
+  resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  submissionId: faker.string.uuid(),
+  targetLedgerId: faker.string.uuid(),
+  ...overrideResponse,
+});
+
+export const getCreateFinanceSettlementResponseMock400 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getCreateFinanceSettlementResponseMock403 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getCreateFinanceSettlementResponseSettlementInvalidProblemMock = (
+  overrideResponse: Partial<SettlementInvalidProblem> = {},
+): SettlementInvalidProblem => ({
+  ...{
+    code: "validation_error",
+    detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    status: 422,
+    title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  },
+  ...overrideResponse,
+});
+
+export const getCreateFinanceSettlementResponseSettlementConflictProblemMock = (
+  overrideResponse: Partial<SettlementConflictProblem> = {},
+): SettlementConflictProblem => ({
+  ...{
+    code: faker.helpers.arrayElement([
+      "finance_account_archived",
+      "finance_settlement_preview_stale",
+      "finance_linked_record_protected",
+    ] as const),
+    detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    status: 409,
+    title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  },
+  ...overrideResponse,
+});
+
+export const getCreateFinanceSettlementResponseSettlementMissingProblemMock = (
+  overrideResponse: Partial<SettlementMissingProblem> = {},
+): SettlementMissingProblem => ({
+  ...{
+    code: faker.helpers.arrayElement([
+      "finance_account_not_found",
+      "finance_participant_not_found",
+    ] as const),
+    detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    status: 404,
+    title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  },
+  ...overrideResponse,
+});
+
+export const getCreateFinanceSettlementResponseMock404 =
+  (): SettlementFailureResponse =>
+    faker.helpers.arrayElement([
+      {
+        code: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: faker.helpers.arrayElement([
+          Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            [faker.string.alphanumeric(5)]: {},
+          })),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.number.int({ min: 100, max: 599 }),
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: "validation_error",
+        commandValidationRejection: {
+          attemptedBody: {
+            [faker.string.alphanumeric(5)]: {},
+          },
+          commandVersion: "1",
+          kind: "definitivelyNotAdmitted",
+          operation: "createFinanceSettlement",
+          ownerId: faker.string.uuid(),
+          submissionId: faker.string.uuid(),
+          targetLedgerId: faker.string.uuid(),
+        },
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          [faker.string.alphanumeric(5)]: {},
+        })),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: 422,
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: faker.helpers.arrayElement([
+          "validation_error",
+          "finance_account_archived",
+          "finance_settlement_preview_stale",
+          "finance_linked_record_protected",
+          "finance_account_not_found",
+          "finance_participant_not_found",
+        ] as const),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.helpers.arrayElement([404, 409, 422] as const),
+        submissionReceipt: {
+          admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          commandVersion: "1",
+          operation: "createFinanceSettlement",
+          outcome: {
+            kind: "rejected",
+            problem: faker.helpers.arrayElement([
+              {
+                ...getCreateFinanceSettlementResponseSettlementInvalidProblemMock(),
+              },
+              {
+                ...getCreateFinanceSettlementResponseSettlementConflictProblemMock(),
+              },
+              {
+                ...getCreateFinanceSettlementResponseSettlementMissingProblemMock(),
+              },
+            ]),
+          },
+          resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          submissionId: faker.string.uuid(),
+          targetLedgerId: faker.string.uuid(),
+        },
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+    ]);
+
+export const getCreateFinanceSettlementResponseMock409 =
+  (): SettlementFailureResponse =>
+    faker.helpers.arrayElement([
+      {
+        code: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: faker.helpers.arrayElement([
+          Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            [faker.string.alphanumeric(5)]: {},
+          })),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.number.int({ min: 100, max: 599 }),
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: "validation_error",
+        commandValidationRejection: {
+          attemptedBody: {
+            [faker.string.alphanumeric(5)]: {},
+          },
+          commandVersion: "1",
+          kind: "definitivelyNotAdmitted",
+          operation: "createFinanceSettlement",
+          ownerId: faker.string.uuid(),
+          submissionId: faker.string.uuid(),
+          targetLedgerId: faker.string.uuid(),
+        },
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          [faker.string.alphanumeric(5)]: {},
+        })),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: 422,
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: faker.helpers.arrayElement([
+          "validation_error",
+          "finance_account_archived",
+          "finance_settlement_preview_stale",
+          "finance_linked_record_protected",
+          "finance_account_not_found",
+          "finance_participant_not_found",
+        ] as const),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.helpers.arrayElement([404, 409, 422] as const),
+        submissionReceipt: {
+          admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          commandVersion: "1",
+          operation: "createFinanceSettlement",
+          outcome: {
+            kind: "rejected",
+            problem: faker.helpers.arrayElement([
+              {
+                ...getCreateFinanceSettlementResponseSettlementInvalidProblemMock(),
+              },
+              {
+                ...getCreateFinanceSettlementResponseSettlementConflictProblemMock(),
+              },
+              {
+                ...getCreateFinanceSettlementResponseSettlementMissingProblemMock(),
+              },
+            ]),
+          },
+          resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          submissionId: faker.string.uuid(),
+          targetLedgerId: faker.string.uuid(),
+        },
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+    ]);
+
+export const getCreateFinanceSettlementResponseMock422 =
+  (): SettlementFailureResponse =>
+    faker.helpers.arrayElement([
+      {
+        code: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: faker.helpers.arrayElement([
+          Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            [faker.string.alphanumeric(5)]: {},
+          })),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.number.int({ min: 100, max: 599 }),
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: "validation_error",
+        commandValidationRejection: {
+          attemptedBody: {
+            [faker.string.alphanumeric(5)]: {},
+          },
+          commandVersion: "1",
+          kind: "definitivelyNotAdmitted",
+          operation: "createFinanceSettlement",
+          ownerId: faker.string.uuid(),
+          submissionId: faker.string.uuid(),
+          targetLedgerId: faker.string.uuid(),
+        },
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          [faker.string.alphanumeric(5)]: {},
+        })),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: 422,
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: faker.helpers.arrayElement([
+          "validation_error",
+          "finance_account_archived",
+          "finance_settlement_preview_stale",
+          "finance_linked_record_protected",
+          "finance_account_not_found",
+          "finance_participant_not_found",
+        ] as const),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.helpers.arrayElement([404, 409, 422] as const),
+        submissionReceipt: {
+          admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          commandVersion: "1",
+          operation: "createFinanceSettlement",
+          outcome: {
+            kind: "rejected",
+            problem: faker.helpers.arrayElement([
+              {
+                ...getCreateFinanceSettlementResponseSettlementInvalidProblemMock(),
+              },
+              {
+                ...getCreateFinanceSettlementResponseSettlementConflictProblemMock(),
+              },
+              {
+                ...getCreateFinanceSettlementResponseSettlementMissingProblemMock(),
+              },
+            ]),
+          },
+          resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          submissionId: faker.string.uuid(),
+          targetLedgerId: faker.string.uuid(),
+        },
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+    ]);
+
+export const getCreateFinanceSettlementResponseMock500 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getCreateFinanceSettlementResponseMock503 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getPreviewFinanceSettlementResponseMock = (
+  overrideResponse: Partial<Extract<SettlementPreview, object>> = {},
+): SettlementPreview => ({
+  allocations: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    advanceId: faker.string.uuid(),
+    cashPaid: { amount: "12.34", currency: "CNY" },
+    obligationId: faker.string.uuid(),
+    position: faker.number.int(),
+    remainingAfter: { amount: "12.34", currency: "CNY" },
+    sourceDate: faker.date.past().toISOString().slice(0, 10),
+  })),
+  amount: { amount: "12.34", currency: "CNY" },
+  outstandingAfter: { amount: "12.34", currency: "CNY" },
+  outstandingBefore: { amount: "12.34", currency: "CNY" },
+  previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  receivingBalance: { amount: "12.34", currency: "CNY" },
+  receivingBalanceAfter: { amount: "12.34", currency: "CNY" },
+  ...overrideResponse,
+});
+
+export const getPreviewFinanceSettlementResponseMock200 = (
+  overrideResponse: Partial<Extract<SettlementPreview, object>> = {},
+): SettlementPreview => ({
+  allocations: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    advanceId: faker.string.uuid(),
+    cashPaid: { amount: "12.34", currency: "CNY" },
+    obligationId: faker.string.uuid(),
+    position: faker.number.int(),
+    remainingAfter: { amount: "12.34", currency: "CNY" },
+    sourceDate: faker.date.past().toISOString().slice(0, 10),
+  })),
+  amount: { amount: "12.34", currency: "CNY" },
+  outstandingAfter: { amount: "12.34", currency: "CNY" },
+  outstandingBefore: { amount: "12.34", currency: "CNY" },
+  previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  receivingBalance: { amount: "12.34", currency: "CNY" },
+  receivingBalanceAfter: { amount: "12.34", currency: "CNY" },
+  ...overrideResponse,
+});
+
+export const getPreviewFinanceSettlementResponseMock403 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getPreviewFinanceSettlementResponseMock404 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getPreviewFinanceSettlementResponseMock409 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getPreviewFinanceSettlementResponseMock422 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getPreviewFinanceSettlementResponseMock500 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getPreviewFinanceSettlementResponseMock503 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSettlementResponseMock = (
+  overrideResponse: Partial<Extract<SettlementResponse, object>> = {},
+): SettlementResponse => ({
+  allocations: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    advanceId: faker.string.uuid(),
+    cashPaid: { amount: "12.34", currency: "CNY" },
+    obligationId: faker.string.uuid(),
+    position: faker.number.int(),
+    remainingAfter: { amount: "12.34", currency: "CNY" },
+    sourceDate: faker.date.past().toISOString().slice(0, 10),
+  })),
+  amount: { amount: "12.34", currency: "CNY" },
+  confirmationOrder: faker.number.int(),
+  confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  id: faker.string.uuid(),
+  ledgerId: faker.string.uuid(),
+  note: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  participantId: faker.string.uuid(),
+  receivingAccountId: faker.string.uuid(),
+  transactionDate: faker.date.past().toISOString().slice(0, 10),
+  transactionIds: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => faker.string.uuid()),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSettlementResponseMock200 = (
+  overrideResponse: Partial<Extract<SettlementResponse, object>> = {},
+): SettlementResponse => ({
+  allocations: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    advanceId: faker.string.uuid(),
+    cashPaid: { amount: "12.34", currency: "CNY" },
+    obligationId: faker.string.uuid(),
+    position: faker.number.int(),
+    remainingAfter: { amount: "12.34", currency: "CNY" },
+    sourceDate: faker.date.past().toISOString().slice(0, 10),
+  })),
+  amount: { amount: "12.34", currency: "CNY" },
+  confirmationOrder: faker.number.int(),
+  confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  id: faker.string.uuid(),
+  ledgerId: faker.string.uuid(),
+  note: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  participantId: faker.string.uuid(),
+  receivingAccountId: faker.string.uuid(),
+  transactionDate: faker.date.past().toISOString().slice(0, 10),
+  transactionIds: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => faker.string.uuid()),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSettlementResponseMock403 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSettlementResponseMock404 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSettlementResponseMock422 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSettlementResponseMock500 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSettlementResponseMock503 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
 export const getListFinanceTransactionsResponseIncomeTransactionResponseMock = (
   overrideResponse: Partial<IncomeTransactionResponse> = {},
 ): IncomeTransactionResponse => ({
@@ -6292,6 +7298,23 @@ export const getGetFinanceSubmissionResponseAdvanceSubmissionUnfinishedMock = (
   ...overrideResponse,
 });
 
+export const getGetFinanceSubmissionResponseSettlementSubmissionUnfinishedMock =
+  (
+    overrideResponse: Partial<SettlementSubmissionUnfinished> = {},
+  ): SettlementSubmissionUnfinished => ({
+    ...{
+      admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      commandVersion: "1",
+      operation: faker.helpers.arrayElement([
+        "createFinanceSettlement",
+      ] as const),
+      state: "unfinished",
+      submissionId: faker.string.uuid(),
+      targetLedgerId: faker.string.uuid(),
+    },
+    ...overrideResponse,
+  });
+
 export const getGetFinanceSubmissionResponseLedgerCreatedOutcomeMock = (
   overrideResponse: Partial<LedgerCreatedOutcome> = {},
 ): LedgerCreatedOutcome => ({
@@ -6694,6 +7717,94 @@ export const getGetFinanceSubmissionResponseAdvanceSubmissionReceiptMock = (
   ...overrideResponse,
 });
 
+export const getGetFinanceSubmissionResponseSettlementCreatedOutcomeMock = (
+  overrideResponse: Partial<SettlementCreatedOutcome> = {},
+): SettlementCreatedOutcome => ({
+  ...{
+    kind: "created",
+    resource: { id: faker.string.uuid(), type: "settlement" },
+  },
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseSettlementInvalidProblemMock = (
+  overrideResponse: Partial<SettlementInvalidProblem> = {},
+): SettlementInvalidProblem => ({
+  ...{
+    code: "validation_error",
+    detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    status: 422,
+    title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  },
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseSettlementConflictProblemMock = (
+  overrideResponse: Partial<SettlementConflictProblem> = {},
+): SettlementConflictProblem => ({
+  ...{
+    code: faker.helpers.arrayElement([
+      "finance_account_archived",
+      "finance_settlement_preview_stale",
+      "finance_linked_record_protected",
+    ] as const),
+    detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    status: 409,
+    title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  },
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseSettlementMissingProblemMock = (
+  overrideResponse: Partial<SettlementMissingProblem> = {},
+): SettlementMissingProblem => ({
+  ...{
+    code: faker.helpers.arrayElement([
+      "finance_account_not_found",
+      "finance_participant_not_found",
+    ] as const),
+    detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    status: 404,
+    title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  },
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseSettlementRejectedOutcomeMock = (
+  overrideResponse: Partial<SettlementRejectedOutcome> = {},
+): SettlementRejectedOutcome => ({
+  ...{
+    kind: "rejected",
+    problem: faker.helpers.arrayElement([
+      { ...getGetFinanceSubmissionResponseSettlementInvalidProblemMock() },
+      { ...getGetFinanceSubmissionResponseSettlementConflictProblemMock() },
+      { ...getGetFinanceSubmissionResponseSettlementMissingProblemMock() },
+    ]),
+  },
+  ...overrideResponse,
+});
+
+export const getGetFinanceSubmissionResponseSettlementSubmissionReceiptMock = (
+  overrideResponse: Partial<SettlementSubmissionReceipt> = {},
+): SettlementSubmissionReceipt => ({
+  ...{
+    admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+    commandVersion: "1",
+    operation: faker.helpers.arrayElement(["createFinanceSettlement"] as const),
+    outcome: faker.helpers.arrayElement([
+      { ...getGetFinanceSubmissionResponseSettlementCreatedOutcomeMock() },
+      { ...getGetFinanceSubmissionResponseSettlementRejectedOutcomeMock() },
+    ]),
+    resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+    submissionId: faker.string.uuid(),
+    targetLedgerId: faker.string.uuid(),
+  },
+  ...overrideResponse,
+});
+
 export const getGetFinanceSubmissionResponseFinanceSubmissionTerminalMock = (
   overrideResponse: Partial<FinanceSubmissionTerminal> = {},
 ): FinanceSubmissionTerminal => ({
@@ -6705,6 +7816,7 @@ export const getGetFinanceSubmissionResponseFinanceSubmissionTerminalMock = (
       { ...getGetFinanceSubmissionResponseTransactionSubmissionReceiptMock() },
       { ...getGetFinanceSubmissionResponseAdjustmentSubmissionReceiptMock() },
       { ...getGetFinanceSubmissionResponseAdvanceSubmissionReceiptMock() },
+      { ...getGetFinanceSubmissionResponseSettlementSubmissionReceiptMock() },
     ]),
     state: faker.helpers.arrayElement(["terminal"] as const),
   },
@@ -6734,6 +7846,9 @@ export const getGetFinanceSubmissionResponseMock =
           {
             ...getGetFinanceSubmissionResponseAdvanceSubmissionUnfinishedMock(),
           },
+          {
+            ...getGetFinanceSubmissionResponseSettlementSubmissionUnfinishedMock(),
+          },
         ]),
         state: faker.helpers.arrayElement(["unfinished"] as const),
       },
@@ -6762,6 +7877,9 @@ export const getGetFinanceSubmissionResponseMock200 =
           },
           {
             ...getGetFinanceSubmissionResponseAdvanceSubmissionUnfinishedMock(),
+          },
+          {
+            ...getGetFinanceSubmissionResponseSettlementSubmissionUnfinishedMock(),
           },
         ]),
         state: faker.helpers.arrayElement(["unfinished"] as const),

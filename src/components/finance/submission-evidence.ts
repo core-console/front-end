@@ -30,6 +30,10 @@ import {
   AdvanceCreatedReceipt,
   AdvanceTerminalProblem,
   AdvanceValidationProblem,
+  SettlementSubmissionReceipt,
+  SettlementCreatedReceipt,
+  SettlementTerminalProblem,
+  SettlementValidationProblem,
 } from "@/api/generated/schemas";
 
 const receiptSchema = z.union([
@@ -39,6 +43,7 @@ const receiptSchema = z.union([
   TransactionSubmissionReceipt,
   AdjustmentSubmissionReceipt,
   AdvanceSubmissionReceipt,
+  SettlementSubmissionReceipt,
 ]);
 const successReceiptSchema = z.union([
   LedgerCreatedReceipt,
@@ -47,6 +52,7 @@ const successReceiptSchema = z.union([
   TransactionCreatedReceipt,
   AdjustmentSuccessReceipt,
   AdvanceCreatedReceipt,
+  SettlementCreatedReceipt,
 ]);
 const terminalProblemSchema = z.union([
   LedgerTerminalProblem,
@@ -59,6 +65,7 @@ const terminalProblemSchema = z.union([
   AdjustmentMissingTerminalProblem,
   AdjustmentInvalidTerminalProblem,
   AdvanceTerminalProblem,
+  SettlementTerminalProblem,
 ]);
 const validationProblemSchema = z.union([
   LedgerValidationProblem,
@@ -67,6 +74,7 @@ const validationProblemSchema = z.union([
   TransactionValidationProblem,
   AdjustmentValidationProblem,
   AdvanceValidationProblem,
+  SettlementValidationProblem,
 ]);
 
 export const submissionResolutionSchema = z.discriminatedUnion("kind", [

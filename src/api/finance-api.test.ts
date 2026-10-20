@@ -81,6 +81,7 @@ const financeOperationIds = [
   "createBalanceAdjustment",
   "createFinanceAccount",
   "createFinanceAdvance",
+  "createFinanceSettlement",
   "createFinanceCategory",
   "createFinanceLedger",
   "createFinanceParticipant",
@@ -88,6 +89,7 @@ const financeOperationIds = [
   "deleteFinanceTransaction",
   "getBalanceAdjustmentContext",
   "getFinanceAdvance",
+  "getFinanceSettlement",
   "getFinanceOverview",
   "getFinanceParticipant",
   "getFinanceSubmission",
@@ -97,9 +99,11 @@ const financeOperationIds = [
   "listFinanceCurrencies",
   "listFinanceLedgers",
   "listFinanceParticipantObligations",
+  "listFinanceParticipantSettlements",
   "listFinanceParticipants",
   "listFinanceTransactions",
   "previewFinanceAdvance",
+  "previewFinanceSettlement",
   "renameFinanceParticipant",
   "replaceBalanceAdjustment",
   "replaceFinanceTransaction",
@@ -433,6 +437,7 @@ describe("generated Finance API boundary", () => {
       "createFinanceTransaction",
       "createBalanceAdjustment",
       "createFinanceAdvance",
+      "createFinanceSettlement",
     ];
     const resources = [
       "ledger",
@@ -441,6 +446,7 @@ describe("generated Finance API boundary", () => {
       "transaction",
       "transaction",
       "advance",
+      "settlement",
     ];
     for (const [index, operation] of operations.entries()) {
       const receipt = {
@@ -462,6 +468,7 @@ describe("generated Finance API boundary", () => {
         "category",
         "transaction",
         "advance",
+        "settlement",
       ])
         expect(
           accepts({ kind: "created", resource: { type, id: transactionId } }),
@@ -526,6 +533,7 @@ describe("generated Finance API boundary", () => {
         "#/components/schemas/AdjustmentConflictResponse",
         "#/components/schemas/AdjustmentValidationResponse",
         "#/components/schemas/AdvanceFailureResponse",
+        "#/components/schemas/SettlementFailureResponse",
       ]).toContain(
         response.content?.["application/problem+json"]?.schema?.$ref,
       );

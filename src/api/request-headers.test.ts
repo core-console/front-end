@@ -103,6 +103,7 @@ it.each(cases)(
         "createFinanceTransaction",
         "createBalanceAdjustment",
         "createFinanceAdvance",
+        "createFinanceSettlement",
       ].includes(operationId)
         ? [
             {

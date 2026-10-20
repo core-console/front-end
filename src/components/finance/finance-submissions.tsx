@@ -19,6 +19,10 @@ import {
   createFinanceTransaction,
   createBalanceAdjustment,
   createFinanceAdvance,
+  createFinanceSettlement,
+  getFinanceSettlement,
+  getGetFinanceSettlementQueryKey,
+  getListFinanceParticipantSettlementsQueryKey,
   getFinanceAdvance,
   getGetFinanceAdvanceQueryKey,
   getListFinanceParticipantObligationsQueryKey,
@@ -45,6 +49,7 @@ import {
 } from "@/api/generated/schemas";
 import { env } from "@/config/env";
 import { parseAdvanceSource, advanceObligations } from "./advance-source";
+import { parseSettlementSource } from "./settlement-source";
 import { refreshSubmittedTransaction } from "./transaction-submission-refresh";
 import {
   correlates,
@@ -263,6 +268,7 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
         | "category"
         | "transaction"
         | "advance"
+        | "settlement"
         | "refreshing"
         | "message"
       >
@@ -277,6 +283,7 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
           | "category"
           | "transaction"
           | "advance"
+          | "settlement"
           | "refreshing"
         > = {};
         const outcome =
@@ -309,6 +316,66 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
         if (outcome.kind !== "created") return resource;
         const id = outcome.resource.id;
         switch (record.operation) {
+          case "createFinanceSettlement": {
+            if (!matches(record)) return {};
+            void Promise.allSettled(
+              [
+                getListFinanceParticipantObligationsQueryKey(
+                  record.targetLedgerId,
+                  record.body.participantId,
+                ),
+                getListFinanceParticipantSettlementsQueryKey(
+                  record.targetLedgerId,
+                  record.body.participantId,
+                ),
+                getListFinanceAccountsQueryKey(record.targetLedgerId),
+                getListFinanceTransactionsQueryKey(record.targetLedgerId),
+                getGetFinanceOverviewQueryKey(record.targetLedgerId),
+                getGetBalanceAdjustmentContextQueryKey(
+                  record.targetLedgerId,
+                  record.body.receivingAccountId,
+                ),
+              ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+            );
+            // Each generated detail key embeds its ID in a single URL string.
+            void queryClient.invalidateQueries({
+              predicate: (query) =>
+                typeof query.queryKey[0] === "string" &&
+                query.queryKey[0].startsWith(
+                  getGetFinanceAdvanceQueryKey(record.targetLedgerId, "")[0],
+                ),
+            });
+            const response = await getFinanceSettlement(
+              record.targetLedgerId,
+              id,
+              { cache: "no-store" },
+            );
+            const settlement = parseSettlementSource(
+              response.data,
+              record.targetLedgerId,
+              id,
+              record.body.participantId,
+            );
+            if (
+              settlement.receivingAccountId !==
+                record.body.receivingAccountId ||
+              settlement.transactionDate !== record.body.transactionDate ||
+              settlement.amount.currency !== record.body.amount.currency
+            )
+              throw new Error(
+                "Settlement source does not match the confirmed command.",
+              );
+            if (!matches(record)) return {};
+            const key = getGetFinanceSettlementQueryKey(
+              record.targetLedgerId,
+              id,
+            );
+            await queryClient.cancelQueries({ queryKey: key });
+            if (!matches(record)) return {};
+            queryClient.setQueryData(key, { ...response, data: settlement });
+            resource = { settlement };
+            break;
+          }
           case "createFinanceAdvance": {
             if (!matches(record)) return {};
             void Promise.allSettled([
@@ -438,36 +505,43 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
           resource.account ||
           resource.category ||
           resource.transaction ||
-          resource.advance
+          resource.advance ||
+          resource.settlement
             ? record.operation === "createFinanceTransaction"
               ? submissionMessage(
                   record,
                   "Transaction creation is confirmed. View Transactions for its current state.",
                   recoveryCopy.confirmed,
                 )
+              : record.operation === "createFinanceSettlement"
+                ? "Settlement is confirmed. Its retained Allocations are available; current financial views refresh separately."
+                : record.operation === "createFinanceAdvance"
+                  ? "Advance creation is confirmed. Its source is available; current financial views refresh separately."
+                  : `${label} creation is confirmed. Your ${label} list is current.`
+            : record.operation === "createFinanceSettlement"
+              ? "Settlement is confirmed. Its source could not refresh. Retry the resource read; do not confirm again."
               : record.operation === "createFinanceAdvance"
-                ? "Advance creation is confirmed. Its source is available; current financial views refresh separately."
-                : `${label} creation is confirmed. Your ${label} list is current.`
-            : record.operation === "createFinanceAdvance"
-              ? "Advance creation is confirmed. Its source could not refresh. Retry the resource read; do not confirm again."
-              : submissionMessage(
-                  record,
-                  `${label} creation is confirmed. The ${label} is currently unavailable; it will not be recreated.`,
-                  recoveryCopy.resourceUnavailable,
-                );
+                ? "Advance creation is confirmed. Its source could not refresh. Retry the resource read; do not confirm again."
+                : submissionMessage(
+                    record,
+                    `${label} creation is confirmed. The ${label} is currently unavailable; it will not be recreated.`,
+                    recoveryCopy.resourceUnavailable,
+                  );
         showMessage(record, message);
         return { ...resource, message };
       } catch {
         const message =
           record.operation === "createBalanceAdjustment"
             ? "Balance Adjustment outcome is confirmed. Current Finance resources could not refresh. Retry the resource refresh; do not submit again."
-            : record.operation === "createFinanceAdvance"
-              ? "Advance creation is confirmed. Its source could not refresh. Retry the resource read; do not confirm again."
-              : submissionMessage(
-                  record,
-                  `${label} creation is confirmed. Your ${label} list could not refresh. Retry the list refresh; do not create again.`,
-                  recoveryCopy.refreshFailed,
-                );
+            : record.operation === "createFinanceSettlement"
+              ? "Settlement is confirmed. Its source could not refresh. Retry the resource read; do not confirm again."
+              : record.operation === "createFinanceAdvance"
+                ? "Advance creation is confirmed. Its source could not refresh. Retry the resource read; do not confirm again."
+                : submissionMessage(
+                    record,
+                    `${label} creation is confirmed. Your ${label} list could not refresh. Retry the list refresh; do not create again.`,
+                    recoveryCopy.refreshFailed,
+                  );
         showMessage(record, message);
         return { message };
       }
@@ -553,17 +627,23 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
                       record.body,
                       headers,
                     )
-                  : record.operation === "createFinanceAdvance"
-                    ? await createFinanceAdvance(
+                  : record.operation === "createFinanceSettlement"
+                    ? await createFinanceSettlement(
                         record.targetLedgerId,
                         record.body,
                         headers,
                       )
-                    : await createFinanceTransaction(
-                        record.targetLedgerId,
-                        record.body,
-                        headers,
-                      );
+                    : record.operation === "createFinanceAdvance"
+                      ? await createFinanceAdvance(
+                          record.targetLedgerId,
+                          record.body,
+                          headers,
+                        )
+                      : await createFinanceTransaction(
+                          record.targetLedgerId,
+                          record.body,
+                          headers,
+                        );
         resolution = createResponseResolution(record, response.data);
         if (!resolution)
           throw new SubmissionRecoveryError(
@@ -649,6 +729,11 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
 
   const advanceRetry = useMutation({
     mutationKey: ["createFinanceAdvance"],
+    mutationFn: ({ record }: { ledgerId: string; record: FinanceSubmission }) =>
+      dispatch(record),
+  });
+  const settlementRetry = useMutation({
+    mutationKey: ["createFinanceSettlement"],
     mutationFn: ({ record }: { ledgerId: string; record: FinanceSubmission }) =>
       dispatch(record),
   });
@@ -818,12 +903,17 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
                       ledgerId: record.targetLedgerId,
                       record,
                     })
-                  : record.operation === "createFinanceAdvance"
-                    ? await advanceRetry.mutateAsync({
+                  : record.operation === "createFinanceSettlement"
+                    ? await settlementRetry.mutateAsync({
                         ledgerId: record.targetLedgerId,
                         record,
                       })
-                    : await dispatch(record);
+                    : record.operation === "createFinanceAdvance"
+                      ? await advanceRetry.mutateAsync({
+                          ledgerId: record.targetLedgerId,
+                          record,
+                        })
+                      : await dispatch(record);
             if (result.message) showMessage(record, result.message);
           });
         },

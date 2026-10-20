@@ -59,6 +59,14 @@ export const FinanceSubmissionResponse = zod
           submissionId: zod.uuid(),
           targetLedgerId: zod.uuid(),
         }),
+        zod.strictObject({
+          admittedAt: zod.iso.datetime({ offset: true }),
+          commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
+          operation: zod.enum(["createFinanceSettlement"]),
+          state: zod.literal("unfinished").meta({ title: "State" }),
+          submissionId: zod.uuid(),
+          targetLedgerId: zod.uuid(),
+        }),
       ])
       .and(
         zod.strictObject({
@@ -282,6 +290,56 @@ export const FinanceSubmissionResponse = zod
                     "finance_account_archived",
                     "finance_participant_archived",
                     "finance_advance_preview_stale",
+                    "finance_linked_record_protected",
+                  ]),
+                  detail: zod.string(),
+                  status: zod.literal(409).meta({ title: "Status" }),
+                  title: zod.string(),
+                  type: zod.string(),
+                }),
+                zod.strictObject({
+                  code: zod.enum([
+                    "finance_account_not_found",
+                    "finance_participant_not_found",
+                  ]),
+                  detail: zod.string(),
+                  status: zod.literal(404).meta({ title: "Status" }),
+                  title: zod.string(),
+                  type: zod.string(),
+                }),
+              ]),
+            }),
+          ]),
+          resolvedAt: zod.iso.datetime({ offset: true }),
+          submissionId: zod.uuid(),
+          targetLedgerId: zod.uuid(),
+        }),
+        zod.strictObject({
+          admittedAt: zod.iso.datetime({ offset: true }),
+          commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
+          operation: zod.enum(["createFinanceSettlement"]),
+          outcome: zod.union([
+            zod.strictObject({
+              kind: zod.literal("created").meta({ title: "Kind" }),
+              resource: zod.strictObject({
+                id: zod.uuid(),
+                type: zod.literal("settlement").meta({ title: "Type" }),
+              }),
+            }),
+            zod.strictObject({
+              kind: zod.literal("rejected").meta({ title: "Kind" }),
+              problem: zod.union([
+                zod.strictObject({
+                  code: zod.literal("validation_error").meta({ title: "Code" }),
+                  detail: zod.string(),
+                  status: zod.literal(422).meta({ title: "Status" }),
+                  title: zod.string(),
+                  type: zod.string(),
+                }),
+                zod.strictObject({
+                  code: zod.enum([
+                    "finance_account_archived",
+                    "finance_settlement_preview_stale",
                     "finance_linked_record_protected",
                   ]),
                   detail: zod.string(),

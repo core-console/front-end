@@ -9,6 +9,7 @@ import {
   CreateFinanceTransactionBody,
   CreateBalanceAdjustmentBody,
   CreateFinanceAdvanceBody,
+  CreateFinanceSettlementBody,
 } from "@/api/generated/schemas";
 import { resolveApiBaseUrl } from "@/config/env";
 import {
@@ -97,13 +98,21 @@ const advanceCommand = z.strictObject({
   body: CreateFinanceAdvanceBody,
   workflow: z.literal("advance"),
 });
+const settlementCommand = z.strictObject({
+  operation: z.literal("createFinanceSettlement"),
+  endpoint: z.string(),
+  targetLedgerId: z.uuid(),
+  body: CreateFinanceSettlementBody,
+  workflow: z.literal("settlement"),
+});
 export type CreateSubmissionCommand =
   | Omit<z.infer<typeof ledgerCommand>, "endpoint">
   | Omit<z.infer<typeof accountCommand>, "endpoint">
   | Omit<z.infer<typeof categoryCommand>, "endpoint">
   | Omit<z.infer<typeof transactionCommand>, "endpoint">
   | Omit<z.infer<typeof adjustmentCommand>, "endpoint">
-  | Omit<z.infer<typeof advanceCommand>, "endpoint">;
+  | Omit<z.infer<typeof advanceCommand>, "endpoint">
+  | Omit<z.infer<typeof settlementCommand>, "endpoint">;
 function recordsFor<T extends z.ZodRawShape, V extends z.ZodType>(
   shape: T,
   commandVersion: V,
@@ -132,6 +141,7 @@ const recordSchema = z
     recordsFor(transactionCommand.shape, z.literal("1")),
     recordsFor(adjustmentCommand.shape, z.literal("1")),
     recordsFor(advanceCommand.shape, z.enum(["1", "2"])),
+    recordsFor(settlementCommand.shape, z.literal("1")),
   ])
   .refine(
     (record) =>
@@ -172,6 +182,8 @@ export function submissionLabel(record: Pick<FinanceSubmission, "operation">) {
       return "Balance Adjustment";
     case "createFinanceAdvance":
       return "Advance";
+    case "createFinanceSettlement":
+      return "Settlement";
   }
 }
 
@@ -184,6 +196,8 @@ export function isQuickEntrySubmission(command: CreateSubmissionCommand) {
 }
 
 export function rejectionMessage(record: FinanceSubmission) {
+  if (record.operation === "createFinanceSettlement")
+    return "The repayment was rejected without financial effects. Preserve the draft, refresh the preview and review current Allocations before a deliberate new confirmation.";
   if (record.operation === "createFinanceAdvance") {
     const stale =
       record.state === "resolved" &&
@@ -219,10 +233,14 @@ function endpointFor(command: CreateSubmissionCommand) {
       return `/finance/ledgers/${command.targetLedgerId}/balance-adjustments`;
     case "createFinanceAdvance":
       return `/finance/ledgers/${command.targetLedgerId}/advances`;
+    case "createFinanceSettlement":
+      return `/finance/ledgers/${command.targetLedgerId}/settlements`;
   }
 }
 
 export function submissionDescription(record: FinanceSubmission) {
+  if (record.operation === "createFinanceSettlement")
+    return `${record.body.amount.amount} ${record.body.amount.currency} · ${record.body.transactionDate} · Participant ${record.body.participantId}`;
   if (record.operation === "createFinanceAdvance")
     return `${record.body.amount.amount} ${record.body.amount.currency} · ${record.body.transactionDate} · Participants ${"participantShares" in record.body ? record.body.participantShares.map((share) => share.participantId).join(", ") : record.body.participantId}`;
   if (record.operation === "createBalanceAdjustment")

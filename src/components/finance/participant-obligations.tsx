@@ -47,6 +47,12 @@ export function ParticipantObligations({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">Receivable composition</h2>
+        <Link
+          className="text-sm underline underline-offset-4"
+          to={`/finance/repayments?ledger=${ledgerId}&participant_id=${participantId}`}
+        >
+          Record or inspect repayments
+        </Link>
         <Button
           variant="outline"
           disabled={query.isFetching}

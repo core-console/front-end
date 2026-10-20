@@ -207,4 +207,38 @@ MSW and production-preview Chromium checks cover this consumer, including
 keyboard/focus, axe, pending, stale and response-loss recovery. They do not
 establish PostgreSQL effects or delivered P+C acceptance for
 [Issue #29](https://github.com/core-console/back-end/issues/29). Repayment,
-forgiveness and correction workflows remain outside this consumer.
+forgiveness and correction workflows remain outside the T03 consumer.
+
+## Finance v2 accumulated and partial cash repayments (T04)
+
+The current synchronized OpenAPI producer is
+`515441bae9f2e1301563a0e41e5db6ed2ef57962`.
+`/finance/repayments?ledger=<UUID>` records a Participant's accumulated or
+partial cash repayment into an active Asset or Liability Account. Archived
+Participants may repay existing debt. Currency follows the receiving Account;
+the backend selects all eligible outstanding Obligations dated on or before the
+receipt date and returns deterministic oldest-Advance-date-first Allocations.
+The UI preserves the returned order, including same-date ties, and shows each
+cash amount and remaining debt alongside receiving balance and eligible debt
+before/after. Receiving principal increases an Asset or reduces a Liability,
+without Income or Expense. An ordinary card bill transfer does not settle
+Participant debt.
+
+Confirmation extends the existing durable submission journal with version `1`
+`createFinanceSettlement`. Unknown results retain the original owner, Ledger,
+key, version and body; explicit retry sends that command unchanged. Lookup is
+read-only. Correlated stale-preview rejection preserves draft intent, removes
+confirmation and requires refreshed consequences plus a deliberate new action.
+Resource refresh failure leaves the terminal receipt confirmed. Recovery links
+to the retained Settlement with `participant_id` and `settlement_id`; cash
+history and current Obligation composition are shown separately from historical
+`remainingAfter`. Later backdated Advances never cause client-side replay.
+
+The [T04 producer note](https://github.com/core-console/back-end/blob/515441bae9f2e1301563a0e41e5db6ed2ef57962/docs/finance-v2-cash-repayments-t04.md),
+[Issue #30](https://github.com/core-console/back-end/issues/30), and immutable
+product specification own the boundary. Selected Obligation subsets, excess
+dispositions, forgiveness, credit and Corrections belong to later slices.
+Routed MSW and production-preview Chromium tests cover frontend behavior,
+keyboard/focus and axe. They do not establish real PostgreSQL effects or
+delivered P+C acceptance. T04 still requires separately authorized consumer
+delivery and matching real producer/consumer verification before Issue closure.

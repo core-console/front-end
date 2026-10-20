@@ -53,6 +53,8 @@ import type {
   CreateFinanceCategoryHeaders,
   CreateFinanceLedgerBody,
   CreateFinanceLedgerHeaders,
+  CreateFinanceSettlementBody,
+  CreateFinanceSettlementHeaders,
   CreateFinanceTransactionBody,
   CreateFinanceTransactionHeaders,
   CreateUserRequest,
@@ -73,12 +75,17 @@ import type {
   ObligationResponse,
   ParticipantNameRequest,
   ParticipantResponse,
+  PreviewFinanceSettlementBody,
   ProblemDetails,
   ReplaceBalanceAdjustmentRequest,
   ReplaceBalanceAdjustmentResultResponse,
   ReplaceExpenseTransactionRequest,
   ReplaceIncomeTransactionRequest,
   ReplaceInternalTransferTransactionRequest,
+  SettlementCreatedReceipt,
+  SettlementFailureResponse,
+  SettlementPreview,
+  SettlementResponse,
   SharedAdvancePreview,
   SharedAdvanceResponse,
   SubmissionNonterminalProblem,
@@ -5992,6 +5999,946 @@ export function useListFinanceParticipantObligations<
   const queryOptions = getListFinanceParticipantObligationsQueryOptions(
     ledgerId,
     participantId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export type listFinanceParticipantSettlementsResponse200 = {
+  data: SettlementResponse[];
+  status: 200;
+};
+
+export type listFinanceParticipantSettlementsResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type listFinanceParticipantSettlementsResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type listFinanceParticipantSettlementsResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type listFinanceParticipantSettlementsResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type listFinanceParticipantSettlementsResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type listFinanceParticipantSettlementsResponseSuccess =
+  listFinanceParticipantSettlementsResponse200 & {
+    headers: Headers;
+  };
+export type listFinanceParticipantSettlementsResponseError = (
+  | listFinanceParticipantSettlementsResponse403
+  | listFinanceParticipantSettlementsResponse404
+  | listFinanceParticipantSettlementsResponse422
+  | listFinanceParticipantSettlementsResponse500
+  | listFinanceParticipantSettlementsResponse503
+) & {
+  headers: Headers;
+};
+
+export const getListFinanceParticipantSettlementsUrl = (
+  ledgerId: string,
+  participantId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/participants/${participantId}/settlements`;
+};
+
+/**
+ * @summary Get Settlements
+ */
+export const listFinanceParticipantSettlements = async (
+  ledgerId: string,
+  participantId: string,
+  options?: RequestInit,
+): Promise<listFinanceParticipantSettlementsResponseSuccess> => {
+  const res = await fetch(
+    getListFinanceParticipantSettlementsUrl(ledgerId, participantId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: listFinanceParticipantSettlementsResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: listFinanceParticipantSettlementsResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: listFinanceParticipantSettlementsResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as listFinanceParticipantSettlementsResponseSuccess;
+};
+
+export const getListFinanceParticipantSettlementsQueryKey = (
+  ledgerId: string,
+  participantId: string,
+) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/participants/${participantId}/settlements`,
+  ] as const;
+};
+
+export const getListFinanceParticipantSettlementsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFinanceParticipantSettlements>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipantSettlements>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListFinanceParticipantSettlementsQueryKey(ledgerId, participantId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listFinanceParticipantSettlements>>
+  > = ({ signal }) =>
+    listFinanceParticipantSettlements(ledgerId, participantId, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      ledgerId !== null &&
+      ledgerId !== undefined &&
+      participantId !== null &&
+      participantId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFinanceParticipantSettlements>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListFinanceParticipantSettlementsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFinanceParticipantSettlements>>
+>;
+export type ListFinanceParticipantSettlementsQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useListFinanceParticipantSettlements<
+  TData = Awaited<ReturnType<typeof listFinanceParticipantSettlements>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipantSettlements>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceParticipantSettlements>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceParticipantSettlements>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceParticipantSettlements<
+  TData = Awaited<ReturnType<typeof listFinanceParticipantSettlements>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipantSettlements>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceParticipantSettlements>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceParticipantSettlements>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceParticipantSettlements<
+  TData = Awaited<ReturnType<typeof listFinanceParticipantSettlements>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipantSettlements>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Get Settlements
+ */
+
+export function useListFinanceParticipantSettlements<
+  TData = Awaited<ReturnType<typeof listFinanceParticipantSettlements>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipantSettlements>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListFinanceParticipantSettlementsQueryOptions(
+    ledgerId,
+    participantId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export type createFinanceSettlementResponse201 = {
+  data: SettlementCreatedReceipt;
+  status: 201;
+};
+
+export type createFinanceSettlementResponse400 = {
+  data: ProblemDetails;
+  status: 400;
+};
+
+export type createFinanceSettlementResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type createFinanceSettlementResponse404 = {
+  data: SettlementFailureResponse;
+  status: 404;
+};
+
+export type createFinanceSettlementResponse409 = {
+  data: SettlementFailureResponse;
+  status: 409;
+};
+
+export type createFinanceSettlementResponse422 = {
+  data: SettlementFailureResponse;
+  status: 422;
+};
+
+export type createFinanceSettlementResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type createFinanceSettlementResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type createFinanceSettlementResponseSuccess =
+  createFinanceSettlementResponse201 & {
+    headers: Headers;
+  };
+export type createFinanceSettlementResponseError = (
+  | createFinanceSettlementResponse400
+  | createFinanceSettlementResponse403
+  | createFinanceSettlementResponse404
+  | createFinanceSettlementResponse409
+  | createFinanceSettlementResponse422
+  | createFinanceSettlementResponse500
+  | createFinanceSettlementResponse503
+) & {
+  headers: Headers;
+};
+
+export const getCreateFinanceSettlementUrl = (ledgerId: string) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/settlements`;
+};
+
+/**
+ * Confirm one participant's accumulated cash repayment. Version 1 requires the matching previewToken and allocates all eligible debt oldest Advance date first. No selected subset, forgiveness, surplus or credit disposition is accepted. Prepare one immutable submission identity before dispatch; recover under that same identity using getFinanceSubmission or an explicit retry.
+ * @summary Post Settlement
+ */
+export const createFinanceSettlement = async (
+  ledgerId: string,
+  createFinanceSettlementBody: CreateFinanceSettlementBody,
+  headers: CreateFinanceSettlementHeaders,
+  options?: RequestInit,
+): Promise<createFinanceSettlementResponseSuccess> => {
+  const getHeaders = (
+    defaults: HeadersInit,
+    overrides?: HeadersInit,
+  ): Headers => {
+    const headers = new Headers(defaults);
+    if (overrides instanceof Headers) {
+      overrides.forEach((value, name) => headers.set(name, value));
+    } else {
+      const entries = Array.isArray(overrides)
+        ? overrides
+        : Object.entries(overrides ?? {});
+      for (const entry of entries) {
+        const [name, value] = entry as [string, string];
+        headers.set(name, value);
+      }
+    }
+    return headers;
+  };
+  const res = await fetch(getCreateFinanceSettlementUrl(ledgerId), {
+    ...options,
+    method: "POST",
+    headers: getHeaders(
+      { "Content-Type": "application/json", ...headers },
+      options?.headers,
+    ),
+    body: JSON.stringify(createFinanceSettlementBody),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: createFinanceSettlementResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: createFinanceSettlementResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: createFinanceSettlementResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as createFinanceSettlementResponseSuccess;
+};
+
+export const getCreateFinanceSettlementMutationKey = () =>
+  ["createFinanceSettlement"] as const;
+
+export const getCreateFinanceSettlementMutationOptions = <
+  TError = globalThis.Error & {
+    info?: ProblemDetails | SettlementFailureResponse;
+    status?: number;
+  },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createFinanceSettlement>>,
+    TError,
+    CreateFinanceSettlementMutationVariables,
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createFinanceSettlement>>,
+  TError,
+  CreateFinanceSettlementMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreateFinanceSettlementMutationKey();
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createFinanceSettlement>>,
+    CreateFinanceSettlementMutationVariables
+  > = (props) => {
+    const { ledgerId, data, headers } = props ?? {};
+
+    return createFinanceSettlement(ledgerId, data, headers, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateFinanceSettlementMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createFinanceSettlement>>
+>;
+export type CreateFinanceSettlementMutationBody = CreateFinanceSettlementBody;
+export type CreateFinanceSettlementMutationError = globalThis.Error & {
+  info?: ProblemDetails | SettlementFailureResponse;
+  status?: number;
+};
+export type CreateFinanceSettlementMutationVariables = {
+  ledgerId: string;
+  data: CreateFinanceSettlementBody;
+  headers: CreateFinanceSettlementHeaders;
+};
+
+/**
+ * @summary Post Settlement
+ */
+export const useCreateFinanceSettlement = <
+  TError = globalThis.Error & {
+    info?: ProblemDetails | SettlementFailureResponse;
+    status?: number;
+  },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createFinanceSettlement>>,
+      TError,
+      CreateFinanceSettlementMutationVariables,
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createFinanceSettlement>>,
+  TError,
+  CreateFinanceSettlementMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getCreateFinanceSettlementMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type previewFinanceSettlementResponse200 = {
+  data: SettlementPreview;
+  status: 200;
+};
+
+export type previewFinanceSettlementResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type previewFinanceSettlementResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type previewFinanceSettlementResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type previewFinanceSettlementResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type previewFinanceSettlementResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type previewFinanceSettlementResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type previewFinanceSettlementResponseSuccess =
+  previewFinanceSettlementResponse200 & {
+    headers: Headers;
+  };
+export type previewFinanceSettlementResponseError = (
+  | previewFinanceSettlementResponse403
+  | previewFinanceSettlementResponse404
+  | previewFinanceSettlementResponse409
+  | previewFinanceSettlementResponse422
+  | previewFinanceSettlementResponse500
+  | previewFinanceSettlementResponse503
+) & {
+  headers: Headers;
+};
+
+export const getPreviewFinanceSettlementUrl = (ledgerId: string) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/settlements/preview`;
+};
+
+/**
+ * @summary Post Preview
+ */
+export const previewFinanceSettlement = async (
+  ledgerId: string,
+  previewFinanceSettlementBody: PreviewFinanceSettlementBody,
+  options?: RequestInit,
+): Promise<previewFinanceSettlementResponseSuccess> => {
+  const getHeaders = (
+    defaults: HeadersInit,
+    overrides?: HeadersInit,
+  ): Headers => {
+    const headers = new Headers(defaults);
+    if (overrides instanceof Headers) {
+      overrides.forEach((value, name) => headers.set(name, value));
+    } else {
+      const entries = Array.isArray(overrides)
+        ? overrides
+        : Object.entries(overrides ?? {});
+      for (const entry of entries) {
+        const [name, value] = entry as [string, string];
+        headers.set(name, value);
+      }
+    }
+    return headers;
+  };
+  const res = await fetch(getPreviewFinanceSettlementUrl(ledgerId), {
+    ...options,
+    method: "POST",
+    headers: getHeaders(
+      { "Content-Type": "application/json" },
+      options?.headers,
+    ),
+    body: JSON.stringify(previewFinanceSettlementBody),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: previewFinanceSettlementResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: previewFinanceSettlementResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: previewFinanceSettlementResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as previewFinanceSettlementResponseSuccess;
+};
+
+export const getPreviewFinanceSettlementMutationKey = () =>
+  ["previewFinanceSettlement"] as const;
+
+export const getPreviewFinanceSettlementMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof previewFinanceSettlement>>,
+    TError,
+    PreviewFinanceSettlementMutationVariables,
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof previewFinanceSettlement>>,
+  TError,
+  PreviewFinanceSettlementMutationVariables,
+  TContext
+> => {
+  const mutationKey = getPreviewFinanceSettlementMutationKey();
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof previewFinanceSettlement>>,
+    PreviewFinanceSettlementMutationVariables
+  > = (props) => {
+    const { ledgerId, data } = props ?? {};
+
+    return previewFinanceSettlement(ledgerId, data, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PreviewFinanceSettlementMutationResult = NonNullable<
+  Awaited<ReturnType<typeof previewFinanceSettlement>>
+>;
+export type PreviewFinanceSettlementMutationBody = PreviewFinanceSettlementBody;
+export type PreviewFinanceSettlementMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+export type PreviewFinanceSettlementMutationVariables = {
+  ledgerId: string;
+  data: PreviewFinanceSettlementBody;
+};
+
+/**
+ * @summary Post Preview
+ */
+export const usePreviewFinanceSettlement = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof previewFinanceSettlement>>,
+      TError,
+      PreviewFinanceSettlementMutationVariables,
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof previewFinanceSettlement>>,
+  TError,
+  PreviewFinanceSettlementMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getPreviewFinanceSettlementMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type getFinanceSettlementResponse200 = {
+  data: SettlementResponse;
+  status: 200;
+};
+
+export type getFinanceSettlementResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type getFinanceSettlementResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type getFinanceSettlementResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type getFinanceSettlementResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type getFinanceSettlementResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type getFinanceSettlementResponseSuccess =
+  getFinanceSettlementResponse200 & {
+    headers: Headers;
+  };
+export type getFinanceSettlementResponseError = (
+  | getFinanceSettlementResponse403
+  | getFinanceSettlementResponse404
+  | getFinanceSettlementResponse422
+  | getFinanceSettlementResponse500
+  | getFinanceSettlementResponse503
+) & {
+  headers: Headers;
+};
+
+export const getGetFinanceSettlementUrl = (
+  ledgerId: string,
+  settlementId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/settlements/${settlementId}`;
+};
+
+/**
+ * @summary Get Settlement
+ */
+export const getFinanceSettlement = async (
+  ledgerId: string,
+  settlementId: string,
+  options?: RequestInit,
+): Promise<getFinanceSettlementResponseSuccess> => {
+  const res = await fetch(getGetFinanceSettlementUrl(ledgerId, settlementId), {
+    ...options,
+    method: "GET",
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: getFinanceSettlementResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: getFinanceSettlementResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: getFinanceSettlementResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getFinanceSettlementResponseSuccess;
+};
+
+export const getGetFinanceSettlementQueryKey = (
+  ledgerId: string,
+  settlementId: string,
+) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/settlements/${settlementId}`,
+  ] as const;
+};
+
+export const getGetFinanceSettlementQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFinanceSettlement>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  settlementId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceSettlement>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetFinanceSettlementQueryKey(ledgerId, settlementId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getFinanceSettlement>>
+  > = ({ signal }) =>
+    getFinanceSettlement(ledgerId, settlementId, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      ledgerId !== null &&
+      ledgerId !== undefined &&
+      settlementId !== null &&
+      settlementId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFinanceSettlement>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetFinanceSettlementQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFinanceSettlement>>
+>;
+export type GetFinanceSettlementQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useGetFinanceSettlement<
+  TData = Awaited<ReturnType<typeof getFinanceSettlement>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  settlementId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceSettlement>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFinanceSettlement>>,
+          TError,
+          Awaited<ReturnType<typeof getFinanceSettlement>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetFinanceSettlement<
+  TData = Awaited<ReturnType<typeof getFinanceSettlement>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  settlementId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceSettlement>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFinanceSettlement>>,
+          TError,
+          Awaited<ReturnType<typeof getFinanceSettlement>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetFinanceSettlement<
+  TData = Awaited<ReturnType<typeof getFinanceSettlement>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  settlementId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceSettlement>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Get Settlement
+ */
+
+export function useGetFinanceSettlement<
+  TData = Awaited<ReturnType<typeof getFinanceSettlement>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  settlementId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceSettlement>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetFinanceSettlementQueryOptions(
+    ledgerId,
+    settlementId,
     options,
   );
 
