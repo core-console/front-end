@@ -47,6 +47,8 @@ async function api(
   liability = false,
 ) {
   const posts: { key: string; body: CreateFinanceSettlementBody }[] = [];
+  const lookups: string[] = [];
+  const admitted = new Set<string>();
   let confirmed = false;
   let previews = 0;
   let lookupCreated = false;
@@ -70,21 +72,32 @@ async function api(
     else if (path.endsWith(`/settlements/${settlement.id}`)) body = settlement;
     else if (path.includes("/participants/") && path.endsWith("/settlements"))
       body = confirmed || lookupCreated ? [settlement] : [];
-    else if (path.includes("/submissions/"))
-      body = lookupCreated
-        ? {
-            state: "terminal",
-            receipt: settlementReceipt(path.split("/").at(-1)!),
-          }
-        : {
-            state: "unfinished",
-            submissionId: path.split("/").at(-1),
-            operation: "createFinanceSettlement",
-            commandVersion: "1",
-            targetLedgerId: ledger.id,
-            admittedAt: "2026-10-20T00:00:00Z",
-          };
-    else if (path.endsWith("/settlements/preview")) {
+    else if (path.includes("/submissions/")) {
+      const key = path.split("/").at(-1)!;
+      lookups.push(key);
+      if (!admitted.has(key)) {
+        status = 404;
+        body = {
+          type: "about:blank",
+          title: "Not Found",
+          status,
+          code: "finance_submission_not_found",
+        };
+      } else
+        body = lookupCreated
+          ? {
+              state: "terminal",
+              receipt: settlementReceipt(path.split("/").at(-1)!),
+            }
+          : {
+              state: "unfinished",
+              submissionId: path.split("/").at(-1),
+              operation: "createFinanceSettlement",
+              commandVersion: "1",
+              targetLedgerId: ledger.id,
+              admittedAt: "2026-10-20T00:00:00Z",
+            };
+    } else if (path.endsWith("/settlements/preview")) {
       previews++;
       body = {
         ...preview,
@@ -102,6 +115,7 @@ async function api(
         body: CreateFinanceSettlementBody.parse(request.postDataJSON()),
       });
       if (hold) await hold;
+      admitted.add(key);
       status = 201;
       if (mode === "unknown" && posts.length === 1) body = {};
       else if (mode === "stale" && posts.length === 1) {
@@ -130,6 +144,7 @@ async function api(
   });
   return {
     posts,
+    lookups,
     previews: () => previews,
     resolveLookup: () => {
       lookupCreated = true;
@@ -254,6 +269,7 @@ test("stale terminal evidence preserves intent and requires refreshed review wit
     "a".repeat(64),
     "b".repeat(64),
   ]);
+  expect(backend.lookups).toEqual([]);
   expect(errors).toEqual([
     "Failed to load resource: the server responded with a status of 409 (Conflict)",
   ]);

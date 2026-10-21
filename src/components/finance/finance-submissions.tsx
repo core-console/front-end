@@ -763,8 +763,9 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
   );
 
   const lookup = useCallback(
-    async (identity: FinanceSubmission) =>
-      run(identity, async () => {
+    async (identity: FinanceSubmission) => {
+      if (running.current.has(submissionToken(identity))) return;
+      return run(identity, async () => {
         await assertOwner(identity);
         const record = await readSubmission(identity);
         if (!record || record.state !== "unresolved") {
@@ -799,7 +800,8 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
             ),
           );
         }
-      }),
+      });
+    },
     [assertOwner, load, run, settle, showMessage],
   );
 
@@ -861,14 +863,20 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
     // Existing corrupt/incompatible records block preparation without erasing evidence.
     await load(owner);
     const record = await prepareSubmission(owner, command);
-    if (matches(owner)) prepared(record.submissionId);
-    try {
-      return await dispatch(record);
-    } catch (error) {
-      const message = messageFor(error, isQuickEntrySubmission(record));
-      showMessage(record, message);
-      return { record, message };
-    }
+    let result: SubmitResult = { record };
+    // Preparation is durable before POST admission. Keep the live attempt busy
+    // so navigation/activation recovery cannot look it up before its response.
+    await run(record, async () => {
+      if (matches(owner)) prepared(record.submissionId);
+      try {
+        result = await dispatch(record);
+      } catch (error) {
+        const message = messageFor(error, isQuickEntrySubmission(record));
+        showMessage(record, message);
+        result = { record, message };
+      }
+    });
+    return result;
   };
   return (
     <FinanceSubmissionContext
