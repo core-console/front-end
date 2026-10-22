@@ -51,6 +51,7 @@ import { env } from "@/config/env";
 import { parseAdvanceSource, advanceObligations } from "./advance-source";
 import { parseSettlementSource } from "./settlement-source";
 import { refreshSubmittedTransaction } from "./transaction-submission-refresh";
+import { withSubmissionLock } from "./submission-coordination";
 import {
   correlates,
   createResponseResolution,
@@ -766,40 +767,49 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
     async (identity: FinanceSubmission) => {
       if (running.current.has(submissionToken(identity))) return;
       return run(identity, async () => {
-        await assertOwner(identity);
-        const record = await readSubmission(identity);
-        if (!record || record.state !== "unresolved") {
-          await load(identity);
-          return;
-        }
-        const response = await getFinanceSubmission(
-          record.submissionId,
-          { "Finance-Submission-Owner": record.ownerId },
-          { cache: "no-store" },
+        await withSubmissionLock(
+          identity,
+          async () => {
+            await assertOwner(identity);
+            const record = await readSubmission(identity);
+            if (!record || record.state !== "unresolved") {
+              await load(identity);
+              return;
+            }
+            const response = await getFinanceSubmission(
+              record.submissionId,
+              { "Finance-Submission-Owner": record.ownerId },
+              { cache: "no-store" },
+            );
+            const evidence = FinanceSubmissionResponse.parse(response.data);
+            if (evidence.state === "terminal") {
+              if (!correlates(record, evidence.receipt))
+                throw new SubmissionRecoveryError(
+                  "Outcome evidence does not match the original command. Recovery is blocked.",
+                  recoveryCopy.outcomeMismatch,
+                );
+              await settle(record, {
+                kind: "receipt",
+                receipt: evidence.receipt,
+              });
+            } else {
+              if (!correlates(record, evidence))
+                throw new SubmissionRecoveryError(
+                  "Lookup evidence does not match the original command. Recovery is blocked.",
+                  recoveryCopy.lookupMismatch,
+                );
+              showMessage(
+                record,
+                submissionMessage(
+                  record,
+                  "The original submission is unfinished. Retry it explicitly to continue.",
+                  recoveryCopy.unfinished,
+                ),
+              );
+            }
+          },
+          "lookup",
         );
-        const evidence = FinanceSubmissionResponse.parse(response.data);
-        if (evidence.state === "terminal") {
-          if (!correlates(record, evidence.receipt))
-            throw new SubmissionRecoveryError(
-              "Outcome evidence does not match the original command. Recovery is blocked.",
-              recoveryCopy.outcomeMismatch,
-            );
-          await settle(record, { kind: "receipt", receipt: evidence.receipt });
-        } else {
-          if (!correlates(record, evidence))
-            throw new SubmissionRecoveryError(
-              "Lookup evidence does not match the original command. Recovery is blocked.",
-              recoveryCopy.lookupMismatch,
-            );
-          showMessage(
-            record,
-            submissionMessage(
-              record,
-              "The original submission is unfinished. Retry it explicitly to continue.",
-              recoveryCopy.unfinished,
-            ),
-          );
-        }
       });
     },
     [assertOwner, load, run, settle, showMessage],
@@ -862,20 +872,31 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
     await assertOwner(owner);
     // Existing corrupt/incompatible records block preparation without erasing evidence.
     await load(owner);
-    const record = await prepareSubmission(owner, command);
-    let result: SubmitResult = { record };
-    // Preparation is durable before POST admission. Keep the live attempt busy
-    // so navigation/activation recovery cannot look it up before its response.
-    await run(record, async () => {
-      if (matches(owner)) prepared(record.submissionId);
-      try {
-        result = await dispatch(record);
-      } catch (error) {
-        const message = messageFor(error, isQuickEntrySubmission(record));
-        showMessage(record, message);
-        result = { record, message };
-      }
-    });
+    const submissionId = crypto.randomUUID();
+    // Claim before IndexedDB makes the command visible to another page. The
+    // claim covers preparation, owner checks, POST and durable resolution.
+    const result = await withSubmissionLock(
+      { ...owner, submissionId },
+      async () => {
+        const record = await prepareSubmission(owner, command, submissionId);
+        let submitted: SubmitResult = { record };
+        await run(record, async () => {
+          if (matches(owner)) prepared(record.submissionId);
+          try {
+            submitted = await dispatch(record);
+          } catch (error) {
+            const message = messageFor(error, isQuickEntrySubmission(record));
+            showMessage(record, message);
+            submitted = { record, message };
+          }
+        });
+        return submitted;
+      },
+    );
+    if (!result)
+      throw new SubmissionRecoveryError(
+        "This submission is already executing in another page. Check its outcome after that attempt finishes.",
+      );
     return result;
   };
   return (
@@ -900,29 +921,37 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
           // not grant execution intent to the automatic lookup itself.
           await running.current.get(submissionToken(record));
           return run(record, async () => {
-            const result =
-              record.operation === "createFinanceTransaction"
-                ? await transactionRetry.mutateAsync({
-                    ledgerId: record.targetLedgerId,
-                    record,
-                  })
-                : record.operation === "createBalanceAdjustment"
-                  ? await adjustmentRetry.mutateAsync({
-                      ledgerId: record.targetLedgerId,
-                      record,
-                    })
-                  : record.operation === "createFinanceSettlement"
-                    ? await settlementRetry.mutateAsync({
+            await withSubmissionLock(
+              record,
+              async () => {
+                const result =
+                  record.operation === "createFinanceTransaction"
+                    ? await transactionRetry.mutateAsync({
                         ledgerId: record.targetLedgerId,
                         record,
                       })
-                    : record.operation === "createFinanceAdvance"
-                      ? await advanceRetry.mutateAsync({
+                    : record.operation === "createBalanceAdjustment"
+                      ? await adjustmentRetry.mutateAsync({
                           ledgerId: record.targetLedgerId,
                           record,
                         })
-                      : await dispatch(record);
-            if (result.message) showMessage(record, result.message);
+                      : record.operation === "createFinanceSettlement"
+                        ? await settlementRetry.mutateAsync({
+                            ledgerId: record.targetLedgerId,
+                            record,
+                          })
+                        : record.operation === "createFinanceAdvance"
+                          ? await advanceRetry.mutateAsync({
+                              ledgerId: record.targetLedgerId,
+                              record,
+                            })
+                          : await dispatch(record);
+                if (result.message) showMessage(record, result.message);
+                // Uncertain original-key retries and outcome checks may overlap:
+                // backend idempotency and retained evidence own convergence.
+              },
+              "retry",
+            );
           });
         },
         acknowledge: (record) =>

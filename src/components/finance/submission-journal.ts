@@ -409,11 +409,12 @@ export async function prepareLedgerSubmission(
 export async function prepareSubmission(
   namespace: SubmissionNamespace,
   command: CreateSubmissionCommand,
+  submissionId = crypto.randomUUID(),
 ): Promise<FinanceSubmission> {
   const record = recordSchema.parse({
     ...namespaceSchema.parse(namespace),
     localSchemaVersion: 1,
-    submissionId: crypto.randomUUID(),
+    submissionId,
     commandVersion:
       command.operation === "createFinanceAdvance" &&
       "participantShares" in command.body

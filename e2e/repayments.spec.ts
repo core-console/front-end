@@ -5,6 +5,9 @@ import {
   advanceLedger as ledger,
   advanceParticipant as person,
   advanceFunding as account,
+  advancePreview,
+  confirmedAdvance,
+  createdAdvanceReceipt,
 } from "../src/test/advance-fixtures.ts";
 import {
   repaymentPreview as preview,
@@ -16,6 +19,11 @@ import {
 } from "../src/test/settlement-fixtures.ts";
 import { submissionTestUser } from "../src/test/submission-fixtures.ts";
 import { CreateFinanceSettlementBody } from "../src/api/generated/schemas/index.ts";
+import {
+  stored,
+  abortJournalWrite,
+  waitForJournalAbort,
+} from "./support/submission-journal.ts";
 
 function captureErrors(page: Page) {
   const errors: string[] = [];
@@ -47,8 +55,10 @@ async function api(
   liability = false,
 ) {
   const posts: { key: string; body: CreateFinanceSettlementBody }[] = [];
+  const postBodies: string[] = [];
   const lookups: string[] = [];
   const admitted = new Set<string>();
+  const advancePosts: string[] = [];
   let confirmed = false;
   let previews = 0;
   let lookupCreated = false;
@@ -70,7 +80,15 @@ async function api(
       body =
         confirmed || lookupCreated ? repaidObligations : outstandingObligations;
     else if (path.endsWith(`/settlements/${settlement.id}`)) body = settlement;
-    else if (path.includes("/participants/") && path.endsWith("/settlements"))
+    else if (path.endsWith(`/advances/${confirmedAdvance.id}`))
+      body = confirmedAdvance;
+    else if (path.endsWith("/advances/preview")) body = advancePreview;
+    else if (path.endsWith("/advances") && request.method() === "POST") {
+      const key = request.headers()["idempotency-key"]!;
+      advancePosts.push(key);
+      status = 201;
+      body = createdAdvanceReceipt(key);
+    } else if (path.includes("/participants/") && path.endsWith("/settlements"))
       body = confirmed || lookupCreated ? [settlement] : [];
     else if (path.includes("/submissions/")) {
       const key = path.split("/").at(-1)!;
@@ -114,6 +132,7 @@ async function api(
         key,
         body: CreateFinanceSettlementBody.parse(request.postDataJSON()),
       });
+      postBodies.push(request.postData()!);
       if (hold) await hold;
       admitted.add(key);
       status = 201;
@@ -144,7 +163,10 @@ async function api(
   });
   return {
     posts,
+    postBodies,
+    advancePosts,
     lookups,
+    admitted,
     previews: () => previews,
     resolveLookup: () => {
       lookupCreated = true;
@@ -235,6 +257,311 @@ test("keyboard preview, discard, pending double-confirm guard and retained cash 
   ).toBe(true);
   expect(errors).toEqual([]);
 });
+test("two pages keep a live Settlement out of recovery while a competing Advance completes before admission", async ({
+  page,
+  context,
+}, testInfo) => {
+  const errors = captureErrors(page);
+  const backend = await api(context, "stale");
+  await context.route("**/participants", (route) =>
+    route.fulfill({ json: [person] }),
+  );
+  await page.goto(`/finance/repayments?ledger=${ledger.id}`);
+  const dialog = await draft(page);
+  const release = backend.hold();
+  await page.keyboard.press("Enter");
+  await expect.poll(() => backend.posts.length).toBe(1);
+  const originalKey = backend.posts[0]!.key;
+  const competing = await context.newPage();
+  const competingErrors = captureErrors(competing);
+  try {
+    await competing.goto(`/finance/advances?ledger=${ledger.id}`);
+    const recovery = competing.getByRole("region", {
+      name: "Finance submission recovery",
+    });
+    await expect(recovery).toContainText("Settlement outcome unknown");
+    await competing
+      .getByRole("button", { name: "Record Advance", exact: true })
+      .click();
+    const advance = competing.getByRole("dialog", {
+      name: "Record pure Advance",
+    });
+    await advance
+      .getByLabel("Participant", { exact: true })
+      .selectOption(person.id);
+    await advance.getByLabel("Funding Asset Account").selectOption(account.id);
+    await advance.getByLabel("Amount", { exact: true }).fill("25.01");
+    await advance.getByLabel("Date", { exact: true }).fill("2027-01-02");
+    await advance.getByLabel("Note", { exact: true }).fill("Travel cash");
+    await advance
+      .getByRole("button", { name: "Preview Advance", exact: true })
+      .click();
+    await advance
+      .getByRole("button", { name: "Confirm Advance", exact: true })
+      .click();
+    await expect(competing).toHaveURL(
+      new RegExp(`advance_id=${confirmedAdvance.id}`),
+    );
+    await expect(
+      competing.getByRole("region", { name: "Confirmed Advance" }),
+    ).toContainText("Travel cash");
+    // Explicit outcome checks also complete while the original request is held.
+    await recovery.getByRole("button", { name: "Check outcome" }).click();
+    await expect(
+      recovery.getByRole("button", { name: "Check outcome" }),
+    ).toBeEnabled();
+    await testInfo.attach("pre-admission", {
+      body: JSON.stringify({
+        originalKey,
+        admitted: [...backend.admitted],
+        lookups: backend.lookups,
+        advancePosts: backend.advancePosts,
+      }),
+      contentType: "application/json",
+    });
+    expect(backend.admitted.has(originalKey)).toBe(false);
+    expect(backend.advancePosts).toHaveLength(1);
+    expect(backend.lookups).toEqual([]);
+    release();
+    await expect(
+      dialog.getByRole("button", { name: "Refresh preview" }),
+    ).toBeVisible();
+    await expect(
+      dialog.getByRole("button", { name: "Confirm repayment" }),
+    ).toHaveCount(0);
+    expect(backend.posts).toHaveLength(1);
+    await expect(dialog.getByLabel("Amount", { exact: true })).toHaveValue(
+      "50",
+    );
+    await dialog.getByRole("button", { name: "Refresh preview" }).click();
+    expect(backend.posts).toHaveLength(1);
+    await dialog.getByRole("button", { name: "Confirm repayment" }).click();
+    await expect(
+      page.getByRole("region", { name: "Confirmed Settlement" }),
+    ).toContainText(settlement.id);
+    expect(backend.posts[1]!.key).not.toBe(originalKey);
+    expect(backend.lookups).toEqual([]);
+    await axe(competing);
+    expect(competingErrors).toEqual([]);
+    expect(errors).toEqual([
+      "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    ]);
+  } finally {
+    release();
+    await competing.close();
+  }
+});
+
+for (const termination of ["close", "crash"] as const) {
+  test(`a ${termination} before Settlement POST releases recovery without notifications and retains the original command`, async ({
+    page,
+    context,
+  }, testInfo) => {
+    const backend = await api(context);
+    const errors = captureErrors(page);
+    await context.addInitScript(() => {
+      Object.defineProperty(window, "BroadcastChannel", { value: undefined });
+    });
+    await page.addInitScript(() => {
+      const original = window.fetch;
+      window.fetch = function (input, init) {
+        if (init?.method === "POST" && String(input).endsWith("/settlements")) {
+          Object.assign(window, {
+            preparedSettlement: {
+              key: new Headers(init.headers).get("Idempotency-Key"),
+              body: JSON.parse(String(init.body)) as unknown,
+            },
+          });
+          return new Promise<Response>(() => undefined);
+        }
+        return original.call(this, input, init);
+      };
+    });
+    await page.goto(`/finance/repayments?ledger=${ledger.id}`);
+    await draft(page);
+    await page.keyboard.press("Enter");
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          Boolean(
+            (window as typeof window & { preparedSettlement?: unknown })
+              .preparedSettlement,
+          ),
+        ),
+      )
+      .toBe(true);
+    const original = await page.evaluate(
+      () =>
+        (
+          window as typeof window & {
+            preparedSettlement: { key: string; body: unknown };
+          }
+        ).preparedSettlement,
+    );
+    const observer = await context.newPage();
+    const observerErrors = captureErrors(observer);
+    await observer.goto(`/finance/repayments?ledger=${ledger.id}`);
+    await observer.getByRole("button", { name: "Check outcome" }).click();
+    await expect(
+      observer.getByRole("button", { name: "Check outcome" }),
+    ).toBeEnabled();
+    expect(backend.lookups).toEqual([]);
+    expect(backend.posts).toEqual([]);
+    expect(await stored(observer)).toMatchObject([
+      { submissionId: original.key, body: original.body, state: "unresolved" },
+    ]);
+    if (termination === "crash") {
+      const session = await context.newCDPSession(page);
+      const crashed = page.waitForEvent("crash");
+      void session.send("Page.crash").catch(() => undefined);
+      await crashed;
+    } else await page.close();
+    await observer.reload();
+    await expect(
+      observer.getByRole("region", { name: "Finance submission recovery" }),
+    ).toContainText(
+      "Recovery could not complete. Check the outcome again; the original submission is retained.",
+    );
+    expect(backend.posts).toEqual([]);
+    expect(backend.lookups).toEqual([original.key]);
+    await observer
+      .getByRole("button", { name: "Retry original submission" })
+      .click();
+    await expect(
+      observer.getByRole("link", { name: "Open Settlement" }),
+    ).toBeVisible();
+    expect(backend.posts).toEqual([original]);
+    await testInfo.attach("abandoned-command-recovery", {
+      body: JSON.stringify({
+        termination,
+        original,
+        posts: backend.posts,
+        lookups: backend.lookups,
+      }),
+      contentType: "application/json",
+    });
+    expect(errors).toEqual([]);
+    expect(observerErrors).toEqual([
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    ]);
+    await observer.close();
+    if (termination === "crash") await page.close();
+  });
+}
+
+test("two explicit original-key retries allow uncertain recovery and converge without notifications", async ({
+  page,
+  context,
+}) => {
+  await context.addInitScript(() => {
+    Object.defineProperty(window, "BroadcastChannel", { value: undefined });
+  });
+  const backend = await api(context, "unknown");
+  const errors = captureErrors(page);
+  await page.goto(`/finance/repayments?ledger=${ledger.id}`);
+  const dialog = await draft(page);
+  await page.keyboard.press("Enter");
+  await expect(dialog).toContainText("outcome is unknown");
+  await dialog.getByRole("button", { name: "Close to recovery" }).click();
+  const release = backend.hold();
+  const observer = await context.newPage();
+  const observerErrors = captureErrors(observer);
+  try {
+    await page
+      .getByRole("button", { name: "Retry original submission" })
+      .click();
+    await expect.poll(() => backend.posts.length).toBe(2);
+    await observer.goto(`/finance/repayments?ledger=${ledger.id}`);
+    await observer.getByRole("button", { name: "Check outcome" }).click();
+    await expect(
+      observer.getByRole("button", { name: "Check outcome" }),
+    ).toBeEnabled();
+    expect(backend.admitted.has(backend.posts[0]!.key)).toBe(true);
+    expect(backend.lookups).toEqual([
+      backend.posts[0]!.key,
+      backend.posts[0]!.key,
+    ]);
+    await observer
+      .getByRole("button", { name: "Retry original submission" })
+      .click();
+    await expect.poll(() => backend.posts.length).toBe(3);
+    expect(backend.posts).toEqual([
+      backend.posts[0],
+      backend.posts[0],
+      backend.posts[0],
+    ]);
+    expect(backend.postBodies).toEqual([
+      backend.postBodies[0],
+      backend.postBodies[0],
+      backend.postBodies[0],
+    ]);
+    release();
+    await expect(
+      page.getByRole("link", { name: "Open Settlement" }),
+    ).toBeVisible();
+    await expect(
+      observer.getByRole("link", { name: "Open Settlement" }),
+    ).toBeVisible();
+    expect(backend.lookups).toEqual([
+      backend.posts[0]!.key,
+      backend.posts[0]!.key,
+    ]);
+    expect(errors).toEqual([]);
+    expect(observerErrors).toEqual([]);
+  } finally {
+    release();
+    await observer.close();
+  }
+});
+
+test("unavailable browser coordination blocks preparation without sending a Settlement", async ({
+  page,
+  context,
+}) => {
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, "locks", { value: undefined });
+  });
+  const backend = await api(context);
+  const errors = captureErrors(page);
+  await page.goto(`/finance/repayments?ledger=${ledger.id}`);
+  const dialog = await draft(page);
+  await page.keyboard.press("Enter");
+  await expect(dialog).toContainText(
+    "Browser submission coordination is unavailable",
+  );
+  expect(backend.posts).toEqual([]);
+  expect(await stored(page)).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test("failed local Settlement resolution releases the claim for another page to recover terminal evidence", async ({
+  page,
+  context,
+}) => {
+  const backend = await api(context);
+  const errors = captureErrors(page);
+  await page.goto(`/finance/repayments?ledger=${ledger.id}`);
+  await draft(page);
+  await abortJournalWrite(page, "put");
+  await page.keyboard.press("Enter");
+  await waitForJournalAbort(page);
+  await expect(page.getByRole("dialog")).toContainText(
+    "Browser storage write failed",
+  );
+  backend.resolveLookup();
+  const observer = await context.newPage();
+  const observerErrors = captureErrors(observer);
+  await observer.goto(`/finance/repayments?ledger=${ledger.id}`);
+  await expect(
+    observer.getByRole("link", { name: "Open Settlement" }),
+  ).toBeVisible();
+  expect(backend.posts).toHaveLength(1);
+  expect(backend.lookups).toEqual([backend.posts[0]!.key]);
+  expect(errors).toEqual([]);
+  expect(observerErrors).toEqual([]);
+  await observer.close();
+});
+
 test("stale terminal evidence preserves intent and requires refreshed review with a new identity", async ({
   page,
   context,

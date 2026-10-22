@@ -234,6 +234,18 @@ to the retained Settlement with `participant_id` and `settlement_id`; cash
 history and current Obligation composition are shown separately from historical
 `remainingAfter`. Later backdated Advances never cause client-side replay.
 
+Browser submission coordination uses Web Locks in a secure context. Each
+API/user/submission key has its own claim, acquired before journal preparation
+and held through the live attempt and durable resolution. Automatic or explicit
+outcome checks skip an active original attempt without queuing; unrelated commands remain
+executable. After the original attempt ends uncertain, outcome checks and
+explicit original-key retries may overlap under shared claims, retaining
+backend idempotency. Claims end when the attempt finishes or the browser
+releases the page (including closure/crash); uncertain commands remain in
+IndexedDB for later recovery. BroadcastChannel notifications are optional hints.
+If Web Locks is unavailable, preparation and network recovery stop with guidance
+to use a supported browser/secure context while retaining site data.
+
 The [T04 producer note](https://github.com/core-console/back-end/blob/515441bae9f2e1301563a0e41e5db6ed2ef57962/docs/finance-v2-cash-repayments-t04.md),
 [Issue #30](https://github.com/core-console/back-end/issues/30), and immutable
 product specification own the boundary. Selected Obligation subsets, excess
