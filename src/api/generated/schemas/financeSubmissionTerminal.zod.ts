@@ -250,7 +250,7 @@ export const FinanceSubmissionTerminal = zod.strictObject({
     }),
     zod.strictObject({
       admittedAt: zod.iso.datetime({ offset: true }),
-      commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
+      commandVersion: zod.enum(["1", "2"]),
       operation: zod.enum(["createFinanceSettlement"]),
       outcome: zod.union([
         zod.strictObject({

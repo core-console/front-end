@@ -4,9 +4,9 @@ import type {
   AccountResponse,
   CategoryResponse,
   FinanceTransactionResponseOutput,
-  SettlementResponse,
 } from "@/api/generated/schemas";
 import type { AdvanceSource } from "./advance-source";
+import type { SettlementSource } from "./settlement-source";
 import type {
   FinanceSubmission,
   CreateSubmissionCommand,
@@ -18,7 +18,7 @@ export type SubmitResult = {
   category?: CategoryResponse | undefined;
   transaction?: FinanceTransactionResponseOutput | undefined;
   advance?: AdvanceSource | undefined;
-  settlement?: SettlementResponse | undefined;
+  settlement?: SettlementSource | undefined;
   refreshing?: Promise<void>;
   message?: string;
 };

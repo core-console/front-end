@@ -76,6 +76,8 @@ async function api(
       body = [{ ...account, nature: liability ? "liability" : "asset" }];
     else if (path.endsWith("/participants"))
       body = [{ ...person, status: "archived" }];
+    else if (path.endsWith("/credits") || path.endsWith("/positions"))
+      body = [];
     else if (path.endsWith("/obligations"))
       body =
         confirmed || lookupCreated ? repaidObligations : outstandingObligations;

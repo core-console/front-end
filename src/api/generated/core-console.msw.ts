@@ -53,6 +53,9 @@ import type {
   CategorySubmissionReceipt,
   CategorySubmissionUnfinished,
   CategoryValidationResponse,
+  CreditOriginResponse,
+  CreditSettlementPreview,
+  CreditSettlementResponse,
   CurrencyResponse,
   ExpenseTransactionResponse,
   FinanceOverviewResponse,
@@ -72,6 +75,7 @@ import type {
   LedgerValidationResponse,
   MeResponse,
   ObligationResponse,
+  ParticipantPositionResponse,
   ParticipantResponse,
   ProblemDetails,
   ReplaceBalanceAdjustmentResultResponse,
@@ -4772,6 +4776,149 @@ export const getArchiveFinanceParticipantResponseMock503 = (
   ...overrideResponse,
 });
 
+export const getListFinanceParticipantCreditsResponseMock =
+  (): CreditOriginResponse[] =>
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      amount: { amount: "12.34", currency: "CNY" },
+      available: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      ledgerId: faker.string.uuid(),
+      liabilityAccountId: faker.string.uuid(),
+      participantId: faker.string.uuid(),
+      receivingAccountId: faker.string.uuid(),
+      settlementId: faker.string.uuid(),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionId: faker.string.uuid(),
+    }));
+
+export const getListFinanceParticipantCreditsResponseMock200 =
+  (): CreditOriginResponse[] =>
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      amount: { amount: "12.34", currency: "CNY" },
+      available: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      ledgerId: faker.string.uuid(),
+      liabilityAccountId: faker.string.uuid(),
+      participantId: faker.string.uuid(),
+      receivingAccountId: faker.string.uuid(),
+      settlementId: faker.string.uuid(),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionId: faker.string.uuid(),
+    }));
+
+export const getListFinanceParticipantCreditsResponseMock403 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getListFinanceParticipantCreditsResponseMock404 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getListFinanceParticipantCreditsResponseMock422 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getListFinanceParticipantCreditsResponseMock500 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getListFinanceParticipantCreditsResponseMock503 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
 export const getListFinanceParticipantObligationsResponseMock =
   (): ObligationResponse[] =>
     Array.from(
@@ -4915,75 +5062,298 @@ export const getListFinanceParticipantObligationsResponseMock503 = (
   ...overrideResponse,
 });
 
-export const getListFinanceParticipantSettlementsResponseMock =
-  (): SettlementResponse[] =>
+export const getGetFinanceParticipantPositionsResponseMock =
+  (): ParticipantPositionResponse[] =>
     Array.from(
       { length: faker.number.int({ min: 1, max: 10 }) },
       (_, i) => i + 1,
     ).map(() => ({
-      allocations: Array.from(
-        { length: faker.number.int({ min: 1, max: 10 }) },
-        (_, i) => i + 1,
-      ).map(() => ({
-        advanceId: faker.string.uuid(),
-        cashPaid: { amount: "12.34", currency: "CNY" },
-        obligationId: faker.string.uuid(),
-        position: faker.number.int(),
-        remainingAfter: { amount: "12.34", currency: "CNY" },
-        sourceDate: faker.date.past().toISOString().slice(0, 10),
-      })),
-      amount: { amount: "12.34", currency: "CNY" },
-      confirmationOrder: faker.number.int(),
-      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-      id: faker.string.uuid(),
-      ledgerId: faker.string.uuid(),
-      note: faker.helpers.arrayElement([
-        faker.string.alpha({ length: { min: 10, max: 20 } }),
-        null,
-      ]),
-      participantId: faker.string.uuid(),
-      receivingAccountId: faker.string.uuid(),
-      transactionDate: faker.date.past().toISOString().slice(0, 10),
-      transactionIds: Array.from(
-        { length: faker.number.int({ min: 1, max: 10 }) },
-        (_, i) => i + 1,
-      ).map(() => faker.string.uuid()),
+      availableCredits: { amount: "12.34", currency: "CNY" },
+      currency: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      netExposure: { amount: "12.34", currency: "CNY" },
+      outstandingReceivables: { amount: "12.34", currency: "CNY" },
     }));
 
-export const getListFinanceParticipantSettlementsResponseMock200 =
-  (): SettlementResponse[] =>
+export const getGetFinanceParticipantPositionsResponseMock200 =
+  (): ParticipantPositionResponse[] =>
     Array.from(
       { length: faker.number.int({ min: 1, max: 10 }) },
       (_, i) => i + 1,
     ).map(() => ({
-      allocations: Array.from(
-        { length: faker.number.int({ min: 1, max: 10 }) },
-        (_, i) => i + 1,
-      ).map(() => ({
-        advanceId: faker.string.uuid(),
-        cashPaid: { amount: "12.34", currency: "CNY" },
-        obligationId: faker.string.uuid(),
-        position: faker.number.int(),
-        remainingAfter: { amount: "12.34", currency: "CNY" },
-        sourceDate: faker.date.past().toISOString().slice(0, 10),
-      })),
-      amount: { amount: "12.34", currency: "CNY" },
-      confirmationOrder: faker.number.int(),
-      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-      id: faker.string.uuid(),
-      ledgerId: faker.string.uuid(),
-      note: faker.helpers.arrayElement([
-        faker.string.alpha({ length: { min: 10, max: 20 } }),
-        null,
-      ]),
-      participantId: faker.string.uuid(),
-      receivingAccountId: faker.string.uuid(),
-      transactionDate: faker.date.past().toISOString().slice(0, 10),
-      transactionIds: Array.from(
-        { length: faker.number.int({ min: 1, max: 10 }) },
-        (_, i) => i + 1,
-      ).map(() => faker.string.uuid()),
+      availableCredits: { amount: "12.34", currency: "CNY" },
+      currency: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      netExposure: { amount: "12.34", currency: "CNY" },
+      outstandingReceivables: { amount: "12.34", currency: "CNY" },
     }));
+
+export const getGetFinanceParticipantPositionsResponseMock403 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceParticipantPositionsResponseMock404 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceParticipantPositionsResponseMock422 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceParticipantPositionsResponseMock500 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceParticipantPositionsResponseMock503 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getListFinanceParticipantSettlementsResponseMock = (): (
+  CreditSettlementResponse | SettlementResponse
+)[] =>
+  Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() =>
+    faker.helpers.arrayElement([
+      {
+        allocations: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          advanceId: faker.string.uuid(),
+          cashPaid: { amount: "12.34", currency: "CNY" },
+          obligationId: faker.string.uuid(),
+          position: faker.number.int(),
+          remainingAfter: { amount: "12.34", currency: "CNY" },
+          sourceDate: faker.date.past().toISOString().slice(0, 10),
+        })),
+        amount: { amount: "12.34", currency: "CNY" },
+        confirmationOrder: faker.number.int(),
+        confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+        creditOrigin: {
+          amount: { amount: "12.34", currency: "CNY" },
+          available: { amount: "12.34", currency: "CNY" },
+          confirmationOrder: faker.number.int(),
+          confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          ledgerId: faker.string.uuid(),
+          liabilityAccountId: faker.string.uuid(),
+          participantId: faker.string.uuid(),
+          receivingAccountId: faker.string.uuid(),
+          settlementId: faker.string.uuid(),
+          transactionDate: faker.date.past().toISOString().slice(0, 10),
+          transactionId: faker.string.uuid(),
+        },
+        id: faker.string.uuid(),
+        ledgerId: faker.string.uuid(),
+        note: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        participantId: faker.string.uuid(),
+        receivingAccountId: faker.string.uuid(),
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionIds: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => faker.string.uuid()),
+      },
+      {
+        allocations: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          advanceId: faker.string.uuid(),
+          cashPaid: { amount: "12.34", currency: "CNY" },
+          obligationId: faker.string.uuid(),
+          position: faker.number.int(),
+          remainingAfter: { amount: "12.34", currency: "CNY" },
+          sourceDate: faker.date.past().toISOString().slice(0, 10),
+        })),
+        amount: { amount: "12.34", currency: "CNY" },
+        confirmationOrder: faker.number.int(),
+        confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+        id: faker.string.uuid(),
+        ledgerId: faker.string.uuid(),
+        note: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        participantId: faker.string.uuid(),
+        receivingAccountId: faker.string.uuid(),
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionIds: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => faker.string.uuid()),
+      },
+    ]),
+  );
+
+export const getListFinanceParticipantSettlementsResponseMock200 = (): (
+  CreditSettlementResponse | SettlementResponse
+)[] =>
+  Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() =>
+    faker.helpers.arrayElement([
+      {
+        allocations: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          advanceId: faker.string.uuid(),
+          cashPaid: { amount: "12.34", currency: "CNY" },
+          obligationId: faker.string.uuid(),
+          position: faker.number.int(),
+          remainingAfter: { amount: "12.34", currency: "CNY" },
+          sourceDate: faker.date.past().toISOString().slice(0, 10),
+        })),
+        amount: { amount: "12.34", currency: "CNY" },
+        confirmationOrder: faker.number.int(),
+        confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+        creditOrigin: {
+          amount: { amount: "12.34", currency: "CNY" },
+          available: { amount: "12.34", currency: "CNY" },
+          confirmationOrder: faker.number.int(),
+          confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          ledgerId: faker.string.uuid(),
+          liabilityAccountId: faker.string.uuid(),
+          participantId: faker.string.uuid(),
+          receivingAccountId: faker.string.uuid(),
+          settlementId: faker.string.uuid(),
+          transactionDate: faker.date.past().toISOString().slice(0, 10),
+          transactionId: faker.string.uuid(),
+        },
+        id: faker.string.uuid(),
+        ledgerId: faker.string.uuid(),
+        note: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        participantId: faker.string.uuid(),
+        receivingAccountId: faker.string.uuid(),
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionIds: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => faker.string.uuid()),
+      },
+      {
+        allocations: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          advanceId: faker.string.uuid(),
+          cashPaid: { amount: "12.34", currency: "CNY" },
+          obligationId: faker.string.uuid(),
+          position: faker.number.int(),
+          remainingAfter: { amount: "12.34", currency: "CNY" },
+          sourceDate: faker.date.past().toISOString().slice(0, 10),
+        })),
+        amount: { amount: "12.34", currency: "CNY" },
+        confirmationOrder: faker.number.int(),
+        confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+        id: faker.string.uuid(),
+        ledgerId: faker.string.uuid(),
+        note: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        participantId: faker.string.uuid(),
+        receivingAccountId: faker.string.uuid(),
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionIds: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => faker.string.uuid()),
+      },
+    ]),
+  );
 
 export const getListFinanceParticipantSettlementsResponseMock403 = (
   overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
@@ -5094,7 +5464,7 @@ export const getCreateFinanceSettlementResponseMock = (
   overrideResponse: Partial<Extract<SettlementCreatedReceipt, object>> = {},
 ): SettlementCreatedReceipt => ({
   admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-  commandVersion: "1",
+  commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
   operation: "createFinanceSettlement",
   outcome: {
     kind: "created",
@@ -5110,7 +5480,7 @@ export const getCreateFinanceSettlementResponseMock201 = (
   overrideResponse: Partial<Extract<SettlementCreatedReceipt, object>> = {},
 ): SettlementCreatedReceipt => ({
   admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-  commandVersion: "1",
+  commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
   operation: "createFinanceSettlement",
   outcome: {
     kind: "created",
@@ -5245,7 +5615,7 @@ export const getCreateFinanceSettlementResponseMock404 =
           attemptedBody: {
             [faker.string.alphanumeric(5)]: {},
           },
-          commandVersion: "1",
+          commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
           kind: "definitivelyNotAdmitted",
           operation: "createFinanceSettlement",
           ownerId: faker.string.uuid(),
@@ -5290,7 +5660,7 @@ export const getCreateFinanceSettlementResponseMock404 =
         status: faker.helpers.arrayElement([404, 409, 422] as const),
         submissionReceipt: {
           admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-          commandVersion: "1",
+          commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
           operation: "createFinanceSettlement",
           outcome: {
             kind: "rejected",
@@ -5350,7 +5720,7 @@ export const getCreateFinanceSettlementResponseMock409 =
           attemptedBody: {
             [faker.string.alphanumeric(5)]: {},
           },
-          commandVersion: "1",
+          commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
           kind: "definitivelyNotAdmitted",
           operation: "createFinanceSettlement",
           ownerId: faker.string.uuid(),
@@ -5395,7 +5765,7 @@ export const getCreateFinanceSettlementResponseMock409 =
         status: faker.helpers.arrayElement([404, 409, 422] as const),
         submissionReceipt: {
           admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-          commandVersion: "1",
+          commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
           operation: "createFinanceSettlement",
           outcome: {
             kind: "rejected",
@@ -5455,7 +5825,7 @@ export const getCreateFinanceSettlementResponseMock422 =
           attemptedBody: {
             [faker.string.alphanumeric(5)]: {},
           },
-          commandVersion: "1",
+          commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
           kind: "definitivelyNotAdmitted",
           operation: "createFinanceSettlement",
           ownerId: faker.string.uuid(),
@@ -5500,7 +5870,7 @@ export const getCreateFinanceSettlementResponseMock422 =
         status: faker.helpers.arrayElement([404, 409, 422] as const),
         submissionReceipt: {
           admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-          commandVersion: "1",
+          commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
           operation: "createFinanceSettlement",
           outcome: {
             kind: "rejected",
@@ -5567,51 +5937,97 @@ export const getCreateFinanceSettlementResponseMock503 = (
   ...overrideResponse,
 });
 
-export const getPreviewFinanceSettlementResponseMock = (
-  overrideResponse: Partial<Extract<SettlementPreview, object>> = {},
-): SettlementPreview => ({
-  allocations: Array.from(
-    { length: faker.number.int({ min: 1, max: 10 }) },
-    (_, i) => i + 1,
-  ).map(() => ({
-    advanceId: faker.string.uuid(),
-    cashPaid: { amount: "12.34", currency: "CNY" },
-    obligationId: faker.string.uuid(),
-    position: faker.number.int(),
-    remainingAfter: { amount: "12.34", currency: "CNY" },
-    sourceDate: faker.date.past().toISOString().slice(0, 10),
-  })),
-  amount: { amount: "12.34", currency: "CNY" },
-  outstandingAfter: { amount: "12.34", currency: "CNY" },
-  outstandingBefore: { amount: "12.34", currency: "CNY" },
-  previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
-  receivingBalance: { amount: "12.34", currency: "CNY" },
-  receivingBalanceAfter: { amount: "12.34", currency: "CNY" },
-  ...overrideResponse,
-});
+export const getPreviewFinanceSettlementResponseMock = ():
+  CreditSettlementPreview | SettlementPreview =>
+  faker.helpers.arrayElement([
+    {
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      availableCreditAfter: { amount: "12.34", currency: "CNY" },
+      availableCreditBefore: { amount: "12.34", currency: "CNY" },
+      outstandingAfter: { amount: "12.34", currency: "CNY" },
+      outstandingBefore: { amount: "12.34", currency: "CNY" },
+      previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      receivingBalance: { amount: "12.34", currency: "CNY" },
+      receivingBalanceAfter: { amount: "12.34", currency: "CNY" },
+      retainedCredit: { amount: "12.34", currency: "CNY" },
+    },
+    {
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      outstandingAfter: { amount: "12.34", currency: "CNY" },
+      outstandingBefore: { amount: "12.34", currency: "CNY" },
+      previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      receivingBalance: { amount: "12.34", currency: "CNY" },
+      receivingBalanceAfter: { amount: "12.34", currency: "CNY" },
+    },
+  ]);
 
-export const getPreviewFinanceSettlementResponseMock200 = (
-  overrideResponse: Partial<Extract<SettlementPreview, object>> = {},
-): SettlementPreview => ({
-  allocations: Array.from(
-    { length: faker.number.int({ min: 1, max: 10 }) },
-    (_, i) => i + 1,
-  ).map(() => ({
-    advanceId: faker.string.uuid(),
-    cashPaid: { amount: "12.34", currency: "CNY" },
-    obligationId: faker.string.uuid(),
-    position: faker.number.int(),
-    remainingAfter: { amount: "12.34", currency: "CNY" },
-    sourceDate: faker.date.past().toISOString().slice(0, 10),
-  })),
-  amount: { amount: "12.34", currency: "CNY" },
-  outstandingAfter: { amount: "12.34", currency: "CNY" },
-  outstandingBefore: { amount: "12.34", currency: "CNY" },
-  previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
-  receivingBalance: { amount: "12.34", currency: "CNY" },
-  receivingBalanceAfter: { amount: "12.34", currency: "CNY" },
-  ...overrideResponse,
-});
+export const getPreviewFinanceSettlementResponseMock200 = ():
+  CreditSettlementPreview | SettlementPreview =>
+  faker.helpers.arrayElement([
+    {
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      availableCreditAfter: { amount: "12.34", currency: "CNY" },
+      availableCreditBefore: { amount: "12.34", currency: "CNY" },
+      outstandingAfter: { amount: "12.34", currency: "CNY" },
+      outstandingBefore: { amount: "12.34", currency: "CNY" },
+      previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      receivingBalance: { amount: "12.34", currency: "CNY" },
+      receivingBalanceAfter: { amount: "12.34", currency: "CNY" },
+      retainedCredit: { amount: "12.34", currency: "CNY" },
+    },
+    {
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      outstandingAfter: { amount: "12.34", currency: "CNY" },
+      outstandingBefore: { amount: "12.34", currency: "CNY" },
+      previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      receivingBalance: { amount: "12.34", currency: "CNY" },
+      receivingBalanceAfter: { amount: "12.34", currency: "CNY" },
+    },
+  ]);
 
 export const getPreviewFinanceSettlementResponseMock403 = (
   overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
@@ -5739,71 +6155,157 @@ export const getPreviewFinanceSettlementResponseMock503 = (
   ...overrideResponse,
 });
 
-export const getGetFinanceSettlementResponseMock = (
-  overrideResponse: Partial<Extract<SettlementResponse, object>> = {},
-): SettlementResponse => ({
-  allocations: Array.from(
-    { length: faker.number.int({ min: 1, max: 10 }) },
-    (_, i) => i + 1,
-  ).map(() => ({
-    advanceId: faker.string.uuid(),
-    cashPaid: { amount: "12.34", currency: "CNY" },
-    obligationId: faker.string.uuid(),
-    position: faker.number.int(),
-    remainingAfter: { amount: "12.34", currency: "CNY" },
-    sourceDate: faker.date.past().toISOString().slice(0, 10),
-  })),
-  amount: { amount: "12.34", currency: "CNY" },
-  confirmationOrder: faker.number.int(),
-  confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-  id: faker.string.uuid(),
-  ledgerId: faker.string.uuid(),
-  note: faker.helpers.arrayElement([
-    faker.string.alpha({ length: { min: 10, max: 20 } }),
-    null,
-  ]),
-  participantId: faker.string.uuid(),
-  receivingAccountId: faker.string.uuid(),
-  transactionDate: faker.date.past().toISOString().slice(0, 10),
-  transactionIds: Array.from(
-    { length: faker.number.int({ min: 1, max: 10 }) },
-    (_, i) => i + 1,
-  ).map(() => faker.string.uuid()),
-  ...overrideResponse,
-});
+export const getGetFinanceSettlementResponseMock = ():
+  CreditSettlementResponse | SettlementResponse =>
+  faker.helpers.arrayElement([
+    {
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      creditOrigin: {
+        amount: { amount: "12.34", currency: "CNY" },
+        available: { amount: "12.34", currency: "CNY" },
+        confirmationOrder: faker.number.int(),
+        confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+        ledgerId: faker.string.uuid(),
+        liabilityAccountId: faker.string.uuid(),
+        participantId: faker.string.uuid(),
+        receivingAccountId: faker.string.uuid(),
+        settlementId: faker.string.uuid(),
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionId: faker.string.uuid(),
+      },
+      id: faker.string.uuid(),
+      ledgerId: faker.string.uuid(),
+      note: faker.helpers.arrayElement([
+        faker.string.alpha({ length: { min: 10, max: 20 } }),
+        null,
+      ]),
+      participantId: faker.string.uuid(),
+      receivingAccountId: faker.string.uuid(),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+    },
+    {
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      id: faker.string.uuid(),
+      ledgerId: faker.string.uuid(),
+      note: faker.helpers.arrayElement([
+        faker.string.alpha({ length: { min: 10, max: 20 } }),
+        null,
+      ]),
+      participantId: faker.string.uuid(),
+      receivingAccountId: faker.string.uuid(),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+    },
+  ]);
 
-export const getGetFinanceSettlementResponseMock200 = (
-  overrideResponse: Partial<Extract<SettlementResponse, object>> = {},
-): SettlementResponse => ({
-  allocations: Array.from(
-    { length: faker.number.int({ min: 1, max: 10 }) },
-    (_, i) => i + 1,
-  ).map(() => ({
-    advanceId: faker.string.uuid(),
-    cashPaid: { amount: "12.34", currency: "CNY" },
-    obligationId: faker.string.uuid(),
-    position: faker.number.int(),
-    remainingAfter: { amount: "12.34", currency: "CNY" },
-    sourceDate: faker.date.past().toISOString().slice(0, 10),
-  })),
-  amount: { amount: "12.34", currency: "CNY" },
-  confirmationOrder: faker.number.int(),
-  confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-  id: faker.string.uuid(),
-  ledgerId: faker.string.uuid(),
-  note: faker.helpers.arrayElement([
-    faker.string.alpha({ length: { min: 10, max: 20 } }),
-    null,
-  ]),
-  participantId: faker.string.uuid(),
-  receivingAccountId: faker.string.uuid(),
-  transactionDate: faker.date.past().toISOString().slice(0, 10),
-  transactionIds: Array.from(
-    { length: faker.number.int({ min: 1, max: 10 }) },
-    (_, i) => i + 1,
-  ).map(() => faker.string.uuid()),
-  ...overrideResponse,
-});
+export const getGetFinanceSettlementResponseMock200 = ():
+  CreditSettlementResponse | SettlementResponse =>
+  faker.helpers.arrayElement([
+    {
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      creditOrigin: {
+        amount: { amount: "12.34", currency: "CNY" },
+        available: { amount: "12.34", currency: "CNY" },
+        confirmationOrder: faker.number.int(),
+        confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+        ledgerId: faker.string.uuid(),
+        liabilityAccountId: faker.string.uuid(),
+        participantId: faker.string.uuid(),
+        receivingAccountId: faker.string.uuid(),
+        settlementId: faker.string.uuid(),
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionId: faker.string.uuid(),
+      },
+      id: faker.string.uuid(),
+      ledgerId: faker.string.uuid(),
+      note: faker.helpers.arrayElement([
+        faker.string.alpha({ length: { min: 10, max: 20 } }),
+        null,
+      ]),
+      participantId: faker.string.uuid(),
+      receivingAccountId: faker.string.uuid(),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+    },
+    {
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      id: faker.string.uuid(),
+      ledgerId: faker.string.uuid(),
+      note: faker.helpers.arrayElement([
+        faker.string.alpha({ length: { min: 10, max: 20 } }),
+        null,
+      ]),
+      participantId: faker.string.uuid(),
+      receivingAccountId: faker.string.uuid(),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+    },
+  ]);
 
 export const getGetFinanceSettlementResponseMock403 = (
   overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
@@ -7307,7 +7809,7 @@ export const getGetFinanceSubmissionResponseSettlementSubmissionUnfinishedMock =
   ): SettlementSubmissionUnfinished => ({
     ...{
       admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-      commandVersion: "1",
+      commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
       operation: faker.helpers.arrayElement([
         "createFinanceSettlement",
       ] as const),
@@ -7795,7 +8297,7 @@ export const getGetFinanceSubmissionResponseSettlementSubmissionReceiptMock = (
 ): SettlementSubmissionReceipt => ({
   ...{
     admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-    commandVersion: "1",
+    commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
     operation: faker.helpers.arrayElement(["createFinanceSettlement"] as const),
     outcome: faker.helpers.arrayElement([
       { ...getGetFinanceSubmissionResponseSettlementCreatedOutcomeMock() },
@@ -14048,6 +14550,189 @@ export const getArchiveFinanceParticipantMockHandler503 = (
   );
 };
 
+export const getListFinanceParticipantCreditsMockHandler = (
+  overrideResponse?:
+    | CreditOriginResponse[]
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<CreditOriginResponse[]> | CreditOriginResponse[]),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/participants/:participantId/credits",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListFinanceParticipantCreditsResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
+export const getListFinanceParticipantCreditsMockHandler200 = (
+  overrideResponse?:
+    | CreditOriginResponse[]
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<CreditOriginResponse[]> | CreditOriginResponse[]),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/participants/:participantId/credits",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListFinanceParticipantCreditsResponseMock200(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
+export const getListFinanceParticipantCreditsMockHandler403 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/participants/:participantId/credits",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListFinanceParticipantCreditsResponseMock403(),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getListFinanceParticipantCreditsMockHandler404 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/participants/:participantId/credits",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListFinanceParticipantCreditsResponseMock404(),
+        {
+          status: 404,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getListFinanceParticipantCreditsMockHandler422 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/participants/:participantId/credits",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListFinanceParticipantCreditsResponseMock422(),
+        {
+          status: 422,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getListFinanceParticipantCreditsMockHandler500 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/participants/:participantId/credits",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListFinanceParticipantCreditsResponseMock500(),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getListFinanceParticipantCreditsMockHandler503 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/participants/:participantId/credits",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListFinanceParticipantCreditsResponseMock503(),
+        {
+          status: 503,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
 export const getListFinanceParticipantObligationsMockHandler = (
   overrideResponse?:
     | ObligationResponse[]
@@ -14231,12 +14916,199 @@ export const getListFinanceParticipantObligationsMockHandler503 = (
   );
 };
 
-export const getListFinanceParticipantSettlementsMockHandler = (
+export const getGetFinanceParticipantPositionsMockHandler = (
   overrideResponse?:
-    | SettlementResponse[]
+    | ParticipantPositionResponse[]
     | ((
         info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<SettlementResponse[]> | SettlementResponse[]),
+      ) =>
+        Promise<ParticipantPositionResponse[]> | ParticipantPositionResponse[]),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/participants/:participantId/positions",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceParticipantPositionsResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceParticipantPositionsMockHandler200 = (
+  overrideResponse?:
+    | ParticipantPositionResponse[]
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) =>
+        Promise<ParticipantPositionResponse[]> | ParticipantPositionResponse[]),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/participants/:participantId/positions",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceParticipantPositionsResponseMock200(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceParticipantPositionsMockHandler403 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/participants/:participantId/positions",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceParticipantPositionsResponseMock403(),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceParticipantPositionsMockHandler404 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/participants/:participantId/positions",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceParticipantPositionsResponseMock404(),
+        {
+          status: 404,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceParticipantPositionsMockHandler422 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/participants/:participantId/positions",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceParticipantPositionsResponseMock422(),
+        {
+          status: 422,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceParticipantPositionsMockHandler500 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/participants/:participantId/positions",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceParticipantPositionsResponseMock500(),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceParticipantPositionsMockHandler503 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/participants/:participantId/positions",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceParticipantPositionsResponseMock503(),
+        {
+          status: 503,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getListFinanceParticipantSettlementsMockHandler = (
+  overrideResponse?:
+    | (CreditSettlementResponse | SettlementResponse)[]
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) =>
+        | Promise<(CreditSettlementResponse | SettlementResponse)[]>
+        | (CreditSettlementResponse | SettlementResponse)[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
@@ -14257,10 +15129,12 @@ export const getListFinanceParticipantSettlementsMockHandler = (
 
 export const getListFinanceParticipantSettlementsMockHandler200 = (
   overrideResponse?:
-    | SettlementResponse[]
+    | (CreditSettlementResponse | SettlementResponse)[]
     | ((
         info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<SettlementResponse[]> | SettlementResponse[]),
+      ) =>
+        | Promise<(CreditSettlementResponse | SettlementResponse)[]>
+        | (CreditSettlementResponse | SettlementResponse)[]),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
@@ -14653,10 +15527,14 @@ export const getCreateFinanceSettlementMockHandler503 = (
 
 export const getPreviewFinanceSettlementMockHandler = (
   overrideResponse?:
+    | CreditSettlementPreview
     | SettlementPreview
     | ((
         info: Parameters<Parameters<typeof http.post>[1]>[0],
-      ) => Promise<SettlementPreview> | SettlementPreview),
+      ) =>
+        | Promise<CreditSettlementPreview | SettlementPreview>
+        | CreditSettlementPreview
+        | SettlementPreview),
   options?: RequestHandlerOptions,
 ) => {
   return http.post(
@@ -14677,10 +15555,14 @@ export const getPreviewFinanceSettlementMockHandler = (
 
 export const getPreviewFinanceSettlementMockHandler200 = (
   overrideResponse?:
+    | CreditSettlementPreview
     | SettlementPreview
     | ((
         info: Parameters<Parameters<typeof http.post>[1]>[0],
-      ) => Promise<SettlementPreview> | SettlementPreview),
+      ) =>
+        | Promise<CreditSettlementPreview | SettlementPreview>
+        | CreditSettlementPreview
+        | SettlementPreview),
   options?: RequestHandlerOptions,
 ) => {
   return http.post(
@@ -14863,10 +15745,14 @@ export const getPreviewFinanceSettlementMockHandler503 = (
 
 export const getGetFinanceSettlementMockHandler = (
   overrideResponse?:
+    | CreditSettlementResponse
     | SettlementResponse
     | ((
         info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<SettlementResponse> | SettlementResponse),
+      ) =>
+        | Promise<CreditSettlementResponse | SettlementResponse>
+        | CreditSettlementResponse
+        | SettlementResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
@@ -14887,10 +15773,14 @@ export const getGetFinanceSettlementMockHandler = (
 
 export const getGetFinanceSettlementMockHandler200 = (
   overrideResponse?:
+    | CreditSettlementResponse
     | SettlementResponse
     | ((
         info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<SettlementResponse> | SettlementResponse),
+      ) =>
+        | Promise<CreditSettlementResponse | SettlementResponse>
+        | CreditSettlementResponse
+        | SettlementResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
@@ -17394,7 +18284,9 @@ export const getCoreConsoleAPIMock = () => [
   getGetFinanceParticipantMockHandler(),
   getRenameFinanceParticipantMockHandler(),
   getArchiveFinanceParticipantMockHandler(),
+  getListFinanceParticipantCreditsMockHandler(),
   getListFinanceParticipantObligationsMockHandler(),
+  getGetFinanceParticipantPositionsMockHandler(),
   getListFinanceParticipantSettlementsMockHandler(),
   getCreateFinanceSettlementMockHandler(),
   getPreviewFinanceSettlementMockHandler(),

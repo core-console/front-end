@@ -141,13 +141,19 @@ const recordSchema = z
     recordsFor(transactionCommand.shape, z.literal("1")),
     recordsFor(adjustmentCommand.shape, z.literal("1")),
     recordsFor(advanceCommand.shape, z.enum(["1", "2"])),
-    recordsFor(settlementCommand.shape, z.literal("1")),
+    recordsFor(settlementCommand.shape, z.enum(["1", "2"])),
   ])
   .refine(
     (record) =>
       record.operation !== "createFinanceAdvance" ||
       (record.commandVersion === "2") === "participantShares" in record.body,
     "Advance grammar does not match its command version.",
+  )
+  .refine(
+    (record) =>
+      record.operation !== "createFinanceSettlement" ||
+      (record.commandVersion === "2") === "excessDisposition" in record.body,
+    "Settlement grammar does not match its command version.",
   )
   .refine(
     (record) =>
@@ -416,8 +422,10 @@ export async function prepareSubmission(
     localSchemaVersion: 1,
     submissionId,
     commandVersion:
-      command.operation === "createFinanceAdvance" &&
-      "participantShares" in command.body
+      (command.operation === "createFinanceAdvance" &&
+        "participantShares" in command.body) ||
+      (command.operation === "createFinanceSettlement" &&
+        "excessDisposition" in command.body)
         ? "2"
         : "1",
     ...structuredClone(command),

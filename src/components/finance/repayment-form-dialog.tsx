@@ -9,6 +9,7 @@ import { usePreviewFinanceSettlement } from "@/api/generated/core-console";
 import {
   PreviewFinanceSettlementBody,
   SettlementPreview,
+  CreditSettlementPreview,
   FinanceRequestDate,
   type AccountResponse,
   type CurrencyResponse,
@@ -76,12 +77,13 @@ export function RepaymentFormDialog({
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(today);
   const [note, setNote] = useState("");
+  const [retainCredit, setRetainCredit] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [storedReview, setReview] = useState<{
     draft: PreviewFinanceSettlementBody;
-    preview: SettlementPreview;
+    preview: SettlementPreview | CreditSettlementPreview;
   } | null>(null);
   const preview = usePreviewFinanceSettlement({ mutation: { retry: false } });
   const first = useRef<HTMLSelectElement>(null);
@@ -140,7 +142,7 @@ export function RepaymentFormDialog({
     const invalid: Record<string, string> = {};
     if (!participants.some((item) => item.id === participantId))
       invalid.participant =
-        "Choose a Participant in this Ledger. Archived Participants may repay existing debt.";
+        "Choose a Participant in this Ledger. Archived Participants may record receipts.";
     if (!account || !currency)
       invalid.receiving =
         "Choose an active receiving Account with an available currency.";
@@ -170,12 +172,19 @@ export function RepaymentFormDialog({
       transactionDate: date,
       amount: { amount, currency: account.currency },
       note: note || null,
+      ...(retainCredit ? { excessDisposition: "retainCredit" } : {}),
     });
     setError("");
     try {
       const response = await preview.mutateAsync({ ledgerId, data: draft });
       if (journal.isCurrentNamespace())
-        setReview({ draft, preview: SettlementPreview.parse(response.data) });
+        setReview({
+          draft,
+          preview: (retainCredit
+            ? CreditSettlementPreview
+            : SettlementPreview
+          ).parse(response.data),
+        });
     } catch {
       setError(
         "Preview could not be loaded. Check the receiving Account, currency, date and eligible outstanding debt, then refresh dependencies and try again. Nothing was confirmed.",
@@ -183,6 +192,28 @@ export function RepaymentFormDialog({
     }
   }
   const fields = [
+    {
+      id: "disposition",
+      label: "Surplus handling",
+      control: (
+        <NativeSelect
+          id="repayment-disposition"
+          value={retainCredit ? "retainCredit" : "repayOnly"}
+          aria-describedby="repayment-disposition-help"
+          onChange={(event) => {
+            edit();
+            setRetainCredit(event.target.value === "retainCredit");
+          }}
+        >
+          <NativeSelectOption value="repayOnly">
+            Repay debt only (no surplus)
+          </NativeSelectOption>
+          <NativeSelectOption value="retainCredit">
+            Retain surplus as Participant credit
+          </NativeSelectOption>
+        </NativeSelect>
+      ),
+    },
     {
       id: "participant",
       label: "Participant",
@@ -305,7 +336,9 @@ export function RepaymentFormDialog({
           <DialogDescription>
             One Participant and currency. Cash applies to all eligible
             outstanding Obligations, oldest Advance date first. Future-dated
-            recording affects Current Balance immediately.
+            recording affects Current Balance immediately. Choose retained
+            credit explicitly to receive surplus or record a receipt without
+            eligible debt.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -322,6 +355,17 @@ export function RepaymentFormDialog({
                       {field.label}
                     </FieldLabel>
                     {field.control}
+                    {field.id === "disposition" ? (
+                      <p
+                        id="repayment-disposition-help"
+                        className="text-sm text-muted-foreground"
+                      >
+                        Retained surplus is a Liability owed to the Participant,
+                        not Income. Cash first pays all eligible debt; any
+                        remainder stays as credit. Existing credit is never
+                        applied automatically.
+                      </p>
+                    ) : null}
                     {errors[field.id] ? (
                       <FieldError id={`repayment-${field.id}-error`}>
                         {errors[field.id]}
@@ -371,6 +415,14 @@ export function RepaymentFormDialog({
                 . Principal receipt creates no Income or Expense. No forgiveness
                 or credit is applied.
               </p>
+              {"retainedCredit" in review.preview ? (
+                <p>
+                  Retained credit creates no Income or Expense. The full receipt
+                  changes the receiving balance; retained surplus increases the
+                  Participant credit Liability. Existing credit remains
+                  unapplied.
+                </p>
+              ) : null}
               <p>
                 Only Advances dated on or before {review.draft.transactionDate}{" "}
                 in {review.draft.amount.currency} are eligible. Same-date ties
@@ -400,6 +452,37 @@ export function RepaymentFormDialog({
                   </div>
                 ))}
               </dl>
+              {"retainedCredit" in review.preview ? (
+                <dl className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      [
+                        "Retained credit Liability",
+                        review.preview.retainedCredit,
+                      ],
+                      [
+                        "Available credit before",
+                        review.preview.availableCreditBefore,
+                      ],
+                      [
+                        "Available credit after",
+                        review.preview.availableCreditAfter,
+                      ],
+                    ] as const
+                  ).map(([label, value]) => (
+                    <div key={label}>
+                      <dt>{label}</dt>
+                      <dd>{formatFinanceMoney(value)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+              {review.preview.allocations.length === 0 ? (
+                <p>
+                  No eligible debt is paid. No Obligation is created and no
+                  prior forgiveness is reversed.
+                </p>
+              ) : null}
               <SettlementAllocations
                 allocations={review.preview.allocations}
                 ledgerId={ledgerId}

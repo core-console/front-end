@@ -58,6 +58,9 @@ import type {
   CreateFinanceTransactionBody,
   CreateFinanceTransactionHeaders,
   CreateUserRequest,
+  CreditOriginResponse,
+  CreditSettlementPreview,
+  CreditSettlementResponse,
   CurrencyResponse,
   FinanceOverviewResponse,
   FinanceSubmissionResponse,
@@ -74,6 +77,7 @@ import type {
   MeResponse,
   ObligationResponse,
   ParticipantNameRequest,
+  ParticipantPositionResponse,
   ParticipantResponse,
   PreviewFinanceSettlementBody,
   ProblemDetails,
@@ -5742,6 +5746,275 @@ export const useArchiveFinanceParticipant = <
   );
 };
 
+export type listFinanceParticipantCreditsResponse200 = {
+  data: CreditOriginResponse[];
+  status: 200;
+};
+
+export type listFinanceParticipantCreditsResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type listFinanceParticipantCreditsResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type listFinanceParticipantCreditsResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type listFinanceParticipantCreditsResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type listFinanceParticipantCreditsResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type listFinanceParticipantCreditsResponseSuccess =
+  listFinanceParticipantCreditsResponse200 & {
+    headers: Headers;
+  };
+export type listFinanceParticipantCreditsResponseError = (
+  | listFinanceParticipantCreditsResponse403
+  | listFinanceParticipantCreditsResponse404
+  | listFinanceParticipantCreditsResponse422
+  | listFinanceParticipantCreditsResponse500
+  | listFinanceParticipantCreditsResponse503
+) & {
+  headers: Headers;
+};
+
+export const getListFinanceParticipantCreditsUrl = (
+  ledgerId: string,
+  participantId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/participants/${participantId}/credits`;
+};
+
+/**
+ * Receipt-backed credit origins in immutable receipt confirmation order. Financial event dates do not change origin ordering; credit use and return are not supported.
+ * @summary Get Credits
+ */
+export const listFinanceParticipantCredits = async (
+  ledgerId: string,
+  participantId: string,
+  options?: RequestInit,
+): Promise<listFinanceParticipantCreditsResponseSuccess> => {
+  const res = await fetch(
+    getListFinanceParticipantCreditsUrl(ledgerId, participantId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: listFinanceParticipantCreditsResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: listFinanceParticipantCreditsResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: listFinanceParticipantCreditsResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as listFinanceParticipantCreditsResponseSuccess;
+};
+
+export const getListFinanceParticipantCreditsQueryKey = (
+  ledgerId: string,
+  participantId: string,
+) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/participants/${participantId}/credits`,
+  ] as const;
+};
+
+export const getListFinanceParticipantCreditsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFinanceParticipantCredits>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipantCredits>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListFinanceParticipantCreditsQueryKey(ledgerId, participantId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listFinanceParticipantCredits>>
+  > = ({ signal }) =>
+    listFinanceParticipantCredits(ledgerId, participantId, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      ledgerId !== null &&
+      ledgerId !== undefined &&
+      participantId !== null &&
+      participantId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFinanceParticipantCredits>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListFinanceParticipantCreditsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFinanceParticipantCredits>>
+>;
+export type ListFinanceParticipantCreditsQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useListFinanceParticipantCredits<
+  TData = Awaited<ReturnType<typeof listFinanceParticipantCredits>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipantCredits>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceParticipantCredits>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceParticipantCredits>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceParticipantCredits<
+  TData = Awaited<ReturnType<typeof listFinanceParticipantCredits>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipantCredits>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceParticipantCredits>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceParticipantCredits>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceParticipantCredits<
+  TData = Awaited<ReturnType<typeof listFinanceParticipantCredits>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipantCredits>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Get Credits
+ */
+
+export function useListFinanceParticipantCredits<
+  TData = Awaited<ReturnType<typeof listFinanceParticipantCredits>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceParticipantCredits>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListFinanceParticipantCreditsQueryOptions(
+    ledgerId,
+    participantId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
 export type listFinanceParticipantObligationsResponse200 = {
   data: ObligationResponse[];
   status: 200;
@@ -6010,8 +6283,277 @@ export function useListFinanceParticipantObligations<
   return withQueryKey(query, queryOptions.queryKey);
 }
 
+export type getFinanceParticipantPositionsResponse200 = {
+  data: ParticipantPositionResponse[];
+  status: 200;
+};
+
+export type getFinanceParticipantPositionsResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type getFinanceParticipantPositionsResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type getFinanceParticipantPositionsResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type getFinanceParticipantPositionsResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type getFinanceParticipantPositionsResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type getFinanceParticipantPositionsResponseSuccess =
+  getFinanceParticipantPositionsResponse200 & {
+    headers: Headers;
+  };
+export type getFinanceParticipantPositionsResponseError = (
+  | getFinanceParticipantPositionsResponse403
+  | getFinanceParticipantPositionsResponse404
+  | getFinanceParticipantPositionsResponse422
+  | getFinanceParticipantPositionsResponse500
+  | getFinanceParticipantPositionsResponse503
+) & {
+  headers: Headers;
+};
+
+export const getGetFinanceParticipantPositionsUrl = (
+  ledgerId: string,
+  participantId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/participants/${participantId}/positions`;
+};
+
+/**
+ * Gross outstanding receivables and available credits separately by currency, with net exposure as an additional summary. Creating an Advance never consumes credit.
+ * @summary Get Positions
+ */
+export const getFinanceParticipantPositions = async (
+  ledgerId: string,
+  participantId: string,
+  options?: RequestInit,
+): Promise<getFinanceParticipantPositionsResponseSuccess> => {
+  const res = await fetch(
+    getGetFinanceParticipantPositionsUrl(ledgerId, participantId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: getFinanceParticipantPositionsResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: getFinanceParticipantPositionsResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: getFinanceParticipantPositionsResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getFinanceParticipantPositionsResponseSuccess;
+};
+
+export const getGetFinanceParticipantPositionsQueryKey = (
+  ledgerId: string,
+  participantId: string,
+) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/participants/${participantId}/positions`,
+  ] as const;
+};
+
+export const getGetFinanceParticipantPositionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFinanceParticipantPositions>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceParticipantPositions>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetFinanceParticipantPositionsQueryKey(ledgerId, participantId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getFinanceParticipantPositions>>
+  > = ({ signal }) =>
+    getFinanceParticipantPositions(ledgerId, participantId, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      ledgerId !== null &&
+      ledgerId !== undefined &&
+      participantId !== null &&
+      participantId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFinanceParticipantPositions>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetFinanceParticipantPositionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFinanceParticipantPositions>>
+>;
+export type GetFinanceParticipantPositionsQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useGetFinanceParticipantPositions<
+  TData = Awaited<ReturnType<typeof getFinanceParticipantPositions>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceParticipantPositions>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFinanceParticipantPositions>>,
+          TError,
+          Awaited<ReturnType<typeof getFinanceParticipantPositions>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetFinanceParticipantPositions<
+  TData = Awaited<ReturnType<typeof getFinanceParticipantPositions>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceParticipantPositions>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFinanceParticipantPositions>>,
+          TError,
+          Awaited<ReturnType<typeof getFinanceParticipantPositions>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetFinanceParticipantPositions<
+  TData = Awaited<ReturnType<typeof getFinanceParticipantPositions>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceParticipantPositions>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Get Positions
+ */
+
+export function useGetFinanceParticipantPositions<
+  TData = Awaited<ReturnType<typeof getFinanceParticipantPositions>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  participantId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceParticipantPositions>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetFinanceParticipantPositionsQueryOptions(
+    ledgerId,
+    participantId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
 export type listFinanceParticipantSettlementsResponse200 = {
-  data: SettlementResponse[];
+  data: (CreditSettlementResponse | SettlementResponse)[];
   status: 200;
 };
 
@@ -6339,7 +6881,7 @@ export const getCreateFinanceSettlementUrl = (ledgerId: string) => {
 };
 
 /**
- * Confirm one participant's accumulated cash repayment. Version 1 requires the matching previewToken and allocates all eligible debt oldest Advance date first. No selected subset, forgiveness, surplus or credit disposition is accepted. Prepare one immutable submission identity before dispatch; recover under that same identity using getFinanceSubmission or an explicit retry.
+ * Confirm one participant's accumulated cash repayment. Version 1 requires the matching previewToken and allocates all eligible debt oldest Advance date first. Version 2 requires excessDisposition=retainCredit and records any unallocated actual receipt as a participant credit Liability, including without eligible debt. No selected subset, forgiveness, Income disposition or credit use is accepted. Prepare one immutable submission identity before dispatch; recover under that same identity using getFinanceSubmission or an explicit retry.
  * @summary Post Settlement
  */
 export const createFinanceSettlement = async (
@@ -6490,7 +7032,7 @@ export const useCreateFinanceSettlement = <
 };
 
 export type previewFinanceSettlementResponse200 = {
-  data: SettlementPreview;
+  data: CreditSettlementPreview | SettlementPreview;
   status: 200;
 };
 
@@ -6686,7 +7228,7 @@ export const usePreviewFinanceSettlement = <
 };
 
 export type getFinanceSettlementResponse200 = {
-  data: SettlementResponse;
+  data: CreditSettlementResponse | SettlementResponse;
   status: 200;
 };
 

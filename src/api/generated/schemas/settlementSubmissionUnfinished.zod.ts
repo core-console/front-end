@@ -9,7 +9,7 @@ import * as zod from "zod";
 
 export const SettlementSubmissionUnfinished = zod.strictObject({
   admittedAt: zod.iso.datetime({ offset: true }),
-  commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
+  commandVersion: zod.enum(["1", "2"]),
   operation: zod.enum(["createFinanceSettlement"]),
   state: zod.literal("unfinished").meta({ title: "State" }),
   submissionId: zod.uuid(),

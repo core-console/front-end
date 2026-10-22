@@ -92,6 +92,7 @@ const financeOperationIds = [
   "getFinanceSettlement",
   "getFinanceOverview",
   "getFinanceParticipant",
+  "getFinanceParticipantPositions",
   "getFinanceSubmission",
   "getFinanceTransaction",
   "listFinanceAccounts",
@@ -99,6 +100,7 @@ const financeOperationIds = [
   "listFinanceCurrencies",
   "listFinanceLedgers",
   "listFinanceParticipantObligations",
+  "listFinanceParticipantCredits",
   "listFinanceParticipantSettlements",
   "listFinanceParticipants",
   "listFinanceTransactions",
@@ -222,7 +224,7 @@ describe("generated Finance API boundary", () => {
     ).toBe(false);
   });
 
-  it("contains the Finance v1, Participant and pure Advance operation surface", () => {
+  it("contains the Finance v1 and delivered Finance v2 operation surface", () => {
     expect(
       financeOperations.map(({ operationId }) => operationId).sort(),
     ).toEqual(financeOperationIds);

@@ -12,8 +12,8 @@ import { seedMockData } from "@/mocks/seed";
 type ResponseSchema = {
   $ref?: string;
   type?: string;
-  items?: { $ref: string };
-  anyOf?: { $ref: string }[];
+  items?: ResponseSchema;
+  anyOf?: ResponseSchema[];
 };
 type Operation = {
   operationId: string;
@@ -57,9 +57,8 @@ it.each(cases)(
       seedMockData();
       expect(factory!()).toEqual(fixture);
       const schema = media[1].schema;
-      const variants = schema.anyOf ?? [
-        schema.type === "array" ? schema.items! : schema,
-      ];
+      const itemSchema = schema.type === "array" ? schema.items! : schema;
+      const variants = itemSchema.anyOf ?? [itemSchema];
       const validators = variants.map(
         (variant) => responseSchemas[variant.$ref!.split("/").at(-1)!]!,
       );

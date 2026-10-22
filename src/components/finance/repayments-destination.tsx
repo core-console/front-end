@@ -13,13 +13,16 @@ import {
   AccountResponse,
   ParticipantResponse,
   CurrencyResponse,
-  SettlementResponse,
 } from "@/api/generated/schemas";
 import { useFinanceSubmissions } from "./finance-submission-context";
 import { RepaymentFormDialog } from "./repayment-form-dialog";
 import { ParticipantObligations } from "./participant-obligations";
+import { ParticipantCredits } from "./participant-credits";
 import { SettlementAllocations } from "./settlement-allocations";
-import { parseSettlementSource } from "./settlement-source";
+import {
+  parseSettlementSource,
+  settlementSourceSchema,
+} from "./settlement-source";
 import { formatFinanceMoney } from "./finance-money";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
@@ -98,6 +101,22 @@ function SettlementDetail({
               ],
               ["Receipt date", item.transactionDate],
               ["Cash received", formatFinanceMoney(item.amount)],
+              ...("creditOrigin" in item
+                ? [
+                    [
+                      "Retained credit Liability",
+                      formatFinanceMoney(item.creditOrigin.amount),
+                    ],
+                    [
+                      "Available from this receipt",
+                      formatFinanceMoney(item.creditOrigin.available),
+                    ],
+                    [
+                      "Credit Liability Account",
+                      item.creditOrigin.liabilityAccountId,
+                    ],
+                  ]
+                : []),
               ["Confirmed at", item.confirmedAt],
               ["Confirmation order", String(item.confirmationOrder)],
               ["Note", item.note || "—"],
@@ -114,6 +133,12 @@ function SettlementDetail({
             not redistribute this receipt. Principal creates no Income or
             Expense; no forgiveness or credit is applied.
           </p>
+          {"creditOrigin" in item ? (
+            <p>
+              Retained credit is owed to the Participant. The full receipt is
+              preserved; no Income or Expense is created.
+            </p>
+          ) : null}
           <SettlementAllocations
             confirmed
             allocations={item.allocations}
@@ -150,7 +175,8 @@ function RepaymentHistory({
   const query = useListFinanceParticipantSettlements(ledgerId, participantId, {
     query: {
       select: (response) =>
-        SettlementResponse.array()
+        settlementSourceSchema
+          .array()
           .refine((items) =>
             items.every(
               (item) =>
@@ -275,7 +301,8 @@ export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
       <p className="text-sm text-muted-foreground">
         Record accumulated or partial cash repayments. Allocate
         deterministically across all eligible debt in one currency, oldest
-        Advance date first.
+        Advance date first. Explicitly retain surplus as Participant credit,
+        including receipts without eligible debt.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button
@@ -364,6 +391,11 @@ export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
       ) : null}
       {person.valid && selected ? (
         <>
+          <ParticipantCredits
+            key={`credits-${selected.id}`}
+            ledgerId={ledgerId}
+            participantId={selected.id}
+          />
           <RepaymentHistory
             key={`history-${selected.id}`}
             ledgerId={ledgerId}

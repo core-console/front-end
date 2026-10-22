@@ -18,6 +18,58 @@ const namespace = {
   ownerId: "edb4ee80-17c6-46b5-863e-2afa18e84043",
 };
 
+it("retains version 2 credit receipts beside original version 1 repayments and rejects mismatched evidence", async () => {
+  globalThis.indexedDB = new IDBFactory();
+  const body = {
+    participantId: "22222222-2222-4222-8222-222222222222",
+    receivingAccountId: "33333333-3333-4333-8333-333333333333",
+    amount: { amount: "102", currency: "CNY" as const },
+    transactionDate: "2026-10-22",
+    previewToken: "a".repeat(64),
+    note: null,
+  };
+  const command = {
+    operation: "createFinanceSettlement" as const,
+    targetLedgerId: "11111111-1111-4111-8111-111111111111",
+    workflow: "settlement" as const,
+    body,
+  };
+  const original = await prepareSubmission(namespace, command);
+  const credit = await prepareSubmission(namespace, {
+    ...command,
+    body: { ...body, excessDisposition: "retainCredit" },
+  });
+  expect(original.commandVersion).toBe("1");
+  expect(credit.commandVersion).toBe("2");
+  body.amount.amount = "1";
+  expect(await readSubmission(credit)).toMatchObject({
+    commandVersion: "2",
+    body: { amount: { amount: "102" }, excessDisposition: "retainCredit" },
+  });
+  const receipt = {
+    submissionId: credit.submissionId,
+    operation: "createFinanceSettlement" as const,
+    commandVersion: "2" as const,
+    targetLedgerId: command.targetLedgerId,
+    admittedAt: "2026-10-22T00:00:00Z",
+    resolvedAt: "2026-10-22T00:00:01Z",
+    outcome: {
+      kind: "created" as const,
+      resource: { type: "settlement" as const, id: crypto.randomUUID() },
+    },
+  };
+  await expect(
+    resolveSubmission(credit, {
+      kind: "receipt",
+      receipt: { ...receipt, commandVersion: "1" },
+    }),
+  ).rejects.toThrow(/does not match/);
+  expect((await readSubmission(credit))?.state).toBe("unresolved");
+  await resolveSubmission(credit, { kind: "receipt", receipt });
+  expect((await readSubmission(credit))?.state).toBe("resolved");
+  expect((await readSubmission(original))?.state).toBe("unresolved");
+});
+
 describe("durable Finance submissions", () => {
   beforeEach(() => {
     globalThis.indexedDB = new IDBFactory();

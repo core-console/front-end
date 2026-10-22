@@ -209,6 +209,42 @@ establish PostgreSQL effects or delivered P+C acceptance for
 [Issue #29](https://github.com/core-console/back-end/issues/29). Repayment,
 forgiveness and correction workflows remain outside the T03 consumer.
 
+## Finance v2 retained surplus and receipt-backed credit (T05)
+
+The synchronized backend producer is
+`ed11927a3baccbbef7734911af492f4f474c4ea0`. The existing repayment form offers
+an explicit retain-credit choice. Its version 2 Settlement applies cash to all
+eligible debt first and retains the remainder as a receipt-backed Liability,
+including when no eligible debt exists. The default version 1 repayment remains
+available. Preview shows the full receiving Account effect, debt Allocations,
+retained credit and available credit before/after; neither path applies existing
+credit or creates Income or Expense.
+
+Participant repayment inspection shows gross receivables, available credits and
+net exposure separately per currency, alongside Obligations, chronological cash
+history and credit origins in immutable receipt confirmation order. Origins link
+to their actual Settlement and Internal Transfer and identify the receiving and
+Liability Accounts. Creating another Advance does not consume credit.
+
+Version 2 uses the existing durable submission journal, preserving the original
+owner, Ledger, version, key and body for lookup/retry. A missing lookup, uncertain
+response or failed source refresh cannot authorize a second receipt. Correlated
+stale rejection requires a refreshed preview and deliberate new confirmation.
+Existing version 1 Settlement and T01–T04 recovery remain supported.
+
+The [T05 producer note](https://github.com/core-console/back-end/blob/ed11927a3baccbbef7734911af492f4f474c4ea0/docs/finance-v2-retained-credit-t05.md)
+and [immutable product specification](https://github.com/core-console/back-end/blob/e206bdd5af48a3f6b3b9b525c27fa6178220bdc7/docs/finance-v2-personal-receivable-settlement-spec.md)
+own the financial meanings. Accepting surplus as Income, applying or returning
+credit, selected-Obligation settlement, forgiveness and Corrections remain
+separate slices. Managed-credit reconciliation is enforced by the backend;
+ordinary Account edits, manual entries, Adjustments and linked Transaction
+changes cannot independently change its tracked financial position.
+
+Frontend fixture and production-preview tests establish consumer behavior only.
+Real guarded PostgreSQL and matching delivered producer/consumer acceptance,
+consumer delivery and authorized [Issue #31](https://github.com/core-console/back-end/issues/31)
+closure remain separate steps.
+
 ## Finance v2 accumulated and partial cash repayments (T04)
 
 The current synchronized OpenAPI producer is

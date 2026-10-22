@@ -23,6 +23,8 @@ import {
   getFinanceSettlement,
   getGetFinanceSettlementQueryKey,
   getListFinanceParticipantSettlementsQueryKey,
+  getGetFinanceParticipantPositionsQueryKey,
+  getListFinanceParticipantCreditsQueryKey,
   getFinanceAdvance,
   getGetFinanceAdvanceQueryKey,
   getListFinanceParticipantObligationsQueryKey,
@@ -329,6 +331,14 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
                   record.targetLedgerId,
                   record.body.participantId,
                 ),
+                getGetFinanceParticipantPositionsQueryKey(
+                  record.targetLedgerId,
+                  record.body.participantId,
+                ),
+                getListFinanceParticipantCreditsQueryKey(
+                  record.targetLedgerId,
+                  record.body.participantId,
+                ),
                 getListFinanceAccountsQueryKey(record.targetLedgerId),
                 getListFinanceTransactionsQueryKey(record.targetLedgerId),
                 getGetFinanceOverviewQueryKey(record.targetLedgerId),
@@ -385,13 +395,19 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
                     (share) => share.participantId,
                   )
                 : [record.body.participantId]
-              ).map((participantId) =>
-                queryClient.invalidateQueries({
-                  queryKey: getListFinanceParticipantObligationsQueryKey(
+              ).flatMap((participantId) =>
+                [
+                  getListFinanceParticipantObligationsQueryKey(
                     record.targetLedgerId,
                     participantId,
                   ),
-                }),
+                  getGetFinanceParticipantPositionsQueryKey(
+                    record.targetLedgerId,
+                    participantId,
+                  ),
+                ].map((queryKey) =>
+                  queryClient.invalidateQueries({ queryKey }),
+                ),
               ),
               queryClient.invalidateQueries({
                 queryKey: getListFinanceAccountsQueryKey(record.targetLedgerId),

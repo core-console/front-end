@@ -144,11 +144,18 @@ export function ParticipantsDestination({
                       </p>
                     ) : null}
                     <Link
-                      className="block text-sm underline underline-offset-4"
+                      className="block min-h-6 text-sm underline underline-offset-4"
                       aria-label={`View receivables for ${label}`}
                       to={`/finance/advances?ledger=${ledgerId}&participant_id=${item.id}`}
                     >
                       Receivables
+                    </Link>
+                    <Link
+                      className="block min-h-6 text-sm underline underline-offset-4"
+                      aria-label={`View credits and receipts for ${label}`}
+                      to={`/finance/repayments?ledger=${ledgerId}&participant_id=${item.id}`}
+                    >
+                      Credits and receipts
                     </Link>
                   </TableCell>
                   <TableCell>
