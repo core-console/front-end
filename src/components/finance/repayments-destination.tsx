@@ -155,6 +155,16 @@ function SettlementDetail({
               Category classification.
             </p>
           ) : null}
+          {"selectedObligationIds" in item ? (
+            <div className="text-sm [overflow-wrap:anywhere]">
+              <h3 className="font-medium">Confirmed selected scope</h3>
+              <p>{item.selectedObligationIds.join(", ")}</p>
+              <p>
+                Unselected debt was not paid by this receipt. Current unpaid
+                composition remains visible below.
+              </p>
+            </div>
+          ) : null}
           <SettlementAllocations
             confirmed
             allocations={item.allocations}
@@ -321,9 +331,9 @@ export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
     <div className="flex min-w-0 flex-col gap-4">
       <p className="text-sm text-muted-foreground">
         Record accumulated or partial cash repayments. Allocate
-        deterministically across all eligible debt in one currency, oldest
-        Advance date first. Explicitly retain surplus as Participant credit,
-        including receipts without eligible debt.
+        deterministically within all eligible debt or an explicitly selected
+        subset in one currency, oldest Advance date first. Explicitly retain
+        surplus as Participant credit, including receipts without eligible debt.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button

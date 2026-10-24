@@ -52,7 +52,6 @@ import type {
   CategoryValidationResponse,
   CreditOriginResponse,
   CreditSettlementPreview,
-  CreditSettlementResponse,
   CurrencyResponse,
   ExpenseTransactionResponse,
   FinanceOverviewResponse,
@@ -61,7 +60,6 @@ import type {
   FinanceTransactionResponse,
   HelloWorldResponse,
   IncomeSettlementPreview,
-  IncomeSettlementResponse,
   IncomeTransactionResponse,
   InternalTransferTransactionResponse,
   LedgerConflictResponse,
@@ -86,7 +84,7 @@ import type {
   SettlementMissingProblem,
   SettlementPreview,
   SettlementRejectedOutcome,
-  SettlementResponse,
+  SettlementSource,
   SettlementSubmissionReceipt,
   SettlementSubmissionUnfinished,
   SharedAdvancePreview,
@@ -5190,231 +5188,457 @@ export const getGetFinanceParticipantPositionsResponseMock503 = (
   ...overrideResponse,
 });
 
-export const getListFinanceParticipantSettlementsResponseMock = (): (
-  IncomeSettlementResponse | CreditSettlementResponse | SettlementResponse
-)[] =>
-  Array.from(
-    { length: faker.number.int({ min: 1, max: 10 }) },
-    (_, i) => i + 1,
-  ).map(() =>
-    faker.helpers.arrayElement([
-      {
-        acceptedSurplus: { amount: "12.34", currency: "CNY" },
-        allocations: Array.from(
-          { length: faker.number.int({ min: 1, max: 10 }) },
-          (_, i) => i + 1,
-        ).map(() => ({
-          advanceId: faker.string.uuid(),
-          cashPaid: { amount: "12.34", currency: "CNY" },
-          obligationId: faker.string.uuid(),
-          position: faker.number.int(),
-          remainingAfter: { amount: "12.34", currency: "CNY" },
-          sourceDate: faker.date.past().toISOString().slice(0, 10),
-        })),
-        amount: { amount: "12.34", currency: "CNY" },
-        confirmationOrder: faker.number.int(),
-        confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-        id: faker.string.uuid(),
-        incomeTransactionId: faker.string.uuid(),
-        ledgerId: faker.string.uuid(),
-        note: faker.helpers.arrayElement([
-          faker.string.alpha({ length: { min: 10, max: 20 } }),
-          null,
-        ]),
-        participantId: faker.string.uuid(),
-        receivingAccountId: faker.string.uuid(),
-        transactionDate: faker.date.past().toISOString().slice(0, 10),
-        transactionIds: Array.from(
-          { length: faker.number.int({ min: 1, max: 10 }) },
-          (_, i) => i + 1,
-        ).map(() => faker.string.uuid()),
-      },
-      {
-        allocations: Array.from(
-          { length: faker.number.int({ min: 1, max: 10 }) },
-          (_, i) => i + 1,
-        ).map(() => ({
-          advanceId: faker.string.uuid(),
-          cashPaid: { amount: "12.34", currency: "CNY" },
-          obligationId: faker.string.uuid(),
-          position: faker.number.int(),
-          remainingAfter: { amount: "12.34", currency: "CNY" },
-          sourceDate: faker.date.past().toISOString().slice(0, 10),
-        })),
-        amount: { amount: "12.34", currency: "CNY" },
-        confirmationOrder: faker.number.int(),
-        confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-        creditOrigin: {
+export const getListFinanceParticipantSettlementsResponseMock =
+  (): SettlementSource[] =>
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() =>
+      faker.helpers.arrayElement([
+        {
+          acceptedSurplus: { amount: "12.34", currency: "CNY" },
+          allocations: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            advanceId: faker.string.uuid(),
+            cashPaid: { amount: "12.34", currency: "CNY" },
+            obligationId: faker.string.uuid(),
+            position: faker.number.int(),
+            remainingAfter: { amount: "12.34", currency: "CNY" },
+            sourceDate: faker.date.past().toISOString().slice(0, 10),
+          })),
           amount: { amount: "12.34", currency: "CNY" },
-          available: { amount: "12.34", currency: "CNY" },
           confirmationOrder: faker.number.int(),
           confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          id: faker.string.uuid(),
+          incomeTransactionId: faker.string.uuid(),
           ledgerId: faker.string.uuid(),
-          liabilityAccountId: faker.string.uuid(),
+          note: faker.helpers.arrayElement([
+            faker.string.alpha({ length: { min: 10, max: 20 } }),
+            null,
+          ]),
           participantId: faker.string.uuid(),
           receivingAccountId: faker.string.uuid(),
-          settlementId: faker.string.uuid(),
+          selectedObligationIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
           transactionDate: faker.date.past().toISOString().slice(0, 10),
-          transactionId: faker.string.uuid(),
+          transactionIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
         },
-        id: faker.string.uuid(),
-        ledgerId: faker.string.uuid(),
-        note: faker.helpers.arrayElement([
-          faker.string.alpha({ length: { min: 10, max: 20 } }),
-          null,
-        ]),
-        participantId: faker.string.uuid(),
-        receivingAccountId: faker.string.uuid(),
-        transactionDate: faker.date.past().toISOString().slice(0, 10),
-        transactionIds: Array.from(
-          { length: faker.number.int({ min: 1, max: 10 }) },
-          (_, i) => i + 1,
-        ).map(() => faker.string.uuid()),
-      },
-      {
-        allocations: Array.from(
-          { length: faker.number.int({ min: 1, max: 10 }) },
-          (_, i) => i + 1,
-        ).map(() => ({
-          advanceId: faker.string.uuid(),
-          cashPaid: { amount: "12.34", currency: "CNY" },
-          obligationId: faker.string.uuid(),
-          position: faker.number.int(),
-          remainingAfter: { amount: "12.34", currency: "CNY" },
-          sourceDate: faker.date.past().toISOString().slice(0, 10),
-        })),
-        amount: { amount: "12.34", currency: "CNY" },
-        confirmationOrder: faker.number.int(),
-        confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-        id: faker.string.uuid(),
-        ledgerId: faker.string.uuid(),
-        note: faker.helpers.arrayElement([
-          faker.string.alpha({ length: { min: 10, max: 20 } }),
-          null,
-        ]),
-        participantId: faker.string.uuid(),
-        receivingAccountId: faker.string.uuid(),
-        transactionDate: faker.date.past().toISOString().slice(0, 10),
-        transactionIds: Array.from(
-          { length: faker.number.int({ min: 1, max: 10 }) },
-          (_, i) => i + 1,
-        ).map(() => faker.string.uuid()),
-      },
-    ]),
-  );
+        {
+          allocations: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            advanceId: faker.string.uuid(),
+            cashPaid: { amount: "12.34", currency: "CNY" },
+            obligationId: faker.string.uuid(),
+            position: faker.number.int(),
+            remainingAfter: { amount: "12.34", currency: "CNY" },
+            sourceDate: faker.date.past().toISOString().slice(0, 10),
+          })),
+          amount: { amount: "12.34", currency: "CNY" },
+          confirmationOrder: faker.number.int(),
+          confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          creditOrigin: {
+            amount: { amount: "12.34", currency: "CNY" },
+            available: { amount: "12.34", currency: "CNY" },
+            confirmationOrder: faker.number.int(),
+            confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+            ledgerId: faker.string.uuid(),
+            liabilityAccountId: faker.string.uuid(),
+            participantId: faker.string.uuid(),
+            receivingAccountId: faker.string.uuid(),
+            settlementId: faker.string.uuid(),
+            transactionDate: faker.date.past().toISOString().slice(0, 10),
+            transactionId: faker.string.uuid(),
+          },
+          id: faker.string.uuid(),
+          ledgerId: faker.string.uuid(),
+          note: faker.helpers.arrayElement([
+            faker.string.alpha({ length: { min: 10, max: 20 } }),
+            null,
+          ]),
+          participantId: faker.string.uuid(),
+          receivingAccountId: faker.string.uuid(),
+          selectedObligationIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+          transactionDate: faker.date.past().toISOString().slice(0, 10),
+          transactionIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+        },
+        {
+          allocations: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            advanceId: faker.string.uuid(),
+            cashPaid: { amount: "12.34", currency: "CNY" },
+            obligationId: faker.string.uuid(),
+            position: faker.number.int(),
+            remainingAfter: { amount: "12.34", currency: "CNY" },
+            sourceDate: faker.date.past().toISOString().slice(0, 10),
+          })),
+          amount: { amount: "12.34", currency: "CNY" },
+          confirmationOrder: faker.number.int(),
+          confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          id: faker.string.uuid(),
+          ledgerId: faker.string.uuid(),
+          note: faker.helpers.arrayElement([
+            faker.string.alpha({ length: { min: 10, max: 20 } }),
+            null,
+          ]),
+          participantId: faker.string.uuid(),
+          receivingAccountId: faker.string.uuid(),
+          selectedObligationIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+          transactionDate: faker.date.past().toISOString().slice(0, 10),
+          transactionIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+        },
+        {
+          acceptedSurplus: { amount: "12.34", currency: "CNY" },
+          allocations: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            advanceId: faker.string.uuid(),
+            cashPaid: { amount: "12.34", currency: "CNY" },
+            obligationId: faker.string.uuid(),
+            position: faker.number.int(),
+            remainingAfter: { amount: "12.34", currency: "CNY" },
+            sourceDate: faker.date.past().toISOString().slice(0, 10),
+          })),
+          amount: { amount: "12.34", currency: "CNY" },
+          confirmationOrder: faker.number.int(),
+          confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          id: faker.string.uuid(),
+          incomeTransactionId: faker.string.uuid(),
+          ledgerId: faker.string.uuid(),
+          note: faker.helpers.arrayElement([
+            faker.string.alpha({ length: { min: 10, max: 20 } }),
+            null,
+          ]),
+          participantId: faker.string.uuid(),
+          receivingAccountId: faker.string.uuid(),
+          transactionDate: faker.date.past().toISOString().slice(0, 10),
+          transactionIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+        },
+        {
+          allocations: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            advanceId: faker.string.uuid(),
+            cashPaid: { amount: "12.34", currency: "CNY" },
+            obligationId: faker.string.uuid(),
+            position: faker.number.int(),
+            remainingAfter: { amount: "12.34", currency: "CNY" },
+            sourceDate: faker.date.past().toISOString().slice(0, 10),
+          })),
+          amount: { amount: "12.34", currency: "CNY" },
+          confirmationOrder: faker.number.int(),
+          confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          creditOrigin: {
+            amount: { amount: "12.34", currency: "CNY" },
+            available: { amount: "12.34", currency: "CNY" },
+            confirmationOrder: faker.number.int(),
+            confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+            ledgerId: faker.string.uuid(),
+            liabilityAccountId: faker.string.uuid(),
+            participantId: faker.string.uuid(),
+            receivingAccountId: faker.string.uuid(),
+            settlementId: faker.string.uuid(),
+            transactionDate: faker.date.past().toISOString().slice(0, 10),
+            transactionId: faker.string.uuid(),
+          },
+          id: faker.string.uuid(),
+          ledgerId: faker.string.uuid(),
+          note: faker.helpers.arrayElement([
+            faker.string.alpha({ length: { min: 10, max: 20 } }),
+            null,
+          ]),
+          participantId: faker.string.uuid(),
+          receivingAccountId: faker.string.uuid(),
+          transactionDate: faker.date.past().toISOString().slice(0, 10),
+          transactionIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+        },
+        {
+          allocations: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            advanceId: faker.string.uuid(),
+            cashPaid: { amount: "12.34", currency: "CNY" },
+            obligationId: faker.string.uuid(),
+            position: faker.number.int(),
+            remainingAfter: { amount: "12.34", currency: "CNY" },
+            sourceDate: faker.date.past().toISOString().slice(0, 10),
+          })),
+          amount: { amount: "12.34", currency: "CNY" },
+          confirmationOrder: faker.number.int(),
+          confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          id: faker.string.uuid(),
+          ledgerId: faker.string.uuid(),
+          note: faker.helpers.arrayElement([
+            faker.string.alpha({ length: { min: 10, max: 20 } }),
+            null,
+          ]),
+          participantId: faker.string.uuid(),
+          receivingAccountId: faker.string.uuid(),
+          transactionDate: faker.date.past().toISOString().slice(0, 10),
+          transactionIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+        },
+      ]),
+    );
 
-export const getListFinanceParticipantSettlementsResponseMock200 = (): (
-  IncomeSettlementResponse | CreditSettlementResponse | SettlementResponse
-)[] =>
-  Array.from(
-    { length: faker.number.int({ min: 1, max: 10 }) },
-    (_, i) => i + 1,
-  ).map(() =>
-    faker.helpers.arrayElement([
-      {
-        acceptedSurplus: { amount: "12.34", currency: "CNY" },
-        allocations: Array.from(
-          { length: faker.number.int({ min: 1, max: 10 }) },
-          (_, i) => i + 1,
-        ).map(() => ({
-          advanceId: faker.string.uuid(),
-          cashPaid: { amount: "12.34", currency: "CNY" },
-          obligationId: faker.string.uuid(),
-          position: faker.number.int(),
-          remainingAfter: { amount: "12.34", currency: "CNY" },
-          sourceDate: faker.date.past().toISOString().slice(0, 10),
-        })),
-        amount: { amount: "12.34", currency: "CNY" },
-        confirmationOrder: faker.number.int(),
-        confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-        id: faker.string.uuid(),
-        incomeTransactionId: faker.string.uuid(),
-        ledgerId: faker.string.uuid(),
-        note: faker.helpers.arrayElement([
-          faker.string.alpha({ length: { min: 10, max: 20 } }),
-          null,
-        ]),
-        participantId: faker.string.uuid(),
-        receivingAccountId: faker.string.uuid(),
-        transactionDate: faker.date.past().toISOString().slice(0, 10),
-        transactionIds: Array.from(
-          { length: faker.number.int({ min: 1, max: 10 }) },
-          (_, i) => i + 1,
-        ).map(() => faker.string.uuid()),
-      },
-      {
-        allocations: Array.from(
-          { length: faker.number.int({ min: 1, max: 10 }) },
-          (_, i) => i + 1,
-        ).map(() => ({
-          advanceId: faker.string.uuid(),
-          cashPaid: { amount: "12.34", currency: "CNY" },
-          obligationId: faker.string.uuid(),
-          position: faker.number.int(),
-          remainingAfter: { amount: "12.34", currency: "CNY" },
-          sourceDate: faker.date.past().toISOString().slice(0, 10),
-        })),
-        amount: { amount: "12.34", currency: "CNY" },
-        confirmationOrder: faker.number.int(),
-        confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-        creditOrigin: {
+export const getListFinanceParticipantSettlementsResponseMock200 =
+  (): SettlementSource[] =>
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() =>
+      faker.helpers.arrayElement([
+        {
+          acceptedSurplus: { amount: "12.34", currency: "CNY" },
+          allocations: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            advanceId: faker.string.uuid(),
+            cashPaid: { amount: "12.34", currency: "CNY" },
+            obligationId: faker.string.uuid(),
+            position: faker.number.int(),
+            remainingAfter: { amount: "12.34", currency: "CNY" },
+            sourceDate: faker.date.past().toISOString().slice(0, 10),
+          })),
           amount: { amount: "12.34", currency: "CNY" },
-          available: { amount: "12.34", currency: "CNY" },
           confirmationOrder: faker.number.int(),
           confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          id: faker.string.uuid(),
+          incomeTransactionId: faker.string.uuid(),
           ledgerId: faker.string.uuid(),
-          liabilityAccountId: faker.string.uuid(),
+          note: faker.helpers.arrayElement([
+            faker.string.alpha({ length: { min: 10, max: 20 } }),
+            null,
+          ]),
           participantId: faker.string.uuid(),
           receivingAccountId: faker.string.uuid(),
-          settlementId: faker.string.uuid(),
+          selectedObligationIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
           transactionDate: faker.date.past().toISOString().slice(0, 10),
-          transactionId: faker.string.uuid(),
+          transactionIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
         },
-        id: faker.string.uuid(),
-        ledgerId: faker.string.uuid(),
-        note: faker.helpers.arrayElement([
-          faker.string.alpha({ length: { min: 10, max: 20 } }),
-          null,
-        ]),
-        participantId: faker.string.uuid(),
-        receivingAccountId: faker.string.uuid(),
-        transactionDate: faker.date.past().toISOString().slice(0, 10),
-        transactionIds: Array.from(
-          { length: faker.number.int({ min: 1, max: 10 }) },
-          (_, i) => i + 1,
-        ).map(() => faker.string.uuid()),
-      },
-      {
-        allocations: Array.from(
-          { length: faker.number.int({ min: 1, max: 10 }) },
-          (_, i) => i + 1,
-        ).map(() => ({
-          advanceId: faker.string.uuid(),
-          cashPaid: { amount: "12.34", currency: "CNY" },
-          obligationId: faker.string.uuid(),
-          position: faker.number.int(),
-          remainingAfter: { amount: "12.34", currency: "CNY" },
-          sourceDate: faker.date.past().toISOString().slice(0, 10),
-        })),
-        amount: { amount: "12.34", currency: "CNY" },
-        confirmationOrder: faker.number.int(),
-        confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-        id: faker.string.uuid(),
-        ledgerId: faker.string.uuid(),
-        note: faker.helpers.arrayElement([
-          faker.string.alpha({ length: { min: 10, max: 20 } }),
-          null,
-        ]),
-        participantId: faker.string.uuid(),
-        receivingAccountId: faker.string.uuid(),
-        transactionDate: faker.date.past().toISOString().slice(0, 10),
-        transactionIds: Array.from(
-          { length: faker.number.int({ min: 1, max: 10 }) },
-          (_, i) => i + 1,
-        ).map(() => faker.string.uuid()),
-      },
-    ]),
-  );
+        {
+          allocations: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            advanceId: faker.string.uuid(),
+            cashPaid: { amount: "12.34", currency: "CNY" },
+            obligationId: faker.string.uuid(),
+            position: faker.number.int(),
+            remainingAfter: { amount: "12.34", currency: "CNY" },
+            sourceDate: faker.date.past().toISOString().slice(0, 10),
+          })),
+          amount: { amount: "12.34", currency: "CNY" },
+          confirmationOrder: faker.number.int(),
+          confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          creditOrigin: {
+            amount: { amount: "12.34", currency: "CNY" },
+            available: { amount: "12.34", currency: "CNY" },
+            confirmationOrder: faker.number.int(),
+            confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+            ledgerId: faker.string.uuid(),
+            liabilityAccountId: faker.string.uuid(),
+            participantId: faker.string.uuid(),
+            receivingAccountId: faker.string.uuid(),
+            settlementId: faker.string.uuid(),
+            transactionDate: faker.date.past().toISOString().slice(0, 10),
+            transactionId: faker.string.uuid(),
+          },
+          id: faker.string.uuid(),
+          ledgerId: faker.string.uuid(),
+          note: faker.helpers.arrayElement([
+            faker.string.alpha({ length: { min: 10, max: 20 } }),
+            null,
+          ]),
+          participantId: faker.string.uuid(),
+          receivingAccountId: faker.string.uuid(),
+          selectedObligationIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+          transactionDate: faker.date.past().toISOString().slice(0, 10),
+          transactionIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+        },
+        {
+          allocations: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            advanceId: faker.string.uuid(),
+            cashPaid: { amount: "12.34", currency: "CNY" },
+            obligationId: faker.string.uuid(),
+            position: faker.number.int(),
+            remainingAfter: { amount: "12.34", currency: "CNY" },
+            sourceDate: faker.date.past().toISOString().slice(0, 10),
+          })),
+          amount: { amount: "12.34", currency: "CNY" },
+          confirmationOrder: faker.number.int(),
+          confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          id: faker.string.uuid(),
+          ledgerId: faker.string.uuid(),
+          note: faker.helpers.arrayElement([
+            faker.string.alpha({ length: { min: 10, max: 20 } }),
+            null,
+          ]),
+          participantId: faker.string.uuid(),
+          receivingAccountId: faker.string.uuid(),
+          selectedObligationIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+          transactionDate: faker.date.past().toISOString().slice(0, 10),
+          transactionIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+        },
+        {
+          acceptedSurplus: { amount: "12.34", currency: "CNY" },
+          allocations: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            advanceId: faker.string.uuid(),
+            cashPaid: { amount: "12.34", currency: "CNY" },
+            obligationId: faker.string.uuid(),
+            position: faker.number.int(),
+            remainingAfter: { amount: "12.34", currency: "CNY" },
+            sourceDate: faker.date.past().toISOString().slice(0, 10),
+          })),
+          amount: { amount: "12.34", currency: "CNY" },
+          confirmationOrder: faker.number.int(),
+          confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          id: faker.string.uuid(),
+          incomeTransactionId: faker.string.uuid(),
+          ledgerId: faker.string.uuid(),
+          note: faker.helpers.arrayElement([
+            faker.string.alpha({ length: { min: 10, max: 20 } }),
+            null,
+          ]),
+          participantId: faker.string.uuid(),
+          receivingAccountId: faker.string.uuid(),
+          transactionDate: faker.date.past().toISOString().slice(0, 10),
+          transactionIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+        },
+        {
+          allocations: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            advanceId: faker.string.uuid(),
+            cashPaid: { amount: "12.34", currency: "CNY" },
+            obligationId: faker.string.uuid(),
+            position: faker.number.int(),
+            remainingAfter: { amount: "12.34", currency: "CNY" },
+            sourceDate: faker.date.past().toISOString().slice(0, 10),
+          })),
+          amount: { amount: "12.34", currency: "CNY" },
+          confirmationOrder: faker.number.int(),
+          confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          creditOrigin: {
+            amount: { amount: "12.34", currency: "CNY" },
+            available: { amount: "12.34", currency: "CNY" },
+            confirmationOrder: faker.number.int(),
+            confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+            ledgerId: faker.string.uuid(),
+            liabilityAccountId: faker.string.uuid(),
+            participantId: faker.string.uuid(),
+            receivingAccountId: faker.string.uuid(),
+            settlementId: faker.string.uuid(),
+            transactionDate: faker.date.past().toISOString().slice(0, 10),
+            transactionId: faker.string.uuid(),
+          },
+          id: faker.string.uuid(),
+          ledgerId: faker.string.uuid(),
+          note: faker.helpers.arrayElement([
+            faker.string.alpha({ length: { min: 10, max: 20 } }),
+            null,
+          ]),
+          participantId: faker.string.uuid(),
+          receivingAccountId: faker.string.uuid(),
+          transactionDate: faker.date.past().toISOString().slice(0, 10),
+          transactionIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+        },
+        {
+          allocations: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            advanceId: faker.string.uuid(),
+            cashPaid: { amount: "12.34", currency: "CNY" },
+            obligationId: faker.string.uuid(),
+            position: faker.number.int(),
+            remainingAfter: { amount: "12.34", currency: "CNY" },
+            sourceDate: faker.date.past().toISOString().slice(0, 10),
+          })),
+          amount: { amount: "12.34", currency: "CNY" },
+          confirmationOrder: faker.number.int(),
+          confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          id: faker.string.uuid(),
+          ledgerId: faker.string.uuid(),
+          note: faker.helpers.arrayElement([
+            faker.string.alpha({ length: { min: 10, max: 20 } }),
+            null,
+          ]),
+          participantId: faker.string.uuid(),
+          receivingAccountId: faker.string.uuid(),
+          transactionDate: faker.date.past().toISOString().slice(0, 10),
+          transactionIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+        },
+      ]),
+    );
 
 export const getListFinanceParticipantSettlementsResponseMock403 = (
   overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
@@ -5525,7 +5749,7 @@ export const getCreateFinanceSettlementResponseMock = (
   overrideResponse: Partial<Extract<SettlementCreatedReceipt, object>> = {},
 ): SettlementCreatedReceipt => ({
   admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-  commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
+  commandVersion: faker.helpers.arrayElement(["1", "2", "3", "4"] as const),
   operation: "createFinanceSettlement",
   outcome: {
     kind: "created",
@@ -5541,7 +5765,7 @@ export const getCreateFinanceSettlementResponseMock201 = (
   overrideResponse: Partial<Extract<SettlementCreatedReceipt, object>> = {},
 ): SettlementCreatedReceipt => ({
   admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-  commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
+  commandVersion: faker.helpers.arrayElement(["1", "2", "3", "4"] as const),
   operation: "createFinanceSettlement",
   outcome: {
     kind: "created",
@@ -5678,7 +5902,12 @@ export const getCreateFinanceSettlementResponseMock404 =
           attemptedBody: {
             [faker.string.alphanumeric(5)]: {},
           },
-          commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
+          commandVersion: faker.helpers.arrayElement([
+            "1",
+            "2",
+            "3",
+            "4",
+          ] as const),
           kind: "definitivelyNotAdmitted",
           operation: "createFinanceSettlement",
           ownerId: faker.string.uuid(),
@@ -5725,7 +5954,12 @@ export const getCreateFinanceSettlementResponseMock404 =
         status: faker.helpers.arrayElement([404, 409, 422] as const),
         submissionReceipt: {
           admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-          commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
+          commandVersion: faker.helpers.arrayElement([
+            "1",
+            "2",
+            "3",
+            "4",
+          ] as const),
           operation: "createFinanceSettlement",
           outcome: {
             kind: "rejected",
@@ -5785,7 +6019,12 @@ export const getCreateFinanceSettlementResponseMock409 =
           attemptedBody: {
             [faker.string.alphanumeric(5)]: {},
           },
-          commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
+          commandVersion: faker.helpers.arrayElement([
+            "1",
+            "2",
+            "3",
+            "4",
+          ] as const),
           kind: "definitivelyNotAdmitted",
           operation: "createFinanceSettlement",
           ownerId: faker.string.uuid(),
@@ -5832,7 +6071,12 @@ export const getCreateFinanceSettlementResponseMock409 =
         status: faker.helpers.arrayElement([404, 409, 422] as const),
         submissionReceipt: {
           admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-          commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
+          commandVersion: faker.helpers.arrayElement([
+            "1",
+            "2",
+            "3",
+            "4",
+          ] as const),
           operation: "createFinanceSettlement",
           outcome: {
             kind: "rejected",
@@ -5892,7 +6136,12 @@ export const getCreateFinanceSettlementResponseMock422 =
           attemptedBody: {
             [faker.string.alphanumeric(5)]: {},
           },
-          commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
+          commandVersion: faker.helpers.arrayElement([
+            "1",
+            "2",
+            "3",
+            "4",
+          ] as const),
           kind: "definitivelyNotAdmitted",
           operation: "createFinanceSettlement",
           ownerId: faker.string.uuid(),
@@ -5939,7 +6188,12 @@ export const getCreateFinanceSettlementResponseMock422 =
         status: faker.helpers.arrayElement([404, 409, 422] as const),
         submissionReceipt: {
           admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-          commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
+          commandVersion: faker.helpers.arrayElement([
+            "1",
+            "2",
+            "3",
+            "4",
+          ] as const),
           operation: "createFinanceSettlement",
           outcome: {
             kind: "rejected",
@@ -6288,9 +6542,122 @@ export const getPreviewFinanceSettlementResponseMock503 = (
   ...overrideResponse,
 });
 
-export const getGetFinanceSettlementResponseMock = ():
-  IncomeSettlementResponse | CreditSettlementResponse | SettlementResponse =>
+export const getGetFinanceSettlementResponseMock = (): SettlementSource =>
   faker.helpers.arrayElement([
+    {
+      acceptedSurplus: { amount: "12.34", currency: "CNY" },
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      id: faker.string.uuid(),
+      incomeTransactionId: faker.string.uuid(),
+      ledgerId: faker.string.uuid(),
+      note: faker.helpers.arrayElement([
+        faker.string.alpha({ length: { min: 10, max: 20 } }),
+        null,
+      ]),
+      participantId: faker.string.uuid(),
+      receivingAccountId: faker.string.uuid(),
+      selectedObligationIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+    },
+    {
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      creditOrigin: {
+        amount: { amount: "12.34", currency: "CNY" },
+        available: { amount: "12.34", currency: "CNY" },
+        confirmationOrder: faker.number.int(),
+        confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+        ledgerId: faker.string.uuid(),
+        liabilityAccountId: faker.string.uuid(),
+        participantId: faker.string.uuid(),
+        receivingAccountId: faker.string.uuid(),
+        settlementId: faker.string.uuid(),
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionId: faker.string.uuid(),
+      },
+      id: faker.string.uuid(),
+      ledgerId: faker.string.uuid(),
+      note: faker.helpers.arrayElement([
+        faker.string.alpha({ length: { min: 10, max: 20 } }),
+        null,
+      ]),
+      participantId: faker.string.uuid(),
+      receivingAccountId: faker.string.uuid(),
+      selectedObligationIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+    },
+    {
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      id: faker.string.uuid(),
+      ledgerId: faker.string.uuid(),
+      note: faker.helpers.arrayElement([
+        faker.string.alpha({ length: { min: 10, max: 20 } }),
+        null,
+      ]),
+      participantId: faker.string.uuid(),
+      receivingAccountId: faker.string.uuid(),
+      selectedObligationIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+    },
     {
       acceptedSurplus: { amount: "12.34", currency: "CNY" },
       allocations: Array.from(
@@ -6395,9 +6762,122 @@ export const getGetFinanceSettlementResponseMock = ():
     },
   ]);
 
-export const getGetFinanceSettlementResponseMock200 = ():
-  IncomeSettlementResponse | CreditSettlementResponse | SettlementResponse =>
+export const getGetFinanceSettlementResponseMock200 = (): SettlementSource =>
   faker.helpers.arrayElement([
+    {
+      acceptedSurplus: { amount: "12.34", currency: "CNY" },
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      id: faker.string.uuid(),
+      incomeTransactionId: faker.string.uuid(),
+      ledgerId: faker.string.uuid(),
+      note: faker.helpers.arrayElement([
+        faker.string.alpha({ length: { min: 10, max: 20 } }),
+        null,
+      ]),
+      participantId: faker.string.uuid(),
+      receivingAccountId: faker.string.uuid(),
+      selectedObligationIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+    },
+    {
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      creditOrigin: {
+        amount: { amount: "12.34", currency: "CNY" },
+        available: { amount: "12.34", currency: "CNY" },
+        confirmationOrder: faker.number.int(),
+        confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+        ledgerId: faker.string.uuid(),
+        liabilityAccountId: faker.string.uuid(),
+        participantId: faker.string.uuid(),
+        receivingAccountId: faker.string.uuid(),
+        settlementId: faker.string.uuid(),
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionId: faker.string.uuid(),
+      },
+      id: faker.string.uuid(),
+      ledgerId: faker.string.uuid(),
+      note: faker.helpers.arrayElement([
+        faker.string.alpha({ length: { min: 10, max: 20 } }),
+        null,
+      ]),
+      participantId: faker.string.uuid(),
+      receivingAccountId: faker.string.uuid(),
+      selectedObligationIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+    },
+    {
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      id: faker.string.uuid(),
+      ledgerId: faker.string.uuid(),
+      note: faker.helpers.arrayElement([
+        faker.string.alpha({ length: { min: 10, max: 20 } }),
+        null,
+      ]),
+      participantId: faker.string.uuid(),
+      receivingAccountId: faker.string.uuid(),
+      selectedObligationIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+    },
     {
       acceptedSurplus: { amount: "12.34", currency: "CNY" },
       allocations: Array.from(
@@ -8004,7 +8484,7 @@ export const getGetFinanceSubmissionResponseSettlementSubmissionUnfinishedMock =
   ): SettlementSubmissionUnfinished => ({
     ...{
       admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-      commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
+      commandVersion: faker.helpers.arrayElement(["1", "2", "3", "4"] as const),
       operation: faker.helpers.arrayElement([
         "createFinanceSettlement",
       ] as const),
@@ -8494,7 +8974,7 @@ export const getGetFinanceSubmissionResponseSettlementSubmissionReceiptMock = (
 ): SettlementSubmissionReceipt => ({
   ...{
     admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-    commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
+    commandVersion: faker.helpers.arrayElement(["1", "2", "3", "4"] as const),
     operation: faker.helpers.arrayElement(["createFinanceSettlement"] as const),
     outcome: faker.helpers.arrayElement([
       { ...getGetFinanceSubmissionResponseSettlementCreatedOutcomeMock() },

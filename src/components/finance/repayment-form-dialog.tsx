@@ -7,6 +7,7 @@ import {
 } from "react";
 import {
   usePreviewFinanceSettlement,
+  useListFinanceParticipantObligations,
   useListFinanceCategories,
 } from "@/api/generated/core-console";
 import {
@@ -15,6 +16,7 @@ import {
   CreditSettlementPreview,
   IncomeSettlementPreview,
   CategoryResponse,
+  ObligationResponse,
   FinanceRequestDate,
   type AccountResponse,
   type CurrencyResponse,
@@ -100,6 +102,48 @@ export function RepaymentFormDialog({
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(today);
   const [note, setNote] = useState("");
+  const [scopeMode, setScopeMode] = useState("all");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const obligations = useListFinanceParticipantObligations(
+    ledgerId,
+    participantId,
+    {
+      query: {
+        enabled: scopeMode === "selected" && !!participantId,
+        select: (response) =>
+          ObligationResponse.array()
+            .refine((rows) =>
+              rows.every(
+                (row) =>
+                  row.ledgerId === ledgerId &&
+                  row.participantId === participantId,
+              ),
+            )
+            .parse(response.data),
+      },
+    },
+  );
+  const receiving = accounts.find((item) => item.id === receivingAccountId);
+  const eligibleObligations = (obligations.data ?? []).filter(
+    (row) =>
+      row.sourceDate <= date &&
+      row.remaining.currency === receiving?.currency &&
+      /^[0-9]+(?:\.[0-9]+)?$/.test(row.remaining.amount) &&
+      /[1-9]/.test(row.remaining.amount),
+  );
+  const selectedCapacity = eligibleObligations
+    .filter((row) => selectedIds.includes(row.id))
+    .reduce(
+      (total, row) =>
+        subtractExactDecimals(
+          total,
+          subtractExactDecimals("0", row.remaining.amount),
+        ),
+      "0",
+    );
+  const selectedExcess = /^\d+(?:\.\d+)?$/.test(amount)
+    ? subtractExactDecimals(amount, selectedCapacity)
+    : "0";
   const [disposition, setDisposition] = useState("repayOnly");
   const [incomeAmount, setIncomeAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -192,6 +236,16 @@ export function RepaymentFormDialog({
     )
       invalid.date =
         "Enter a valid date on or after the Account Tracking Start Date.";
+    if (
+      scopeMode === "selected" &&
+      (!obligations.isSuccess ||
+        !selectedIds.length ||
+        selectedIds.some(
+          (id) => !eligibleObligations.some((row) => row.id === id),
+        ))
+    )
+      invalid.scope =
+        "Select at least one eligible outstanding Obligation. Remove unavailable selections explicitly; refresh dependencies to check current debt.";
     if (acceptIncome) {
       if (!positiveExactAmount(incomeAmount, currency?.minorUnit ?? 0))
         invalid.income =
@@ -218,6 +272,9 @@ export function RepaymentFormDialog({
       transactionDate: date,
       amount: { amount, currency: account.currency },
       note: note || null,
+      ...(scopeMode === "selected"
+        ? { selectedObligationIds: selectedIds }
+        : {}),
       ...(acceptIncome
         ? {
             excessDisposition: "acceptIncome",
@@ -253,10 +310,20 @@ export function RepaymentFormDialog({
           : disposition === "retainCredit"
             ? CreditSettlementPreview
             : SettlementPreview;
+      const parsed = schema
+        .refine(
+          (item) =>
+            !("selectedObligationIds" in draft) ||
+            item.allocations.every((allocation) =>
+              draft.selectedObligationIds.includes(allocation.obligationId),
+            ),
+          "Preview allocated outside the explicitly selected scope.",
+        )
+        .parse(response.data);
       if (journal.isCurrentNamespace())
         setReview({
           draft,
-          preview: schema.parse(response.data),
+          preview: parsed,
         });
     } catch {
       setError(
@@ -267,6 +334,27 @@ export function RepaymentFormDialog({
     }
   }
   const fields = [
+    {
+      id: "scope",
+      label: "Repayment scope",
+      control: (
+        <NativeSelect
+          id="repayment-scope"
+          value={scopeMode}
+          aria-invalid={!!errors.scope}
+          aria-describedby={errors.scope ? "repayment-scope-error" : undefined}
+          onChange={(event) => {
+            edit();
+            setScopeMode(event.target.value);
+          }}
+        >
+          <NativeSelectOption value="all">All eligible debt</NativeSelectOption>
+          <NativeSelectOption value="selected">
+            Selected Obligations only
+          </NativeSelectOption>
+        </NativeSelect>
+      ),
+    },
     {
       id: "disposition",
       label: "Surplus handling",
@@ -367,6 +455,7 @@ export function RepaymentFormDialog({
           onChange={(event) => {
             edit();
             setParticipantId(event.target.value);
+            setSelectedIds([]);
           }}
         >
           <NativeSelectOption value="">Choose Participant</NativeSelectOption>
@@ -472,12 +561,12 @@ export function RepaymentFormDialog({
         <DialogHeader>
           <DialogTitle>Record repayment</DialogTitle>
           <DialogDescription>
-            One Participant and currency. Cash applies to all eligible
-            outstanding Obligations, oldest Advance date first. Future-dated
-            recording affects Current Balance immediately. Choose retained
-            credit explicitly to receive surplus or record a receipt without
-            eligible debt. Accept surplus as Income only by explicitly entering
-            its exact amount and Category intent.
+            One Participant and currency. Cash applies within your chosen
+            eligible scope, oldest Advance date first. Future-dated recording
+            affects Current Balance immediately. Choose retained credit
+            explicitly to receive surplus or record a receipt without eligible
+            debt. Accept surplus as Income only by explicitly entering its exact
+            amount and Category intent.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -494,15 +583,112 @@ export function RepaymentFormDialog({
                       {field.label}
                     </FieldLabel>
                     {field.control}
+                    {field.id === "scope" && scopeMode === "selected" ? (
+                      <fieldset className="flex min-w-0 flex-col gap-2">
+                        <legend className="text-sm font-medium">
+                          Select eligible Obligations
+                        </legend>
+                        <p className="text-sm text-muted-foreground">
+                          Only checked debts can be paid. To expand scope, check
+                          more debts and preview again. Unselected debt stays
+                          unpaid.
+                        </p>
+                        {receiving && obligations.isSuccess ? (
+                          <>
+                            <p>
+                              Selected capacity:{" "}
+                              {formatFinanceMoney({
+                                amount: selectedCapacity,
+                                currency: receiving.currency,
+                              })}
+                            </p>
+                            {!selectedExcess.startsWith("-") &&
+                            /[1-9]/.test(selectedExcess) ? (
+                              <p>
+                                Receipt exceeds selected capacity by{" "}
+                                {formatFinanceMoney({
+                                  amount: selectedExcess,
+                                  currency: receiving.currency,
+                                })}
+                                . Explicitly expand the selection, retain the
+                                excess as credit, or accept it as Income.
+                                Preview again before confirmation.
+                              </p>
+                            ) : null}
+                          </>
+                        ) : null}
+                        {!obligations.isSuccess ? (
+                          <p role="status">
+                            {obligations.isError
+                              ? "Debt could not load. Refresh dependencies to retry."
+                              : "Loading eligible debt…"}
+                          </p>
+                        ) : null}
+                        {eligibleObligations.map((row) => (
+                          <label
+                            key={row.id}
+                            className="flex min-h-8 min-w-0 items-center gap-2 text-sm [overflow-wrap:anywhere]"
+                          >
+                            <input
+                              type="checkbox"
+                              className="size-4 shrink-0 accent-primary"
+                              checked={selectedIds.includes(row.id)}
+                              onChange={(event) => {
+                                edit();
+                                setSelectedIds((ids) =>
+                                  event.target.checked
+                                    ? [...ids, row.id]
+                                    : ids.filter((id) => id !== row.id),
+                                );
+                              }}
+                            />
+                            {row.sourceDate} ·{" "}
+                            {formatFinanceMoney(row.remaining)} · {row.id}
+                          </label>
+                        ))}
+                        {selectedIds
+                          .filter(
+                            (id) =>
+                              !eligibleObligations.some((row) => row.id === id),
+                          )
+                          .map((id) => (
+                            <label
+                              key={id}
+                              className="flex min-h-8 min-w-0 items-center gap-2 text-sm [overflow-wrap:anywhere]"
+                            >
+                              <input
+                                type="checkbox"
+                                className="size-4 shrink-0 accent-primary"
+                                checked
+                                onChange={() => {
+                                  edit();
+                                  setSelectedIds((ids) =>
+                                    ids.filter((item) => item !== id),
+                                  );
+                                }}
+                              />
+                              Unavailable selection · {id} · remove to continue
+                            </label>
+                          ))}
+                        {obligations.isSuccess &&
+                        !eligibleObligations.length ? (
+                          <p>
+                            No eligible outstanding debt for the current
+                            Participant, receiving currency and date.
+                          </p>
+                        ) : null}
+                      </fieldset>
+                    ) : null}
                     {field.id === "disposition" ? (
                       <p
                         id="repayment-disposition-help"
                         className="text-sm text-muted-foreground"
                       >
-                        Cash first pays all eligible debt. Retained credit is a
-                        Liability owed to the Participant. Accepted surplus is
-                        Income belonging to you. Choose its meaning explicitly;
-                        existing credit is never applied automatically.
+                        Cash first pays eligible debt within the chosen scope.
+                        Retained credit is a Liability owed to the Participant.
+                        Accepted surplus is Income belonging to you. Choose its
+                        meaning explicitly; existing credit is never applied
+                        automatically.
                       </p>
                     ) : null}
                     {field.id === "income" ? (
@@ -622,6 +808,19 @@ export function RepaymentFormDialog({
                   </dl>
                 </>
               ) : null}
+              {"selectedObligationIds" in review.draft ? (
+                <div className="text-sm [overflow-wrap:anywhere]">
+                  <p>
+                    Reviewed selected scope:{" "}
+                    {review.draft.selectedObligationIds.join(", ")}
+                  </p>
+                  <p>
+                    Unselected debt remains unpaid, even when retained credit
+                    makes net exposure zero. Expand the selection explicitly and
+                    preview again to pay other debt.
+                  </p>
+                </div>
+              ) : null}
               <p>
                 Only Advances dated on or before {review.draft.transactionDate}{" "}
                 in {review.draft.amount.currency} are eligible. Same-date ties
@@ -699,6 +898,9 @@ export function RepaymentFormDialog({
                 setRefreshing(true);
                 void Promise.allSettled([
                   refreshDependencies(),
+                  ...(scopeMode === "selected" && participantId
+                    ? [obligations.refetch()]
+                    : []),
                   ...(acceptIncome ? [categories.refetch()] : []),
                 ]).finally(() => setRefreshing(false));
               }}

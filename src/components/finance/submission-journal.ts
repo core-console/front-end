@@ -141,7 +141,7 @@ const recordSchema = z
     recordsFor(transactionCommand.shape, z.literal("1")),
     recordsFor(adjustmentCommand.shape, z.literal("1")),
     recordsFor(advanceCommand.shape, z.enum(["1", "2"])),
-    recordsFor(settlementCommand.shape, z.enum(["1", "2", "3"])),
+    recordsFor(settlementCommand.shape, z.enum(["1", "2", "3", "4"])),
   ])
   .refine(
     (record) =>
@@ -177,6 +177,7 @@ export type FinanceSubmission = z.infer<typeof recordSchema>;
 function settlementCommandVersion(
   body: z.infer<typeof CreateFinanceSettlementBody>,
 ) {
+  if ("selectedObligationIds" in body) return "4";
   if (!("excessDisposition" in body)) return "1";
   return body.excessDisposition === "acceptIncome" ? "3" : "2";
 }

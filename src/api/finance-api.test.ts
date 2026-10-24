@@ -20,6 +20,7 @@ import {
   AccountResponse,
   AdjustmentSuccessReceipt,
   FinanceSubmissionResponse,
+  SettlementSource,
   CorrectAccountSemanticsRequest,
   CreateFinanceTransactionBody,
   CreateUserRequest,
@@ -36,6 +37,9 @@ import {
   UpdateUserRequest,
 } from "@/api/generated/schemas";
 import { server } from "@/mocks/server";
+import { creditSettlement } from "@/test/credit-fixtures";
+import { incomeSettlement } from "@/test/income-settlement-fixtures";
+import { settlement, settlementReceipt } from "@/test/settlement-fixtures";
 
 const accountId = "11111111-1111-4111-8111-111111111111";
 const categoryId = "22222222-2222-4222-8222-222222222222";
@@ -172,6 +176,60 @@ const expectExactMoneyStrings = (value: unknown): void => {
 };
 
 describe("generated Finance API boundary", () => {
+  it.each([settlement, creditSettlement, incomeSettlement])(
+    "preserves legacy and selected Settlement source variants: $amount.amount",
+    (source) => {
+      expect(SettlementSource.parse(source)).toEqual(source);
+      const selected = {
+        ...source,
+        selectedObligationIds: [source.allocations[1]!.obligationId],
+      };
+      expect(SettlementSource.parse(selected)).toEqual(selected);
+      expect(
+        SettlementSource.safeParse({ ...selected, selectedObligationIds: [] })
+          .success,
+      ).toBe(false);
+    },
+  );
+
+  it("preserves version 4 in every nested Settlement lookup outcome", () => {
+    const receipt = {
+      ...settlementReceipt(transactionId),
+      commandVersion: "4",
+    };
+    const {
+      resolvedAt: _resolvedAt,
+      outcome: _outcome,
+      ...unfinished
+    } = receipt;
+    const problem = {
+      type: "about:blank",
+      title: "Conflict",
+      status: 409,
+      code: "finance_settlement_preview_stale",
+      detail: "Selected debt changed; review the consequences again.",
+    };
+    const responses = [
+      { ...unfinished, state: "unfinished" },
+      { state: "terminal", receipt },
+      {
+        state: "terminal",
+        receipt: { ...receipt, outcome: { kind: "rejected", problem } },
+      },
+    ];
+    for (const response of responses) {
+      expect(FinanceSubmissionResponse.parse(response)).toEqual(response);
+      const invalid =
+        "receipt" in response
+          ? {
+              ...response,
+              receipt: { ...response.receipt, commandVersion: "5" },
+            }
+          : { ...response, commandVersion: "5" };
+      expect(FinanceSubmissionResponse.safeParse(invalid).success).toBe(false);
+    }
+  });
+
   it("preserves Account semantic-correction request constraints", () => {
     for (const invalidRequest of [
       {},

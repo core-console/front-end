@@ -60,7 +60,6 @@ import type {
   CreateUserRequest,
   CreditOriginResponse,
   CreditSettlementPreview,
-  CreditSettlementResponse,
   CurrencyResponse,
   FinanceOverviewResponse,
   FinanceSubmissionResponse,
@@ -70,7 +69,6 @@ import type {
   GetFinanceSubmissionHeaders,
   HelloWorldResponse,
   IncomeSettlementPreview,
-  IncomeSettlementResponse,
   LedgerConflictResponse,
   LedgerCreatedReceipt,
   LedgerResponse,
@@ -91,7 +89,7 @@ import type {
   SettlementCreatedReceipt,
   SettlementFailureResponse,
   SettlementPreview,
-  SettlementResponse,
+  SettlementSource,
   SharedAdvancePreview,
   SharedAdvanceResponse,
   SubmissionNonterminalProblem,
@@ -6555,9 +6553,7 @@ export function useGetFinanceParticipantPositions<
 }
 
 export type listFinanceParticipantSettlementsResponse200 = {
-  data: (
-    IncomeSettlementResponse | CreditSettlementResponse | SettlementResponse
-  )[];
+  data: SettlementSource[];
   status: 200;
 };
 
@@ -6885,7 +6881,7 @@ export const getCreateFinanceSettlementUrl = (ledgerId: string) => {
 };
 
 /**
- * Confirm one participant's accumulated cash repayment. Version 1 requires the matching previewToken and allocates all eligible debt oldest Advance date first. Version 2 requires excessDisposition=retainCredit and records any unallocated actual receipt as a participant credit Liability, including without eligible debt. Version 3 requires excessDisposition=acceptIncome and one complete Category Allocation equal to the positive actual surplus, creating linked Income without credit. No selected subset, forgiveness or credit use is accepted. Prepare one immutable submission identity before dispatch; recover under that same identity using getFinanceSubmission or an explicit retry.
+ * Confirm one participant's accumulated cash repayment. Version 1 requires the matching previewToken and allocates all eligible debt oldest Advance date first. Version 2 requires excessDisposition=retainCredit and records any unallocated actual receipt as a participant credit Liability, including without eligible debt. Version 3 requires excessDisposition=acceptIncome and one complete Category Allocation equal to the positive actual surplus, creating linked Income without credit. Version 4 requires selectedObligationIds and allocates only within that eligible outstanding subset, with the same explicit excess choices. No forgiveness or credit use is accepted. Prepare one immutable submission identity before dispatch; recover under that same identity using getFinanceSubmission or an explicit retry.
  * @summary Post Settlement
  */
 export const createFinanceSettlement = async (
@@ -7232,8 +7228,7 @@ export const usePreviewFinanceSettlement = <
 };
 
 export type getFinanceSettlementResponse200 = {
-  data:
-    IncomeSettlementResponse | CreditSettlementResponse | SettlementResponse;
+  data: SettlementSource;
   status: 200;
 };
 

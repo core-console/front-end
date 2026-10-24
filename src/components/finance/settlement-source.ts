@@ -1,12 +1,18 @@
 import { z } from "zod";
 import {
   SettlementResponse,
+  SelectedSettlementResponse,
+  SelectedCreditSettlementResponse,
+  SelectedIncomeSettlementResponse,
   CreditSettlementResponse,
   IncomeSettlementResponse,
 } from "@/api/generated/schemas";
 
 export const settlementSourceSchema = z
   .union([
+    SelectedSettlementResponse,
+    SelectedCreditSettlementResponse,
+    SelectedIncomeSettlementResponse,
     SettlementResponse,
     CreditSettlementResponse,
     IncomeSettlementResponse,
