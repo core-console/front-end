@@ -9,7 +9,7 @@ import * as zod from "zod";
 
 export const SettlementCommandValidationRejection = zod.strictObject({
   attemptedBody: zod.record(zod.string(), zod.unknown()),
-  commandVersion: zod.enum(["1", "2"]),
+  commandVersion: zod.enum(["1", "2", "3"]),
   kind: zod.literal("definitivelyNotAdmitted").meta({ title: "Kind" }),
   operation: zod
     .literal("createFinanceSettlement")

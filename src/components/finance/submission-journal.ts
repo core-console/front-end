@@ -141,7 +141,7 @@ const recordSchema = z
     recordsFor(transactionCommand.shape, z.literal("1")),
     recordsFor(adjustmentCommand.shape, z.literal("1")),
     recordsFor(advanceCommand.shape, z.enum(["1", "2"])),
-    recordsFor(settlementCommand.shape, z.enum(["1", "2"])),
+    recordsFor(settlementCommand.shape, z.enum(["1", "2", "3"])),
   ])
   .refine(
     (record) =>
@@ -152,7 +152,7 @@ const recordSchema = z
   .refine(
     (record) =>
       record.operation !== "createFinanceSettlement" ||
-      (record.commandVersion === "2") === "excessDisposition" in record.body,
+      record.commandVersion === settlementCommandVersion(record.body),
     "Settlement grammar does not match its command version.",
   )
   .refine(
@@ -173,6 +173,13 @@ const recordSchema = z
     "Submission evidence does not match its command.",
   );
 export type FinanceSubmission = z.infer<typeof recordSchema>;
+
+function settlementCommandVersion(
+  body: z.infer<typeof CreateFinanceSettlementBody>,
+) {
+  if (!("excessDisposition" in body)) return "1";
+  return body.excessDisposition === "acceptIncome" ? "3" : "2";
+}
 
 export function submissionLabel(record: Pick<FinanceSubmission, "operation">) {
   switch (record.operation) {
@@ -245,8 +252,17 @@ function endpointFor(command: CreateSubmissionCommand) {
 }
 
 export function submissionDescription(record: FinanceSubmission) {
-  if (record.operation === "createFinanceSettlement")
-    return `${record.body.amount.amount} ${record.body.amount.currency} · ${record.body.transactionDate} · Participant ${record.body.participantId}`;
+  if (record.operation === "createFinanceSettlement") {
+    const receipt = `${record.body.amount.amount} ${record.body.amount.currency} · ${record.body.transactionDate} · Participant ${record.body.participantId}`;
+    if (
+      "excessDisposition" in record.body &&
+      record.body.excessDisposition === "acceptIncome"
+    ) {
+      const classification = record.body.categoryAllocations[0]!;
+      return `${receipt} · Accepted Income ${classification.amount.amount} ${classification.amount.currency} · Category ${classification.categoryId ?? "Uncategorized"}`;
+    }
+    return receipt;
+  }
   if (record.operation === "createFinanceAdvance")
     return `${record.body.amount.amount} ${record.body.amount.currency} · ${record.body.transactionDate} · Participants ${"participantShares" in record.body ? record.body.participantShares.map((share) => share.participantId).join(", ") : record.body.participantId}`;
   if (record.operation === "createBalanceAdjustment")
@@ -422,12 +438,12 @@ export async function prepareSubmission(
     localSchemaVersion: 1,
     submissionId,
     commandVersion:
-      (command.operation === "createFinanceAdvance" &&
-        "participantShares" in command.body) ||
-      (command.operation === "createFinanceSettlement" &&
-        "excessDisposition" in command.body)
-        ? "2"
-        : "1",
+      command.operation === "createFinanceSettlement"
+        ? settlementCommandVersion(command.body)
+        : command.operation === "createFinanceAdvance" &&
+            "participantShares" in command.body
+          ? "2"
+          : "1",
     ...structuredClone(command),
     endpoint: endpointFor(command),
     preparedAt: new Date().toISOString(),

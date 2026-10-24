@@ -281,7 +281,7 @@ async function draft(page: Page, amount = "102") {
   const choice = dialog.getByLabel("Surplus handling");
   await expect(choice).toHaveValue("repayOnly");
   await choice.focus();
-  await page.keyboard.press("End");
+  await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Tab");
   await expect(choice).toHaveValue("retainCredit");
   await dialog.getByRole("button", { name: "Preview repayment" }).focus();

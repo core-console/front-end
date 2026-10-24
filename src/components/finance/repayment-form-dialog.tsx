@@ -5,18 +5,25 @@ import {
   type ComponentProps,
   type FormEvent,
 } from "react";
-import { usePreviewFinanceSettlement } from "@/api/generated/core-console";
+import {
+  usePreviewFinanceSettlement,
+  useListFinanceCategories,
+} from "@/api/generated/core-console";
 import {
   PreviewFinanceSettlementBody,
   SettlementPreview,
   CreditSettlementPreview,
+  IncomeSettlementPreview,
+  CategoryResponse,
   FinanceRequestDate,
   type AccountResponse,
   type CurrencyResponse,
   type ParticipantResponse,
+  type MoneyResponse,
 } from "@/api/generated/schemas";
 import { buildAccountWorkflowLabels } from "./account-identity";
 import { formatFinanceMoney } from "./finance-money";
+import { subtractExactDecimals } from "./finance-decimal";
 import { useFinanceCreate } from "./use-finance-create";
 import { useFinanceSubmissions } from "./finance-submission-context";
 import { SettlementAllocations } from "./settlement-allocations";
@@ -49,6 +56,22 @@ function today() {
   const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
+function sameMoney(left: MoneyResponse, right: MoneyResponse) {
+  return (
+    left.currency === right.currency &&
+    /^\d+(?:\.\d+)?$/.test(left.amount) &&
+    /^\d+(?:\.\d+)?$/.test(right.amount) &&
+    /^0(?:\.0+)?$/.test(subtractExactDecimals(left.amount, right.amount))
+  );
+}
+function positiveExactAmount(value: string, minorUnit: number) {
+  return (
+    /^\d+(?:\.\d+)?$/.test(value) &&
+    /[1-9]/.test(value) &&
+    (value.split(".")[1]?.length ?? 0) <= minorUnit &&
+    value.split(".")[0]!.replace(/^0+/, "").length <= 131072
+  );
+}
 export function RepaymentFormDialog({
   ledgerId,
   accounts,
@@ -77,13 +100,23 @@ export function RepaymentFormDialog({
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(today);
   const [note, setNote] = useState("");
-  const [retainCredit, setRetainCredit] = useState(false);
+  const [disposition, setDisposition] = useState("repayOnly");
+  const [incomeAmount, setIncomeAmount] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const acceptIncome = disposition === "acceptIncome";
+  const categories = useListFinanceCategories(ledgerId, {
+    query: {
+      enabled: acceptIncome,
+      select: (response) => CategoryResponse.array().parse(response.data),
+    },
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [storedReview, setReview] = useState<{
     draft: PreviewFinanceSettlementBody;
-    preview: SettlementPreview | CreditSettlementPreview;
+    preview:
+      SettlementPreview | CreditSettlementPreview | IncomeSettlementPreview;
   } | null>(null);
   const preview = usePreviewFinanceSettlement({ mutation: { retry: false } });
   const first = useRef<HTMLSelectElement>(null);
@@ -106,6 +139,10 @@ export function RepaymentFormDialog({
     { operation: "createFinanceSettlement" },
   );
   const review = create.rejected ? null : storedReview;
+  const reviewedCategoryId =
+    review && "categoryAllocations" in review.preview
+      ? review.preview.categoryAllocations[0]?.categoryId
+      : null;
   useEffect(() => {
     if (create.rejected) {
       first.current?.focus();
@@ -146,12 +183,7 @@ export function RepaymentFormDialog({
     if (!account || !currency)
       invalid.receiving =
         "Choose an active receiving Account with an available currency.";
-    if (
-      !/^\d+(?:\.\d+)?$/.test(amount) ||
-      !/[1-9]/.test(amount) ||
-      (amount.split(".")[1]?.length ?? 0) > (currency?.minorUnit ?? 0) ||
-      amount.split(".")[0]!.replace(/^0+/, "").length > 131072
-    )
+    if (!positiveExactAmount(amount, currency?.minorUnit ?? 0))
       invalid.amount =
         "Enter a positive exact amount within the currency precision. Amounts are never rounded.";
     if (
@@ -160,6 +192,20 @@ export function RepaymentFormDialog({
     )
       invalid.date =
         "Enter a valid date on or after the Account Tracking Start Date.";
+    if (acceptIncome) {
+      if (!positiveExactAmount(incomeAmount, currency?.minorUnit ?? 0))
+        invalid.income =
+          "Enter a positive exact Income amount within the receiving currency precision. Amounts are never rounded.";
+      if (
+        !categories.isSuccess ||
+        (categoryId &&
+          !categories.data.some(
+            (item) => item.id === categoryId && item.status === "active",
+          ))
+      )
+        invalid.category =
+          "Choose an active Category in this Ledger or Uncategorized. Refresh dependencies if it is unavailable.";
+    }
     setErrors(invalid);
     if (Object.keys(invalid).length) {
       document.getElementById(`repayment-${Object.keys(invalid)[0]}`)?.focus();
@@ -172,22 +218,51 @@ export function RepaymentFormDialog({
       transactionDate: date,
       amount: { amount, currency: account.currency },
       note: note || null,
-      ...(retainCredit ? { excessDisposition: "retainCredit" } : {}),
+      ...(acceptIncome
+        ? {
+            excessDisposition: "acceptIncome",
+            categoryAllocations: [
+              {
+                amount: { amount: incomeAmount, currency: account.currency },
+                categoryId: categoryId || null,
+              },
+            ],
+          }
+        : disposition === "retainCredit"
+          ? { excessDisposition: "retainCredit" }
+          : {}),
     });
     setError("");
     try {
       const response = await preview.mutateAsync({ ledgerId, data: draft });
+      const schema =
+        "categoryAllocations" in draft
+          ? IncomeSettlementPreview.refine((item) => {
+              const expected = draft.categoryAllocations[0]!;
+              const actual = item.categoryAllocations[0];
+              return (
+                sameMoney(item.amount, draft.amount) &&
+                sameMoney(item.acceptedSurplus, expected.amount) &&
+                item.categoryAllocations.length === 1 &&
+                !!actual &&
+                sameMoney(actual.amount, expected.amount) &&
+                (actual.categoryId ?? null) === (expected.categoryId ?? null) &&
+                sameMoney(item.availableCreditBefore, item.availableCreditAfter)
+              );
+            }, "Income preview does not match the explicit intent.")
+          : disposition === "retainCredit"
+            ? CreditSettlementPreview
+            : SettlementPreview;
       if (journal.isCurrentNamespace())
         setReview({
           draft,
-          preview: (retainCredit
-            ? CreditSettlementPreview
-            : SettlementPreview
-          ).parse(response.data),
+          preview: schema.parse(response.data),
         });
     } catch {
       setError(
-        "Preview could not be loaded. Check the receiving Account, currency, date and eligible outstanding debt, then refresh dependencies and try again. Nothing was confirmed.",
+        acceptIncome
+          ? "Preview could not be loaded. Your Income intent is preserved. Refresh dependencies and check the receipt, eligible debt and Income Category. If current surplus no longer matches, explicitly adjust your draft before previewing and reconfirming. Nothing was confirmed."
+          : "Preview could not be loaded. Check the receiving Account, currency, date and eligible outstanding debt, then refresh dependencies and try again. Nothing was confirmed.",
       );
     }
   }
@@ -198,11 +273,11 @@ export function RepaymentFormDialog({
       control: (
         <NativeSelect
           id="repayment-disposition"
-          value={retainCredit ? "retainCredit" : "repayOnly"}
+          value={disposition}
           aria-describedby="repayment-disposition-help"
           onChange={(event) => {
             edit();
-            setRetainCredit(event.target.value === "retainCredit");
+            setDisposition(event.target.value);
           }}
         >
           <NativeSelectOption value="repayOnly">
@@ -211,9 +286,72 @@ export function RepaymentFormDialog({
           <NativeSelectOption value="retainCredit">
             Retain surplus as Participant credit
           </NativeSelectOption>
+          <NativeSelectOption value="acceptIncome">
+            Accept surplus as Income
+          </NativeSelectOption>
         </NativeSelect>
       ),
     },
+    ...(acceptIncome
+      ? [
+          {
+            id: "income",
+            label: "Accepted Income amount",
+            control: (
+              <Input
+                id="repayment-income"
+                inputMode="decimal"
+                value={incomeAmount}
+                aria-invalid={!!errors.income}
+                aria-describedby={
+                  errors.income
+                    ? "repayment-income-help repayment-income-error"
+                    : "repayment-income-help"
+                }
+                onChange={(event) => {
+                  edit();
+                  setIncomeAmount(event.target.value);
+                }}
+              />
+            ),
+          },
+          {
+            id: "category",
+            label: "Income Category",
+            control: (
+              <NativeSelect
+                id="repayment-category"
+                value={categoryId}
+                aria-invalid={!!errors.category}
+                aria-describedby={
+                  errors.category ? "repayment-category-error" : undefined
+                }
+                onChange={(event) => {
+                  edit();
+                  setCategoryId(event.target.value);
+                }}
+              >
+                <NativeSelectOption value="">Uncategorized</NativeSelectOption>
+                {categoryId &&
+                !categories.data?.some(
+                  (item) => item.id === categoryId && item.status === "active",
+                ) ? (
+                  <NativeSelectOption value={categoryId}>
+                    Unavailable Category · {categoryId}
+                  </NativeSelectOption>
+                ) : null}
+                {(categories.data ?? [])
+                  .filter((item) => item.status === "active")
+                  .map((item) => (
+                    <NativeSelectOption key={item.id} value={item.id}>
+                      {item.name} · {item.id}
+                    </NativeSelectOption>
+                  ))}
+              </NativeSelect>
+            ),
+          },
+        ]
+      : []),
     {
       id: "participant",
       label: "Participant",
@@ -338,7 +476,8 @@ export function RepaymentFormDialog({
             outstanding Obligations, oldest Advance date first. Future-dated
             recording affects Current Balance immediately. Choose retained
             credit explicitly to receive surplus or record a receipt without
-            eligible debt.
+            eligible debt. Accept surplus as Income only by explicitly entering
+            its exact amount and Category intent.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -360,10 +499,20 @@ export function RepaymentFormDialog({
                         id="repayment-disposition-help"
                         className="text-sm text-muted-foreground"
                       >
-                        Retained surplus is a Liability owed to the Participant,
-                        not Income. Cash first pays all eligible debt; any
-                        remainder stays as credit. Existing credit is never
-                        applied automatically.
+                        Cash first pays all eligible debt. Retained credit is a
+                        Liability owed to the Participant. Accepted surplus is
+                        Income belonging to you. Choose its meaning explicitly;
+                        existing credit is never applied automatically.
+                      </p>
+                    ) : null}
+                    {field.id === "income" ? (
+                      <p
+                        id="repayment-income-help"
+                        className="text-sm text-muted-foreground"
+                      >
+                        Enter the exact surplus you intend to accept as Income.
+                        It must equal the receipt remaining after eligible debt.
+                        Your amount is never adjusted automatically.
                       </p>
                     ) : null}
                     {errors[field.id] ? (
@@ -376,6 +525,13 @@ export function RepaymentFormDialog({
               </FieldGroup>
             </FieldSet>
           </FieldGroup>
+          {acceptIncome && !categories.isSuccess ? (
+            <p role="status">
+              {categories.isError
+                ? "Income Categories could not load. Refresh dependencies to try again."
+                : "Loading Income Categories…"}
+            </p>
+          ) : null}
           {error || create.error ? (
             <Alert variant="destructive">
               <AlertTitle>{error || create.error}</AlertTitle>
@@ -422,6 +578,49 @@ export function RepaymentFormDialog({
                   Participant credit Liability. Existing credit remains
                   unapplied.
                 </p>
+              ) : null}
+              {"acceptedSurplus" in review.preview ? (
+                <>
+                  <p>
+                    Accepted surplus belongs to you and increases Income. No
+                    Participant credit is created; existing credit is unchanged.
+                    The full receipt changes the receiving balance.
+                  </p>
+                  <dl className="grid grid-cols-2 gap-2">
+                    <div>
+                      <dt>Accepted surplus Income</dt>
+                      <dd>
+                        {formatFinanceMoney(review.preview.acceptedSurplus)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Income Category</dt>
+                      <dd>
+                        {reviewedCategoryId
+                          ? (categories.data?.find(
+                              (item) => item.id === reviewedCategoryId,
+                            )?.name ?? reviewedCategoryId)
+                          : "Uncategorized"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Available credit before</dt>
+                      <dd>
+                        {formatFinanceMoney(
+                          review.preview.availableCreditBefore,
+                        )}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Available credit after</dt>
+                      <dd>
+                        {formatFinanceMoney(
+                          review.preview.availableCreditAfter,
+                        )}
+                      </dd>
+                    </div>
+                  </dl>
+                </>
               ) : null}
               <p>
                 Only Advances dated on or before {review.draft.transactionDate}{" "}
@@ -498,7 +697,10 @@ export function RepaymentFormDialog({
               onClick={() => {
                 edit();
                 setRefreshing(true);
-                void refreshDependencies().finally(() => setRefreshing(false));
+                void Promise.allSettled([
+                  refreshDependencies(),
+                  ...(acceptIncome ? [categories.refetch()] : []),
+                ]).finally(() => setRefreshing(false));
               }}
             >
               {refreshing ? "Refreshing…" : "Refresh dependencies"}
@@ -508,7 +710,12 @@ export function RepaymentFormDialog({
             </Button>
             <Button
               type="submit"
-              disabled={preview.isPending || locked || refreshing}
+              disabled={
+                preview.isPending ||
+                locked ||
+                refreshing ||
+                (acceptIncome && !categories.isSuccess)
+              }
             >
               {preview.isPending
                 ? "Loading preview…"

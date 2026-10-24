@@ -13,6 +13,11 @@ export const createFinanceSettlementBodyOnePreviewTokenRegExp = new RegExp(
 export const createFinanceSettlementBodyTwoPreviewTokenRegExp = new RegExp(
   "^[0-9a-f]{64}$",
 );
+export const createFinanceSettlementBodyThreeCategoryAllocationsMax = 1;
+
+export const createFinanceSettlementBodyThreePreviewTokenRegExp = new RegExp(
+  "^[0-9a-f]{64}$",
+);
 
 export const CreateFinanceSettlementBody = zod.union([
   zod.strictObject({
@@ -49,6 +54,42 @@ export const CreateFinanceSettlementBody = zod.union([
     previewToken: zod
       .string()
       .regex(createFinanceSettlementBodyTwoPreviewTokenRegExp),
+    receivingAccountId: zod.uuid(),
+    transactionDate: zod.iso.date(),
+  }),
+  zod.strictObject({
+    amount: zod.strictObject({
+      amount: zod
+        .string()
+        .describe(
+          "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+        ),
+      currency: zod.enum(["CNY", "JPY", "USD"]),
+    }),
+    categoryAllocations: zod
+      .array(
+        zod.strictObject({
+          amount: zod.strictObject({
+            amount: zod
+              .string()
+              .describe(
+                "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+              ),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          }),
+          categoryId: zod.union([zod.uuid(), zod.null()]).optional(),
+        }),
+      )
+      .min(1)
+      .max(createFinanceSettlementBodyThreeCategoryAllocationsMax),
+    excessDisposition: zod
+      .literal("acceptIncome")
+      .meta({ title: "Excessdisposition" }),
+    note: zod.union([zod.string(), zod.null()]).optional(),
+    participantId: zod.uuid(),
+    previewToken: zod
+      .string()
+      .regex(createFinanceSettlementBodyThreePreviewTokenRegExp),
     receivingAccountId: zod.uuid(),
     transactionDate: zod.iso.date(),
   }),

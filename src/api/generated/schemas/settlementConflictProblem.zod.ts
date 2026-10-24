@@ -11,6 +11,7 @@ export const SettlementConflictProblem = zod.strictObject({
   code: zod.enum([
     "finance_account_archived",
     "finance_settlement_preview_stale",
+    "finance_category_archived",
     "finance_linked_record_protected",
   ]),
   detail: zod.string(),

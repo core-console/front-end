@@ -9,7 +9,7 @@ import * as zod from "zod";
 
 export const SettlementSubmissionReceipt = zod.strictObject({
   admittedAt: zod.iso.datetime({ offset: true }),
-  commandVersion: zod.enum(["1", "2"]),
+  commandVersion: zod.enum(["1", "2", "3"]),
   operation: zod.enum(["createFinanceSettlement"]),
   outcome: zod.union([
     zod.strictObject({
@@ -33,6 +33,7 @@ export const SettlementSubmissionReceipt = zod.strictObject({
           code: zod.enum([
             "finance_account_archived",
             "finance_settlement_preview_stale",
+            "finance_category_archived",
             "finance_linked_record_protected",
           ]),
           detail: zod.string(),
@@ -44,6 +45,7 @@ export const SettlementSubmissionReceipt = zod.strictObject({
           code: zod.enum([
             "finance_account_not_found",
             "finance_participant_not_found",
+            "finance_category_not_found",
           ]),
           detail: zod.string(),
           status: zod.literal(404).meta({ title: "Status" }),

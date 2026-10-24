@@ -209,6 +209,39 @@ establish PostgreSQL effects or delivered P+C acceptance for
 [Issue #29](https://github.com/core-console/back-end/issues/29). Repayment,
 forgiveness and correction workflows remain outside the T03 consumer.
 
+## Finance v2 explicitly accepted surplus Income (T06)
+
+The synchronized OpenAPI producer is
+`1c849355f7c94ff6cb4b53fb5874cf8f8f392e0e`. The existing repayment form adds
+**Accept surplus as Income**, an explicit version 3 Settlement with an exact
+Income amount and one active Ledger Category or Uncategorized. Cash pays all
+eligible debt first. The Income amount must equal the actual surplus; it is
+never calculated into the draft or replaced automatically. Preview shows the
+full receipt, receiving balance, retained principal Allocations, accepted Income,
+Category and unchanged available credit. Confirmed detail identifies the Income
+amount and links its Transaction for retained Category classification.
+
+Version 1 principal repayments and version 2 retained-credit commands remain
+supported. Income belongs to the owner; retained credit remains a Participant
+Liability. This workflow never converts existing credit into Income or consumes
+it automatically. Explicit Income acceptance can also classify the whole receipt
+when no eligible debt exists, without inventing an Obligation.
+
+The existing journal retains version 3 owner, Ledger, key, token and complete
+body for lookup or explicit retry, including the original Income amount and
+Category. Failed source refresh does not change a confirmed outcome. A stale
+rejection removes confirmation and requires a new preview. If current state
+prevents regeneration, the original draft stays visible until the user explicitly
+adjusts it, previews again and deliberately confirms a new action.
+
+The [T06 producer note](https://github.com/core-console/back-end/blob/1c849355f7c94ff6cb4b53fb5874cf8f8f392e0e/docs/finance-v2-accepted-surplus-t06.md)
+and [immutable specification](https://github.com/core-console/back-end/blob/e206bdd5af48a3f6b3b9b525c27fa6178220bdc7/docs/finance-v2-personal-receivable-settlement-spec.md)
+own financial and wire semantics. Routed fixtures and production-preview
+Chromium checks cover consumer behavior. Consumer delivery, real guarded
+PostgreSQL P+C acceptance and authorized [Issue #32](https://github.com/core-console/back-end/issues/32)
+closure remain separate steps. Selected subsets, forgiveness, Corrections and
+credit application/return remain later slices.
+
 ## Finance v2 retained surplus and receipt-backed credit (T05)
 
 The synchronized backend producer is

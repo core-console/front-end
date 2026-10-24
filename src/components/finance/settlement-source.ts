@@ -2,10 +2,22 @@ import { z } from "zod";
 import {
   SettlementResponse,
   CreditSettlementResponse,
+  IncomeSettlementResponse,
 } from "@/api/generated/schemas";
 
 export const settlementSourceSchema = z
-  .union([SettlementResponse, CreditSettlementResponse])
+  .union([
+    SettlementResponse,
+    CreditSettlementResponse,
+    IncomeSettlementResponse,
+  ])
+  .refine(
+    (item) =>
+      !("incomeTransactionId" in item) ||
+      (item.transactionIds.includes(item.incomeTransactionId) &&
+        item.acceptedSurplus.currency === item.amount.currency),
+    "Income link does not match its Settlement source.",
+  )
   .refine(
     (item) =>
       !("creditOrigin" in item) ||

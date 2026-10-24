@@ -60,6 +60,8 @@ import type {
   FinanceSubmissionTerminal,
   FinanceTransactionResponse,
   HelloWorldResponse,
+  IncomeSettlementPreview,
+  IncomeSettlementResponse,
   IncomeTransactionResponse,
   InternalTransferTransactionResponse,
   LedgerConflictResponse,
@@ -5189,13 +5191,44 @@ export const getGetFinanceParticipantPositionsResponseMock503 = (
 });
 
 export const getListFinanceParticipantSettlementsResponseMock = (): (
-  CreditSettlementResponse | SettlementResponse
+  IncomeSettlementResponse | CreditSettlementResponse | SettlementResponse
 )[] =>
   Array.from(
     { length: faker.number.int({ min: 1, max: 10 }) },
     (_, i) => i + 1,
   ).map(() =>
     faker.helpers.arrayElement([
+      {
+        acceptedSurplus: { amount: "12.34", currency: "CNY" },
+        allocations: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          advanceId: faker.string.uuid(),
+          cashPaid: { amount: "12.34", currency: "CNY" },
+          obligationId: faker.string.uuid(),
+          position: faker.number.int(),
+          remainingAfter: { amount: "12.34", currency: "CNY" },
+          sourceDate: faker.date.past().toISOString().slice(0, 10),
+        })),
+        amount: { amount: "12.34", currency: "CNY" },
+        confirmationOrder: faker.number.int(),
+        confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+        id: faker.string.uuid(),
+        incomeTransactionId: faker.string.uuid(),
+        ledgerId: faker.string.uuid(),
+        note: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        participantId: faker.string.uuid(),
+        receivingAccountId: faker.string.uuid(),
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionIds: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => faker.string.uuid()),
+      },
       {
         allocations: Array.from(
           { length: faker.number.int({ min: 1, max: 10 }) },
@@ -5271,13 +5304,44 @@ export const getListFinanceParticipantSettlementsResponseMock = (): (
   );
 
 export const getListFinanceParticipantSettlementsResponseMock200 = (): (
-  CreditSettlementResponse | SettlementResponse
+  IncomeSettlementResponse | CreditSettlementResponse | SettlementResponse
 )[] =>
   Array.from(
     { length: faker.number.int({ min: 1, max: 10 }) },
     (_, i) => i + 1,
   ).map(() =>
     faker.helpers.arrayElement([
+      {
+        acceptedSurplus: { amount: "12.34", currency: "CNY" },
+        allocations: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          advanceId: faker.string.uuid(),
+          cashPaid: { amount: "12.34", currency: "CNY" },
+          obligationId: faker.string.uuid(),
+          position: faker.number.int(),
+          remainingAfter: { amount: "12.34", currency: "CNY" },
+          sourceDate: faker.date.past().toISOString().slice(0, 10),
+        })),
+        amount: { amount: "12.34", currency: "CNY" },
+        confirmationOrder: faker.number.int(),
+        confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+        id: faker.string.uuid(),
+        incomeTransactionId: faker.string.uuid(),
+        ledgerId: faker.string.uuid(),
+        note: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        participantId: faker.string.uuid(),
+        receivingAccountId: faker.string.uuid(),
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionIds: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => faker.string.uuid()),
+      },
       {
         allocations: Array.from(
           { length: faker.number.int({ min: 1, max: 10 }) },
@@ -5461,7 +5525,7 @@ export const getCreateFinanceSettlementResponseMock = (
   overrideResponse: Partial<Extract<SettlementCreatedReceipt, object>> = {},
 ): SettlementCreatedReceipt => ({
   admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-  commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
+  commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
   operation: "createFinanceSettlement",
   outcome: {
     kind: "created",
@@ -5477,7 +5541,7 @@ export const getCreateFinanceSettlementResponseMock201 = (
   overrideResponse: Partial<Extract<SettlementCreatedReceipt, object>> = {},
 ): SettlementCreatedReceipt => ({
   admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-  commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
+  commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
   operation: "createFinanceSettlement",
   outcome: {
     kind: "created",
@@ -5551,6 +5615,7 @@ export const getCreateFinanceSettlementResponseSettlementConflictProblemMock = (
     code: faker.helpers.arrayElement([
       "finance_account_archived",
       "finance_settlement_preview_stale",
+      "finance_category_archived",
       "finance_linked_record_protected",
     ] as const),
     detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
@@ -5568,6 +5633,7 @@ export const getCreateFinanceSettlementResponseSettlementMissingProblemMock = (
     code: faker.helpers.arrayElement([
       "finance_account_not_found",
       "finance_participant_not_found",
+      "finance_category_not_found",
     ] as const),
     detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
     status: 404,
@@ -5612,7 +5678,7 @@ export const getCreateFinanceSettlementResponseMock404 =
           attemptedBody: {
             [faker.string.alphanumeric(5)]: {},
           },
-          commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
+          commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
           kind: "definitivelyNotAdmitted",
           operation: "createFinanceSettlement",
           ownerId: faker.string.uuid(),
@@ -5642,9 +5708,11 @@ export const getCreateFinanceSettlementResponseMock404 =
           "validation_error",
           "finance_account_archived",
           "finance_settlement_preview_stale",
+          "finance_category_archived",
           "finance_linked_record_protected",
           "finance_account_not_found",
           "finance_participant_not_found",
+          "finance_category_not_found",
         ] as const),
         detail: faker.helpers.arrayElement([
           faker.string.alpha({ length: { min: 10, max: 20 } }),
@@ -5657,7 +5725,7 @@ export const getCreateFinanceSettlementResponseMock404 =
         status: faker.helpers.arrayElement([404, 409, 422] as const),
         submissionReceipt: {
           admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-          commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
+          commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
           operation: "createFinanceSettlement",
           outcome: {
             kind: "rejected",
@@ -5717,7 +5785,7 @@ export const getCreateFinanceSettlementResponseMock409 =
           attemptedBody: {
             [faker.string.alphanumeric(5)]: {},
           },
-          commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
+          commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
           kind: "definitivelyNotAdmitted",
           operation: "createFinanceSettlement",
           ownerId: faker.string.uuid(),
@@ -5747,9 +5815,11 @@ export const getCreateFinanceSettlementResponseMock409 =
           "validation_error",
           "finance_account_archived",
           "finance_settlement_preview_stale",
+          "finance_category_archived",
           "finance_linked_record_protected",
           "finance_account_not_found",
           "finance_participant_not_found",
+          "finance_category_not_found",
         ] as const),
         detail: faker.helpers.arrayElement([
           faker.string.alpha({ length: { min: 10, max: 20 } }),
@@ -5762,7 +5832,7 @@ export const getCreateFinanceSettlementResponseMock409 =
         status: faker.helpers.arrayElement([404, 409, 422] as const),
         submissionReceipt: {
           admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-          commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
+          commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
           operation: "createFinanceSettlement",
           outcome: {
             kind: "rejected",
@@ -5822,7 +5892,7 @@ export const getCreateFinanceSettlementResponseMock422 =
           attemptedBody: {
             [faker.string.alphanumeric(5)]: {},
           },
-          commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
+          commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
           kind: "definitivelyNotAdmitted",
           operation: "createFinanceSettlement",
           ownerId: faker.string.uuid(),
@@ -5852,9 +5922,11 @@ export const getCreateFinanceSettlementResponseMock422 =
           "validation_error",
           "finance_account_archived",
           "finance_settlement_preview_stale",
+          "finance_category_archived",
           "finance_linked_record_protected",
           "finance_account_not_found",
           "finance_participant_not_found",
+          "finance_category_not_found",
         ] as const),
         detail: faker.helpers.arrayElement([
           faker.string.alpha({ length: { min: 10, max: 20 } }),
@@ -5867,7 +5939,7 @@ export const getCreateFinanceSettlementResponseMock422 =
         status: faker.helpers.arrayElement([404, 409, 422] as const),
         submissionReceipt: {
           admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-          commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
+          commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
           operation: "createFinanceSettlement",
           outcome: {
             kind: "rejected",
@@ -5935,8 +6007,40 @@ export const getCreateFinanceSettlementResponseMock503 = (
 });
 
 export const getPreviewFinanceSettlementResponseMock = ():
-  CreditSettlementPreview | SettlementPreview =>
+  IncomeSettlementPreview | CreditSettlementPreview | SettlementPreview =>
   faker.helpers.arrayElement([
+    {
+      acceptedSurplus: { amount: "12.34", currency: "CNY" },
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      availableCreditAfter: { amount: "12.34", currency: "CNY" },
+      availableCreditBefore: { amount: "12.34", currency: "CNY" },
+      categoryAllocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        amount: {
+          amount: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          currency: faker.helpers.arrayElement(["CNY", "JPY", "USD"] as const),
+        },
+        categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      })),
+      outstandingAfter: { amount: "12.34", currency: "CNY" },
+      outstandingBefore: { amount: "12.34", currency: "CNY" },
+      previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      receivingBalance: { amount: "12.34", currency: "CNY" },
+      receivingBalanceAfter: { amount: "12.34", currency: "CNY" },
+    },
     {
       allocations: Array.from(
         { length: faker.number.int({ min: 1, max: 10 }) },
@@ -5981,8 +6085,40 @@ export const getPreviewFinanceSettlementResponseMock = ():
   ]);
 
 export const getPreviewFinanceSettlementResponseMock200 = ():
-  CreditSettlementPreview | SettlementPreview =>
+  IncomeSettlementPreview | CreditSettlementPreview | SettlementPreview =>
   faker.helpers.arrayElement([
+    {
+      acceptedSurplus: { amount: "12.34", currency: "CNY" },
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      availableCreditAfter: { amount: "12.34", currency: "CNY" },
+      availableCreditBefore: { amount: "12.34", currency: "CNY" },
+      categoryAllocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        amount: {
+          amount: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          currency: faker.helpers.arrayElement(["CNY", "JPY", "USD"] as const),
+        },
+        categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      })),
+      outstandingAfter: { amount: "12.34", currency: "CNY" },
+      outstandingBefore: { amount: "12.34", currency: "CNY" },
+      previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      receivingBalance: { amount: "12.34", currency: "CNY" },
+      receivingBalanceAfter: { amount: "12.34", currency: "CNY" },
+    },
     {
       allocations: Array.from(
         { length: faker.number.int({ min: 1, max: 10 }) },
@@ -6153,8 +6289,39 @@ export const getPreviewFinanceSettlementResponseMock503 = (
 });
 
 export const getGetFinanceSettlementResponseMock = ():
-  CreditSettlementResponse | SettlementResponse =>
+  IncomeSettlementResponse | CreditSettlementResponse | SettlementResponse =>
   faker.helpers.arrayElement([
+    {
+      acceptedSurplus: { amount: "12.34", currency: "CNY" },
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      id: faker.string.uuid(),
+      incomeTransactionId: faker.string.uuid(),
+      ledgerId: faker.string.uuid(),
+      note: faker.helpers.arrayElement([
+        faker.string.alpha({ length: { min: 10, max: 20 } }),
+        null,
+      ]),
+      participantId: faker.string.uuid(),
+      receivingAccountId: faker.string.uuid(),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+    },
     {
       allocations: Array.from(
         { length: faker.number.int({ min: 1, max: 10 }) },
@@ -6229,8 +6396,39 @@ export const getGetFinanceSettlementResponseMock = ():
   ]);
 
 export const getGetFinanceSettlementResponseMock200 = ():
-  CreditSettlementResponse | SettlementResponse =>
+  IncomeSettlementResponse | CreditSettlementResponse | SettlementResponse =>
   faker.helpers.arrayElement([
+    {
+      acceptedSurplus: { amount: "12.34", currency: "CNY" },
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        obligationId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      id: faker.string.uuid(),
+      incomeTransactionId: faker.string.uuid(),
+      ledgerId: faker.string.uuid(),
+      note: faker.helpers.arrayElement([
+        faker.string.alpha({ length: { min: 10, max: 20 } }),
+        null,
+      ]),
+      participantId: faker.string.uuid(),
+      receivingAccountId: faker.string.uuid(),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+    },
     {
       allocations: Array.from(
         { length: faker.number.int({ min: 1, max: 10 }) },
@@ -7806,7 +8004,7 @@ export const getGetFinanceSubmissionResponseSettlementSubmissionUnfinishedMock =
   ): SettlementSubmissionUnfinished => ({
     ...{
       admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-      commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
+      commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
       operation: faker.helpers.arrayElement([
         "createFinanceSettlement",
       ] as const),
@@ -8249,6 +8447,7 @@ export const getGetFinanceSubmissionResponseSettlementConflictProblemMock = (
     code: faker.helpers.arrayElement([
       "finance_account_archived",
       "finance_settlement_preview_stale",
+      "finance_category_archived",
       "finance_linked_record_protected",
     ] as const),
     detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
@@ -8266,6 +8465,7 @@ export const getGetFinanceSubmissionResponseSettlementMissingProblemMock = (
     code: faker.helpers.arrayElement([
       "finance_account_not_found",
       "finance_participant_not_found",
+      "finance_category_not_found",
     ] as const),
     detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
     status: 404,
@@ -8294,7 +8494,7 @@ export const getGetFinanceSubmissionResponseSettlementSubmissionReceiptMock = (
 ): SettlementSubmissionReceipt => ({
   ...{
     admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
-    commandVersion: faker.helpers.arrayElement(["1", "2"] as const),
+    commandVersion: faker.helpers.arrayElement(["1", "2", "3"] as const),
     operation: faker.helpers.arrayElement(["createFinanceSettlement"] as const),
     outcome: faker.helpers.arrayElement([
       { ...getGetFinanceSubmissionResponseSettlementCreatedOutcomeMock() },

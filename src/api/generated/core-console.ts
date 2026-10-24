@@ -69,6 +69,8 @@ import type {
   GetFinanceOverviewParams,
   GetFinanceSubmissionHeaders,
   HelloWorldResponse,
+  IncomeSettlementPreview,
+  IncomeSettlementResponse,
   LedgerConflictResponse,
   LedgerCreatedReceipt,
   LedgerResponse,
@@ -6553,7 +6555,9 @@ export function useGetFinanceParticipantPositions<
 }
 
 export type listFinanceParticipantSettlementsResponse200 = {
-  data: (CreditSettlementResponse | SettlementResponse)[];
+  data: (
+    IncomeSettlementResponse | CreditSettlementResponse | SettlementResponse
+  )[];
   status: 200;
 };
 
@@ -6881,7 +6885,7 @@ export const getCreateFinanceSettlementUrl = (ledgerId: string) => {
 };
 
 /**
- * Confirm one participant's accumulated cash repayment. Version 1 requires the matching previewToken and allocates all eligible debt oldest Advance date first. Version 2 requires excessDisposition=retainCredit and records any unallocated actual receipt as a participant credit Liability, including without eligible debt. No selected subset, forgiveness, Income disposition or credit use is accepted. Prepare one immutable submission identity before dispatch; recover under that same identity using getFinanceSubmission or an explicit retry.
+ * Confirm one participant's accumulated cash repayment. Version 1 requires the matching previewToken and allocates all eligible debt oldest Advance date first. Version 2 requires excessDisposition=retainCredit and records any unallocated actual receipt as a participant credit Liability, including without eligible debt. Version 3 requires excessDisposition=acceptIncome and one complete Category Allocation equal to the positive actual surplus, creating linked Income without credit. No selected subset, forgiveness or credit use is accepted. Prepare one immutable submission identity before dispatch; recover under that same identity using getFinanceSubmission or an explicit retry.
  * @summary Post Settlement
  */
 export const createFinanceSettlement = async (
@@ -7032,7 +7036,7 @@ export const useCreateFinanceSettlement = <
 };
 
 export type previewFinanceSettlementResponse200 = {
-  data: CreditSettlementPreview | SettlementPreview;
+  data: IncomeSettlementPreview | CreditSettlementPreview | SettlementPreview;
   status: 200;
 };
 
@@ -7228,7 +7232,8 @@ export const usePreviewFinanceSettlement = <
 };
 
 export type getFinanceSettlementResponse200 = {
-  data: CreditSettlementResponse | SettlementResponse;
+  data:
+    IncomeSettlementResponse | CreditSettlementResponse | SettlementResponse;
   status: 200;
 };
 

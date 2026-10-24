@@ -18,6 +18,56 @@ const namespace = {
   ownerId: "edb4ee80-17c6-46b5-863e-2afa18e84043",
 };
 
+it("retains explicit Income intent as version 3 and only resolves matching evidence", async () => {
+  const command = {
+    operation: "createFinanceSettlement" as const,
+    workflow: "settlement" as const,
+    targetLedgerId: "11111111-1111-4111-8111-111111111111",
+    body: {
+      participantId: "22222222-2222-4222-8222-222222222222",
+      receivingAccountId: "33333333-3333-4333-8333-333333333333",
+      transactionDate: "2026-10-23",
+      amount: { amount: "102", currency: "CNY" as const },
+      excessDisposition: "acceptIncome" as const,
+      categoryAllocations: [
+        { amount: { amount: "2", currency: "CNY" as const } },
+      ],
+      previewToken: "a".repeat(64),
+    },
+  };
+  const record = await prepareSubmission(namespace, command);
+  expect(record.commandVersion).toBe("3");
+  command.body.categoryAllocations[0]!.amount.amount = "22";
+  expect(await readSubmission(record)).toMatchObject({
+    commandVersion: "3",
+    body: {
+      excessDisposition: "acceptIncome",
+      categoryAllocations: [{ amount: { amount: "2" } }],
+    },
+  });
+  const receipt = {
+    submissionId: record.submissionId,
+    operation: "createFinanceSettlement" as const,
+    commandVersion: "3" as const,
+    targetLedgerId: command.targetLedgerId,
+    admittedAt: "2026-10-23T00:00:00Z",
+    resolvedAt: "2026-10-23T00:00:01Z",
+    outcome: {
+      kind: "created" as const,
+      resource: { type: "settlement" as const, id: crypto.randomUUID() },
+    },
+  };
+  await expect(
+    resolveSubmission(record, {
+      kind: "receipt",
+      receipt: { ...receipt, commandVersion: "2" },
+    }),
+  ).rejects.toThrow(/does not match/);
+  expect((await readSubmission(record))?.state).toBe("unresolved");
+  await resolveSubmission(record, { kind: "receipt", receipt });
+  expect((await readSubmission(record))?.state).toBe("resolved");
+});
+
 it("retains version 2 credit receipts beside original version 1 repayments and rejects mismatched evidence", async () => {
   globalThis.indexedDB = new IDBFactory();
   const body = {

@@ -11,6 +11,7 @@ export const SettlementMissingProblem = zod.strictObject({
   code: zod.enum([
     "finance_account_not_found",
     "finance_participant_not_found",
+    "finance_category_not_found",
   ]),
   detail: zod.string(),
   status: zod.literal(404).meta({ title: "Status" }),

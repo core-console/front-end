@@ -101,6 +101,14 @@ function SettlementDetail({
               ],
               ["Receipt date", item.transactionDate],
               ["Cash received", formatFinanceMoney(item.amount)],
+              ...("acceptedSurplus" in item
+                ? [
+                    [
+                      "Accepted surplus Income",
+                      formatFinanceMoney(item.acceptedSurplus),
+                    ],
+                  ]
+                : []),
               ...("creditOrigin" in item
                 ? [
                     [
@@ -139,6 +147,14 @@ function SettlementDetail({
               preserved; no Income or Expense is created.
             </p>
           ) : null}
+          {"acceptedSurplus" in item ? (
+            <p>
+              Accepted surplus increases Income and creates no Participant
+              credit. Principal remains neutral to Income and Expense; the full
+              cash receipt is preserved. Open the Income Transaction for its
+              Category classification.
+            </p>
+          ) : null}
           <SettlementAllocations
             confirmed
             allocations={item.allocations}
@@ -151,7 +167,11 @@ function SettlementDetail({
               className="underline underline-offset-4"
               to={`/finance/transactions/${transactionId}?ledger=${ledgerId}`}
             >
-              View linked Transaction · {transactionId}
+              {"incomeTransactionId" in item &&
+              transactionId === item.incomeTransactionId
+                ? "View accepted Income Transaction"
+                : "View linked Transaction"}{" "}
+              · {transactionId}
             </Link>
           ))}
           <Link
@@ -247,6 +267,7 @@ function RepaymentHistory({
 export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
+  const confirmed = useRef(false);
   const [params, setParams] = useSearchParams();
   const journal = useFinanceSubmissions();
   const pending =
@@ -314,7 +335,10 @@ export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
             pending ||
             retained
           }
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            confirmed.current = false;
+            setOpen(true);
+          }}
         >
           Record repayment
         </Button>
@@ -417,17 +441,20 @@ export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
           initialParticipantId={selected?.id}
           onClose={() => setOpen(false)}
           onConfirmed={(id, participantId) => {
+            confirmed.current = true;
             setOpen(false);
             setParams({
               ledger: ledgerId,
               participant_id: participantId,
               settlement_id: id,
             });
-            requestAnimationFrame(() =>
-              document.getElementById("finance-title")?.focus(),
-            );
           }}
-          finalFocus={trigger}
+          finalFocus={() =>
+            // Let dialog cleanup own focus so it cannot overwrite success focus.
+            confirmed.current
+              ? document.getElementById("finance-title")
+              : trigger.current
+          }
           refreshDependencies={refresh}
         />
       ) : null}
