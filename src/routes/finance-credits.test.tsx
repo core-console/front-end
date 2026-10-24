@@ -408,6 +408,14 @@ it.each(["missing", "busy", "wrong version"])(
   "keeps a lost version 2 response immutable across navigation and %s lookup until explicit same-key retry",
   async (mode) => {
     const posts: { key: string; body: string; version: string | null }[] = [];
+    let markLookupStarted!: () => void;
+    const lookupStarted = new Promise<void>((resolve) => {
+      markLookupStarted = resolve;
+    });
+    let releaseLookup!: () => void;
+    const lookupResponse = new Promise<void>((resolve) => {
+      releaseLookup = resolve;
+    });
     server.use(
       http.post("*/api/finance/ledgers/:ledger/settlements/preview", () =>
         HttpResponse.json(creditPreview),
@@ -426,8 +434,10 @@ it.each(["missing", "busy", "wrong version"])(
             : HttpResponse.json(creditReceipt(key), { status: 201 });
         },
       ),
-      http.get("*/api/finance/submissions/:id", ({ params }) =>
-        mode === "wrong version"
+      http.get("*/api/finance/submissions/:id", async ({ params }) => {
+        markLookupStarted();
+        await lookupResponse;
+        return mode === "wrong version"
           ? HttpResponse.json({
               state: "terminal",
               receipt: settlementReceipt(String(params.id)),
@@ -443,8 +453,8 @@ it.each(["missing", "busy", "wrong version"])(
                     : "finance_submission_busy",
               },
               { status: mode === "missing" ? 404 : 409 },
-            ),
-      ),
+            );
+      }),
       http.get("*/api/finance/ledgers/:ledger/settlements/:id", () =>
         HttpResponse.json(
           { type: "about:blank", title: "Unavailable", status: 503 },
@@ -471,9 +481,24 @@ it.each(["missing", "busy", "wrong version"])(
       await screen.findByRole("button", { name: "Record repayment" }),
     ).toBeDisabled();
     expect(posts).toHaveLength(1);
-    await user.click(
-      await screen.findByRole("button", { name: "Retry original submission" }),
-    );
+    await lookupStarted;
+    const retry = await screen.findByRole("button", {
+      name: "Retry original submission",
+    });
+    try {
+      await waitFor(() => expect(retry).toBeDisabled());
+      await user.click(retry);
+      expect(posts).toHaveLength(1);
+    } finally {
+      releaseLookup();
+    }
+    // A mounted retry control is not actionable until recovery lookup settles.
+    await waitFor(() => expect(retry).toBeEnabled());
+    expect(posts).toHaveLength(1);
+    expect(
+      screen.getByRole("button", { name: "Record repayment" }),
+    ).toBeDisabled();
+    await user.click(retry);
     await screen.findByRole("status", { name: /Settlement created:/ });
     expect(posts).toHaveLength(2);
     expect(posts[1]).toEqual(posts[0]);
