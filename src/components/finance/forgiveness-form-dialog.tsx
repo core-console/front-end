@@ -469,6 +469,7 @@ export function ForgivenessFormDialog({
                     <Field key={row.id} orientation="horizontal">
                       <Checkbox
                         id={`forgive-${row.id}`}
+                        disabled={busy}
                         checked={selectedIds.includes(row.id)}
                         onCheckedChange={(checked) => {
                           edit();
@@ -492,6 +493,7 @@ export function ForgivenessFormDialog({
                     <Field key={id} orientation="horizontal">
                       <Checkbox
                         id={`forgive-${id}`}
+                        disabled={busy}
                         checked
                         onCheckedChange={() => {
                           edit();
