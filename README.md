@@ -323,3 +323,21 @@ Routed MSW and production-preview Chromium tests cover frontend behavior,
 keyboard/focus and axe. They do not establish real PostgreSQL effects or
 delivered P+C acceptance. T04 still requires separately authorized consumer
 delivery and matching real producer/consumer verification before Issue closure.
+
+## Finance v2 standalone forgiveness (T08)
+
+The synchronized delivered producer is
+`3bd3205e25636e21ebd3ae20dab1b083e5fb48fd`. **Record forgiveness** on the
+Repayments route explicitly selects existing debt, currency, event date, exact
+amount and reason. Preview shows reduced receivables, matching Expense and typed
+forgiveness Allocations. It creates no cash receipt or payment and leaves Income
+and available credit unchanged. Confirmed detail retains selection, reason,
+historical composition and linked Expenses. Settlement history distinguishes
+forgiveness from cash repayment, including archived Participant attribution.
+
+Version 5 reuses durable original-command recovery and owner isolation; versions
+1–4 and T01–T07 remain supported. Combined cash/forgiveness and Corrections remain
+later slices. See the [T08 integration note](docs/finance-v2-standalone-forgiveness-t08.md)
+for contract, recovery and validation boundaries. Consumer delivery, exact-SHA CI,
+real delivered P+C acceptance and authorized backend [Issue #33](https://github.com/core-console/back-end/issues/33)
+closure remain separate steps.

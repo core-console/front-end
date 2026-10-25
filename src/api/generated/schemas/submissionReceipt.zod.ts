@@ -249,7 +249,7 @@ export const SubmissionReceipt = zod.union([
   }),
   zod.strictObject({
     admittedAt: zod.iso.datetime({ offset: true }),
-    commandVersion: zod.enum(["1", "2", "3", "4"]),
+    commandVersion: zod.enum(["1", "2", "3", "4", "5"]),
     operation: zod.enum(["createFinanceSettlement"]),
     outcome: zod.union([
       zod.strictObject({

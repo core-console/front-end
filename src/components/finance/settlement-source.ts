@@ -6,10 +6,25 @@ import {
   SelectedIncomeSettlementResponse,
   CreditSettlementResponse,
   IncomeSettlementResponse,
+  ForgivenessResponse,
 } from "@/api/generated/schemas";
 
 export const settlementSourceSchema = z
   .union([
+    ForgivenessResponse.refine(
+      (item) =>
+        new Set(item.selectedObligationIds).size ===
+          item.selectedObligationIds.length &&
+        item.allocations.length > 0 &&
+        item.allocations.every(
+          (row) =>
+            item.selectedObligationIds.includes(row.obligationId) &&
+            row.sourceDate <= item.transactionDate &&
+            row.forgiven.currency === item.amount.currency &&
+            row.remainingAfter.currency === item.amount.currency,
+        ),
+      "Forgiveness Allocations do not match the retained selected scope.",
+    ),
     SelectedSettlementResponse,
     SelectedCreditSettlementResponse,
     SelectedIncomeSettlementResponse,

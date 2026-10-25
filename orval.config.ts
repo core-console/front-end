@@ -4,6 +4,9 @@ const generatedDirectory =
   process.env.ORVAL_OUTPUT_DIR ?? "./src/api/generated";
 const financeCurrency = "CNY";
 const financeMoneyAmount = "12.34";
+// Keep example currency literals narrow inside mixed Allocation array callbacks.
+const settlementMockMoney = () =>
+  Object.freeze({ amount: "12.34", currency: "CNY" });
 
 export default defineConfig({
   coreConsole: {
@@ -64,6 +67,17 @@ export default defineConfig({
                 amount: financeMoneyAmount,
               },
             },
+          },
+        },
+        operations: {
+          previewFinanceSettlement: {
+            mock: { properties: { "/MoneyResponse/": settlementMockMoney } },
+          },
+          getFinanceSettlement: {
+            mock: { properties: { "/MoneyResponse/": settlementMockMoney } },
+          },
+          listFinanceParticipantSettlements: {
+            mock: { properties: { "/MoneyResponse/": settlementMockMoney } },
           },
         },
         query: {

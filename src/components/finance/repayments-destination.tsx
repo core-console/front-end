@@ -16,6 +16,7 @@ import {
 } from "@/api/generated/schemas";
 import { useFinanceSubmissions } from "./finance-submission-context";
 import { RepaymentFormDialog } from "./repayment-form-dialog";
+import { ForgivenessFormDialog } from "./forgiveness-form-dialog";
 import { ParticipantObligations } from "./participant-obligations";
 import { ParticipantCredits } from "./participant-credits";
 import { SettlementAllocations } from "./settlement-allocations";
@@ -62,7 +63,10 @@ function SettlementDetail({
     (person) => person.id === item?.participantId,
   );
   const account = accounts.find(
-    (account) => account.id === item?.receivingAccountId,
+    (account) =>
+      item &&
+      "receivingAccountId" in item &&
+      account.id === item.receivingAccountId,
   );
   return (
     <section
@@ -95,12 +99,24 @@ function SettlementDetail({
                 "Participant",
                 `${person?.name ?? item.participantId} (${person?.status ?? "unavailable"}) · ${item.participantId}`,
               ],
+              ...("receivingAccountId" in item
+                ? [
+                    [
+                      "Receiving Account",
+                      `${account?.name ?? item.receivingAccountId} · ${account?.nature ?? ""} · ${item.receivingAccountId}`,
+                    ],
+                  ]
+                : [["Reason", item.reason]]),
               [
-                "Receiving Account",
-                `${account?.name ?? item.receivingAccountId} · ${account?.nature ?? ""} · ${item.receivingAccountId}`,
+                "kind" in item ? "Forgiveness date" : "Receipt date",
+                item.transactionDate,
               ],
-              ["Receipt date", item.transactionDate],
-              ["Cash received", formatFinanceMoney(item.amount)],
+              [
+                "kind" in item
+                  ? "Forgiven principal / Expense"
+                  : "Cash received",
+                formatFinanceMoney(item.amount),
+              ],
               ...("acceptedSurplus" in item
                 ? [
                     [
@@ -136,10 +152,16 @@ function SettlementDetail({
             ))}
           </dl>
           <p className="text-sm text-muted-foreground">
-            Retained cash Allocations and remaining amounts at confirmation.
-            Current debt appears separately below. Later backdated Advances do
-            not redistribute this receipt. Principal creates no Income or
-            Expense; no forgiveness or credit is applied.
+            {"kind" in item ? (
+              "Retained forgiveness Allocations and remaining amounts at confirmation. No cash receipt or payment is recorded. Expense increases by the forgiven principal. Income and available credit remain unchanged."
+            ) : (
+              <>
+                Retained cash Allocations and remaining amounts at confirmation.
+                Current debt appears separately below. Later backdated Advances
+                do not redistribute this receipt. Principal creates no Income or
+                Expense; no forgiveness or credit is applied.
+              </>
+            )}
           </p>
           {"creditOrigin" in item ? (
             <p>
@@ -160,8 +182,8 @@ function SettlementDetail({
               <h3 className="font-medium">Confirmed selected scope</h3>
               <p>{item.selectedObligationIds.join(", ")}</p>
               <p>
-                Unselected debt was not paid by this receipt. Current unpaid
-                composition remains visible below.
+                Unselected debt was not resolved by this Settlement. Current
+                unpaid composition remains visible below.
               </p>
             </div>
           ) : null}
@@ -180,7 +202,9 @@ function SettlementDetail({
               {"incomeTransactionId" in item &&
               transactionId === item.incomeTransactionId
                 ? "View accepted Income Transaction"
-                : "View linked Transaction"}{" "}
+                : "kind" in item
+                  ? "View linked Expense Transaction"
+                  : "View linked Transaction"}{" "}
               · {transactionId}
             </Link>
           ))}
@@ -188,7 +212,7 @@ function SettlementDetail({
             className="underline underline-offset-4"
             to={`/finance/repayments?ledger=${ledgerId}&participant_id=${item.participantId}&settlement_id=${item.id}`}
           >
-            Inspect current Participant debt and cash history
+            Inspect current Participant debt and Settlement history
           </Link>
         </>
       ) : null}
@@ -219,38 +243,41 @@ function RepaymentHistory({
   });
   return (
     <section
-      aria-label="Cash repayment history"
+      aria-label="Settlement history"
       className="flex min-w-0 flex-col gap-3"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">Cash repayment history</h2>
+        <h2 className="text-lg font-semibold">Settlement history</h2>
         <Button
           variant="outline"
           disabled={query.isFetching}
           onClick={() => void query.refetch()}
         >
-          Refresh cash history
+          Refresh Settlement history
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">
-        Chronological cash activity by receipt date, then immutable confirmation
-        order. Follow each source for its retained Allocation composition.
+        Chronological cash and forgiveness activity by event date, then
+        immutable confirmation order. Follow each source for its retained
+        Allocation composition.
       </p>
-      {query.isPending ? <p role="status">Loading cash history…</p> : null}
+      {query.isPending ? (
+        <p role="status">Loading Settlement history…</p>
+      ) : null}
       {query.isError ? (
         <Alert variant="destructive">
           <AlertTitle>
-            Cash history could not refresh. Retry the read; confirmed receipts
-            remain confirmed.
+            Settlement history could not refresh. Retry the read; confirmed
+            actions remain confirmed.
           </AlertTitle>
         </Alert>
       ) : null}
       {query.data?.length === 0 ? (
         <Empty className="border bg-card">
           <EmptyHeader>
-            <EmptyTitle>No cash repayments</EmptyTitle>
+            <EmptyTitle>No Settlements</EmptyTitle>
             <EmptyDescription>
-              Confirmed cash receipts will appear here.
+              Confirmed cash receipts and forgiveness will appear here.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -263,7 +290,8 @@ function RepaymentHistory({
                 className="underline underline-offset-4"
                 to={`/finance/repayments?ledger=${ledgerId}&participant_id=${participantId}&settlement_id=${item.id}`}
               >
-                {item.transactionDate} · Cash received{" "}
+                {item.transactionDate} ·{" "}
+                {"kind" in item ? "Forgiven" : "Cash received"}{" "}
                 {formatFinanceMoney(item.amount)} · Confirmation{" "}
                 {item.confirmationOrder}
               </Link>
@@ -276,6 +304,8 @@ function RepaymentHistory({
 }
 export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
   const [open, setOpen] = useState(false);
+  const [forgivenessOpen, setForgivenessOpen] = useState(false);
+  const forgivenessTrigger = useRef<HTMLButtonElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const confirmed = useRef(false);
   const [params, setParams] = useSearchParams();
@@ -334,6 +364,8 @@ export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
         deterministically within all eligible debt or an explicitly selected
         subset in one currency, oldest Advance date first. Explicitly retain
         surplus as Participant credit, including receipts without eligible debt.
+        Record standalone forgiveness separately to waive selected debt with a
+        matching Expense and unchanged cash.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button
@@ -351,6 +383,23 @@ export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
           }}
         >
           Record repayment
+        </Button>
+        <Button
+          ref={forgivenessTrigger}
+          variant="outline"
+          disabled={
+            !ready ||
+            !journal.ready ||
+            !journal.recoveryLoaded ||
+            pending ||
+            retained
+          }
+          onClick={() => {
+            confirmed.current = false;
+            setForgivenessOpen(true);
+          }}
+        >
+          Record forgiveness
         </Button>
         <Button variant="outline" onClick={refresh}>
           Refresh dependencies
@@ -373,7 +422,7 @@ export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
       {retained ? (
         <p role="status">
           Resolve the retained Settlement in Finance recovery before recording
-          another repayment in this Ledger.
+          another Settlement in this Ledger.
         </p>
       ) : null}
       {participants.data ? (
@@ -464,6 +513,30 @@ export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
             confirmed.current
               ? document.getElementById("finance-title")
               : trigger.current
+          }
+          refreshDependencies={refresh}
+        />
+      ) : null}
+      {forgivenessOpen && participants.data && currencies.data ? (
+        <ForgivenessFormDialog
+          ledgerId={ledgerId}
+          participants={participants.data}
+          currencies={currencies.data}
+          initialParticipantId={selected?.id}
+          onClose={() => setForgivenessOpen(false)}
+          onConfirmed={(id, participantId) => {
+            confirmed.current = true;
+            setForgivenessOpen(false);
+            setParams({
+              ledger: ledgerId,
+              participant_id: participantId,
+              settlement_id: id,
+            });
+          }}
+          finalFocus={() =>
+            confirmed.current
+              ? document.getElementById("finance-title")
+              : forgivenessTrigger.current
           }
           refreshDependencies={refresh}
         />

@@ -7,7 +7,56 @@
  */
 import * as zod from "zod";
 
+export const settlementSourceOneAllocationsItemKindDefault = `forgiveness`;
+export const settlementSourceOneKindDefault = `forgiveness`;
+
 export const SettlementSource = zod.union([
+  zod.strictObject({
+    allocations: zod.array(
+      zod.strictObject({
+        advanceId: zod.uuid(),
+        forgiven: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        kind: zod
+          .literal("forgiveness")
+          .default(settlementSourceOneAllocationsItemKindDefault)
+          .meta({ title: "Kind" }),
+        obligationId: zod.uuid(),
+        position: zod.int(),
+        remainingAfter: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        sourceDate: zod.iso.date(),
+      }),
+    ),
+    amount: zod
+      .strictObject({
+        amount: zod.string(),
+        currency: zod.enum(["CNY", "JPY", "USD"]),
+      })
+      .describe("Closed public projection of exact Finance Money."),
+    confirmationOrder: zod.int(),
+    confirmedAt: zod.iso.datetime({ offset: true }),
+    id: zod.uuid(),
+    kind: zod
+      .literal("forgiveness")
+      .default(settlementSourceOneKindDefault)
+      .meta({ title: "Kind" }),
+    ledgerId: zod.uuid(),
+    note: zod.union([zod.string(), zod.null()]),
+    participantId: zod.uuid(),
+    reason: zod.string(),
+    selectedObligationIds: zod.array(zod.uuid()).min(1),
+    transactionDate: zod.iso.date(),
+    transactionIds: zod.array(zod.uuid()),
+  }),
   zod.strictObject({
     acceptedSurplus: zod
       .strictObject({
