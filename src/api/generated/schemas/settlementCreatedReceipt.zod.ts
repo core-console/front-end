@@ -9,7 +9,7 @@ import * as zod from "zod";
 
 export const SettlementCreatedReceipt = zod.strictObject({
   admittedAt: zod.iso.datetime({ offset: true }),
-  commandVersion: zod.enum(["1", "2", "3", "4", "5"]),
+  commandVersion: zod.enum(["1", "2", "3", "4", "5", "6"]),
   operation: zod
     .literal("createFinanceSettlement")
     .meta({ title: "Operation" }),

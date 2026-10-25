@@ -7,6 +7,7 @@ const financeMoneyAmount = "12.34";
 // Keep example currency literals narrow inside mixed Allocation array callbacks.
 const settlementMockMoney = () =>
   Object.freeze({ amount: "12.34", currency: "CNY" });
+const forgivenessMockKind = () => Object.freeze({ kind: "forgiveness" }).kind;
 
 export default defineConfig({
   coreConsole: {
@@ -57,6 +58,9 @@ export default defineConfig({
             month: "2026-09",
           },
           schemas: {
+            ForgivenessAllocationResponse: {
+              properties: { kind: forgivenessMockKind },
+            },
             MoneyRequest: {
               properties: {
                 amount: financeMoneyAmount,

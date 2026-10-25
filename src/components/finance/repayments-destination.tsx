@@ -106,17 +106,28 @@ function SettlementDetail({
                       `${account?.name ?? item.receivingAccountId} · ${account?.nature ?? ""} · ${item.receivingAccountId}`,
                     ],
                   ]
-                : [["Reason", item.reason]]),
+                : []),
+              ...("reason" in item ? [["Reason", item.reason]] : []),
               [
-                "kind" in item ? "Forgiveness date" : "Receipt date",
+                "kind" in item && item.kind === "forgiveness"
+                  ? "Forgiveness date"
+                  : "Receipt date",
                 item.transactionDate,
               ],
               [
-                "kind" in item
+                "kind" in item && item.kind === "forgiveness"
                   ? "Forgiven principal / Expense"
                   : "Cash received",
                 formatFinanceMoney(item.amount),
               ],
+              ...("forgivenessAmount" in item
+                ? [
+                    [
+                      "Forgiven principal / Expense",
+                      formatFinanceMoney(item.forgivenessAmount),
+                    ],
+                  ]
+                : []),
               ...("acceptedSurplus" in item
                 ? [
                     [
@@ -152,7 +163,9 @@ function SettlementDetail({
             ))}
           </dl>
           <p className="text-sm text-muted-foreground">
-            {"kind" in item ? (
+            {"kind" in item && item.kind === "combined" ? (
+              "Cash and forgiveness are retained separately in confirmed order: cash first, then explicit forgiveness with matching Expense. Income and available credit are unchanged. Later Advances do not redistribute this Settlement."
+            ) : "kind" in item ? (
               "Retained forgiveness Allocations and remaining amounts at confirmation. No cash receipt or payment is recorded. Expense increases by the forgiven principal. Income and available credit remain unchanged."
             ) : (
               <>
@@ -202,9 +215,11 @@ function SettlementDetail({
               {"incomeTransactionId" in item &&
               transactionId === item.incomeTransactionId
                 ? "View accepted Income Transaction"
-                : "kind" in item
-                  ? "View linked Expense Transaction"
-                  : "View linked Transaction"}{" "}
+                : "kind" in item && item.kind === "combined"
+                  ? "View linked cash / Expense Transaction"
+                  : "kind" in item
+                    ? "View linked Expense Transaction"
+                    : "View linked Transaction"}{" "}
               · {transactionId}
             </Link>
           ))}
@@ -291,9 +306,14 @@ function RepaymentHistory({
                 to={`/finance/repayments?ledger=${ledgerId}&participant_id=${participantId}&settlement_id=${item.id}`}
               >
                 {item.transactionDate} ·{" "}
-                {"kind" in item ? "Forgiven" : "Cash received"}{" "}
-                {formatFinanceMoney(item.amount)} · Confirmation{" "}
-                {item.confirmationOrder}
+                {"kind" in item && item.kind === "forgiveness"
+                  ? "Forgiven"
+                  : "Cash received"}{" "}
+                {formatFinanceMoney(item.amount)}
+                {"forgivenessAmount" in item
+                  ? ` · Forgiven ${formatFinanceMoney(item.forgivenessAmount)}`
+                  : ""}{" "}
+                · Confirmation {item.confirmationOrder}
               </Link>
             </li>
           ))}
@@ -305,6 +325,8 @@ function RepaymentHistory({
 export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
   const [open, setOpen] = useState(false);
   const [forgivenessOpen, setForgivenessOpen] = useState(false);
+  const [combinedOpen, setCombinedOpen] = useState(false);
+  const combinedTrigger = useRef<HTMLButtonElement>(null);
   const forgivenessTrigger = useRef<HTMLButtonElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const confirmed = useRef(false);
@@ -400,6 +422,23 @@ export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
           }}
         >
           Record forgiveness
+        </Button>
+        <Button
+          ref={combinedTrigger}
+          variant="outline"
+          disabled={
+            !ready ||
+            !journal.ready ||
+            !journal.recoveryLoaded ||
+            pending ||
+            retained
+          }
+          onClick={() => {
+            confirmed.current = false;
+            setCombinedOpen(true);
+          }}
+        >
+          Record combined Settlement
         </Button>
         <Button variant="outline" onClick={refresh}>
           Refresh dependencies
@@ -513,6 +552,32 @@ export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
             confirmed.current
               ? document.getElementById("finance-title")
               : trigger.current
+          }
+          refreshDependencies={refresh}
+        />
+      ) : null}
+      {combinedOpen && accounts.data && participants.data && currencies.data ? (
+        <ForgivenessFormDialog
+          combined
+          accounts={accounts.data}
+          ledgerId={ledgerId}
+          participants={participants.data}
+          currencies={currencies.data}
+          initialParticipantId={selected?.id}
+          onClose={() => setCombinedOpen(false)}
+          onConfirmed={(id, participantId) => {
+            confirmed.current = true;
+            setCombinedOpen(false);
+            setParams({
+              ledger: ledgerId,
+              participant_id: participantId,
+              settlement_id: id,
+            });
+          }}
+          finalFocus={() =>
+            confirmed.current
+              ? document.getElementById("finance-title")
+              : combinedTrigger.current
           }
           refreshDependencies={refresh}
         />

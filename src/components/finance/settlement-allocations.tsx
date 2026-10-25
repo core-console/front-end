@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import type {
   SettlementPreview,
   ForgivenessPreview,
+  CombinedSettlementPreview,
 } from "@/api/generated/schemas";
 import { formatFinanceMoney } from "./finance-money";
 import {
@@ -20,11 +21,15 @@ export function SettlementAllocations({
   confirmed = false,
 }: {
   allocations:
-    SettlementPreview["allocations"] | ForgivenessPreview["allocations"];
+    | SettlementPreview["allocations"]
+    | ForgivenessPreview["allocations"]
+    | CombinedSettlementPreview["allocations"];
   ledgerId: string;
   participantId: string;
   confirmed?: boolean;
 }) {
+  const hasCash = allocations.some((item) => "cashPaid" in item);
+  const hasForgiveness = allocations.some((item) => "forgiven" in item);
   return (
     <Table
       aria-label={confirmed ? "Confirmed Allocations" : "Proposed Allocations"}
@@ -34,9 +39,8 @@ export function SettlementAllocations({
           {[
             "Order",
             "Advance source",
-            allocations.some((item) => "forgiven" in item)
-              ? "Forgiven"
-              : "Cash paid",
+            ...(hasCash ? ["Cash paid"] : []),
+            ...(hasForgiveness ? ["Forgiven"] : []),
             confirmed ? "Remaining at confirmation" : "Remaining after",
           ].map((label) => (
             <TableHead key={label}>{label}</TableHead>
@@ -45,7 +49,7 @@ export function SettlementAllocations({
       </TableHeader>
       <TableBody>
         {allocations.map((item) => (
-          <TableRow key={item.obligationId}>
+          <TableRow key={`${item.position}-${item.obligationId}`}>
             <TableCell>{item.position}</TableCell>
             <TableCell className="whitespace-normal">
               <Link
@@ -58,11 +62,16 @@ export function SettlementAllocations({
                 Obligation {item.obligationId}
               </p>
             </TableCell>
-            <TableCell className="tabular-nums">
-              {formatFinanceMoney(
-                "forgiven" in item ? item.forgiven : item.cashPaid,
-              )}
-            </TableCell>
+            {hasCash ? (
+              <TableCell className="tabular-nums">
+                {"cashPaid" in item ? formatFinanceMoney(item.cashPaid) : "—"}
+              </TableCell>
+            ) : null}
+            {hasForgiveness ? (
+              <TableCell className="tabular-nums">
+                {"forgiven" in item ? formatFinanceMoney(item.forgiven) : "—"}
+              </TableCell>
+            ) : null}
             <TableCell className="tabular-nums">
               {formatFinanceMoney(item.remainingAfter)}
             </TableCell>

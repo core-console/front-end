@@ -61,7 +61,7 @@ export const FinanceSubmissionResponse = zod
         }),
         zod.strictObject({
           admittedAt: zod.iso.datetime({ offset: true }),
-          commandVersion: zod.enum(["1", "2", "3", "4", "5"]),
+          commandVersion: zod.enum(["1", "2", "3", "4", "5", "6"]),
           operation: zod.enum(["createFinanceSettlement"]),
           state: zod.literal("unfinished").meta({ title: "State" }),
           submissionId: zod.uuid(),
@@ -316,7 +316,7 @@ export const FinanceSubmissionResponse = zod
         }),
         zod.strictObject({
           admittedAt: zod.iso.datetime({ offset: true }),
-          commandVersion: zod.enum(["1", "2", "3", "4", "5"]),
+          commandVersion: zod.enum(["1", "2", "3", "4", "5", "6"]),
           operation: zod.enum(["createFinanceSettlement"]),
           outcome: zod.union([
             zod.strictObject({

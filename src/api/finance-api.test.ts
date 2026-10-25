@@ -41,6 +41,10 @@ import { creditSettlement } from "@/test/credit-fixtures";
 import { incomeSettlement } from "@/test/income-settlement-fixtures";
 import { settlement, settlementReceipt } from "@/test/settlement-fixtures";
 import { forgiveness } from "@/test/forgiveness-fixtures";
+import {
+  combinedSettlement,
+  combinedPreview,
+} from "@/test/combined-settlement-fixtures";
 
 const accountId = "11111111-1111-4111-8111-111111111111";
 const categoryId = "22222222-2222-4222-8222-222222222222";
@@ -177,6 +181,28 @@ const expectExactMoneyStrings = (value: unknown): void => {
 };
 
 describe("generated Finance API boundary", () => {
+  it("retains both Allocation types for one Obligation in a combined source", () => {
+    expect(SettlementSource.parse(combinedSettlement)).toEqual(
+      combinedSettlement,
+    );
+    expect(combinedPreview.allocations[1]!.obligationId).toBe(
+      combinedPreview.allocations[2]!.obligationId,
+    );
+    expect(
+      SettlementSource.safeParse({
+        ...combinedSettlement,
+        excessDisposition: "retainCredit",
+      }).success,
+    ).toBe(false);
+    expect(
+      SettlementSource.safeParse({
+        ...combinedSettlement,
+        allocations: [
+          { ...combinedSettlement.allocations[0], kind: "forgiveness" },
+        ],
+      }).success,
+    ).toBe(false);
+  });
   it.each([settlement, creditSettlement, incomeSettlement])(
     "preserves legacy and selected Settlement source variants: $amount.amount",
     (source) => {
@@ -193,7 +219,7 @@ describe("generated Finance API boundary", () => {
     },
   );
 
-  it.each(["4", "5"])(
+  it.each(["4", "5", "6"])(
     "preserves version %s in every nested Settlement lookup outcome",
     (commandVersion) => {
       const receipt = {
@@ -226,9 +252,9 @@ describe("generated Finance API boundary", () => {
           "receipt" in response
             ? {
                 ...response,
-                receipt: { ...response.receipt, commandVersion: "6" },
+                receipt: { ...response.receipt, commandVersion: "7" },
               }
-            : { ...response, commandVersion: "6" };
+            : { ...response, commandVersion: "7" };
         expect(FinanceSubmissionResponse.safeParse(invalid).success).toBe(
           false,
         );
