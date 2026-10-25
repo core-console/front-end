@@ -141,7 +141,7 @@ const recordSchema = z
     recordsFor(transactionCommand.shape, z.literal("1")),
     recordsFor(adjustmentCommand.shape, z.literal("1")),
     recordsFor(advanceCommand.shape, z.enum(["1", "2"])),
-    recordsFor(settlementCommand.shape, z.enum(["1", "2", "3", "4"])),
+    recordsFor(settlementCommand.shape, z.enum(["1", "2", "3", "4", "5"])),
   ])
   .refine(
     (record) =>
@@ -177,6 +177,7 @@ export type FinanceSubmission = z.infer<typeof recordSchema>;
 function settlementCommandVersion(
   body: z.infer<typeof CreateFinanceSettlementBody>,
 ) {
+  if ("kind" in body && body.kind === "forgiveness") return "5";
   if ("selectedObligationIds" in body) return "4";
   if (!("excessDisposition" in body)) return "1";
   return body.excessDisposition === "acceptIncome" ? "3" : "2";
@@ -211,7 +212,7 @@ export function isQuickEntrySubmission(command: CreateSubmissionCommand) {
 
 export function rejectionMessage(record: FinanceSubmission) {
   if (record.operation === "createFinanceSettlement")
-    return "The repayment was rejected without financial effects. Preserve the draft, refresh the preview and review current Allocations before a deliberate new confirmation.";
+    return `${"kind" in record.body ? "The forgiveness" : "The repayment"} was rejected without financial effects. Preserve the draft, refresh the preview and review current Allocations before a deliberate new confirmation.`;
   if (record.operation === "createFinanceAdvance") {
     const stale =
       record.state === "resolved" &&
@@ -255,6 +256,8 @@ function endpointFor(command: CreateSubmissionCommand) {
 export function submissionDescription(record: FinanceSubmission) {
   if (record.operation === "createFinanceSettlement") {
     const receipt = `${record.body.amount.amount} ${record.body.amount.currency} · ${record.body.transactionDate} · Participant ${record.body.participantId}`;
+    if ("kind" in record.body)
+      return `Forgiveness ${receipt} · Reason ${record.body.reason} · Selected Obligations ${record.body.selectedObligationIds.join(", ")}`;
     if (
       "excessDisposition" in record.body &&
       record.body.excessDisposition === "acceptIncome"

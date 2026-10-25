@@ -1,5 +1,8 @@
 import { Link } from "react-router";
-import type { SettlementPreview } from "@/api/generated/schemas";
+import type {
+  SettlementPreview,
+  ForgivenessPreview,
+} from "@/api/generated/schemas";
 import { formatFinanceMoney } from "./finance-money";
 import {
   Table,
@@ -16,7 +19,8 @@ export function SettlementAllocations({
   participantId,
   confirmed = false,
 }: {
-  allocations: SettlementPreview["allocations"];
+  allocations:
+    SettlementPreview["allocations"] | ForgivenessPreview["allocations"];
   ledgerId: string;
   participantId: string;
   confirmed?: boolean;
@@ -30,7 +34,9 @@ export function SettlementAllocations({
           {[
             "Order",
             "Advance source",
-            "Cash paid",
+            allocations.some((item) => "forgiven" in item)
+              ? "Forgiven"
+              : "Cash paid",
             confirmed ? "Remaining at confirmation" : "Remaining after",
           ].map((label) => (
             <TableHead key={label}>{label}</TableHead>
@@ -53,7 +59,9 @@ export function SettlementAllocations({
               </p>
             </TableCell>
             <TableCell className="tabular-nums">
-              {formatFinanceMoney(item.cashPaid)}
+              {formatFinanceMoney(
+                "forgiven" in item ? item.forgiven : item.cashPaid,
+              )}
             </TableCell>
             <TableCell className="tabular-nums">
               {formatFinanceMoney(item.remainingAfter)}

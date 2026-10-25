@@ -11,6 +11,8 @@ export const previewFinanceSettlementBodyThreeCategoryAllocationsMax = 1;
 
 export const previewFinanceSettlementBodyFourThreeCategoryAllocationsMax = 1;
 
+export const previewFinanceSettlementBodyFiveReasonMax = 500;
+
 export const PreviewFinanceSettlementBody = zod.union([
   zod.strictObject({
     amount: zod.strictObject({
@@ -145,6 +147,22 @@ export const PreviewFinanceSettlementBody = zod.union([
       transactionDate: zod.iso.date(),
     }),
   ]),
+  zod.strictObject({
+    amount: zod.strictObject({
+      amount: zod
+        .string()
+        .describe(
+          "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+        ),
+      currency: zod.enum(["CNY", "JPY", "USD"]),
+    }),
+    kind: zod.literal("forgiveness").meta({ title: "Kind" }),
+    note: zod.union([zod.string(), zod.null()]).optional(),
+    participantId: zod.uuid(),
+    reason: zod.string().min(1).max(previewFinanceSettlementBodyFiveReasonMax),
+    selectedObligationIds: zod.array(zod.uuid()).min(1),
+    transactionDate: zod.iso.date(),
+  }),
 ]);
 
 export type PreviewFinanceSettlementBody = zod.input<

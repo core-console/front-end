@@ -52,6 +52,7 @@ import {
 import { env } from "@/config/env";
 import { parseAdvanceSource, advanceObligations } from "./advance-source";
 import { parseSettlementSource } from "./settlement-source";
+import { subtractExactDecimals } from "./finance-decimal";
 import { refreshSubmittedTransaction } from "./transaction-submission-refresh";
 import { withSubmissionLock } from "./submission-coordination";
 import {
@@ -342,10 +343,14 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
                 getListFinanceAccountsQueryKey(record.targetLedgerId),
                 getListFinanceTransactionsQueryKey(record.targetLedgerId),
                 getGetFinanceOverviewQueryKey(record.targetLedgerId),
-                getGetBalanceAdjustmentContextQueryKey(
-                  record.targetLedgerId,
-                  record.body.receivingAccountId,
-                ),
+                ...("receivingAccountId" in record.body
+                  ? [
+                      getGetBalanceAdjustmentContextQueryKey(
+                        record.targetLedgerId,
+                        record.body.receivingAccountId,
+                      ),
+                    ]
+                  : []),
               ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
             );
             // Each generated detail key embeds its ID in a single URL string.
@@ -368,8 +373,25 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
               record.body.participantId,
             );
             if (
-              settlement.receivingAccountId !==
-                record.body.receivingAccountId ||
+              ("receivingAccountId" in record.body &&
+                (!("receivingAccountId" in settlement) ||
+                  settlement.receivingAccountId !==
+                    record.body.receivingAccountId)) ||
+              ("kind" in record.body &&
+                (!("kind" in settlement) ||
+                  settlement.reason !== record.body.reason.trim() ||
+                  settlement.selectedObligationIds.length !==
+                    record.body.selectedObligationIds.length ||
+                  !record.body.selectedObligationIds.every((id) =>
+                    settlement.selectedObligationIds.includes(id),
+                  ) ||
+                  !/^-?\d+(?:\.\d+)?$/.test(settlement.amount.amount) ||
+                  !/^0(?:\.0+)?$/.test(
+                    subtractExactDecimals(
+                      settlement.amount.amount,
+                      record.body.amount.amount,
+                    ),
+                  ))) ||
               settlement.transactionDate !== record.body.transactionDate ||
               settlement.amount.currency !== record.body.amount.currency
             )

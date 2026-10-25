@@ -40,6 +40,7 @@ import { server } from "@/mocks/server";
 import { creditSettlement } from "@/test/credit-fixtures";
 import { incomeSettlement } from "@/test/income-settlement-fixtures";
 import { settlement, settlementReceipt } from "@/test/settlement-fixtures";
+import { forgiveness } from "@/test/forgiveness-fixtures";
 
 const accountId = "11111111-1111-4111-8111-111111111111";
 const categoryId = "22222222-2222-4222-8222-222222222222";
@@ -192,42 +193,68 @@ describe("generated Finance API boundary", () => {
     },
   );
 
-  it("preserves version 4 in every nested Settlement lookup outcome", () => {
-    const receipt = {
-      ...settlementReceipt(transactionId),
-      commandVersion: "4",
-    };
-    const {
-      resolvedAt: _resolvedAt,
-      outcome: _outcome,
-      ...unfinished
-    } = receipt;
-    const problem = {
-      type: "about:blank",
-      title: "Conflict",
-      status: 409,
-      code: "finance_settlement_preview_stale",
-      detail: "Selected debt changed; review the consequences again.",
-    };
-    const responses = [
-      { ...unfinished, state: "unfinished" },
-      { state: "terminal", receipt },
-      {
-        state: "terminal",
-        receipt: { ...receipt, outcome: { kind: "rejected", problem } },
-      },
-    ];
-    for (const response of responses) {
-      expect(FinanceSubmissionResponse.parse(response)).toEqual(response);
-      const invalid =
-        "receipt" in response
-          ? {
-              ...response,
-              receipt: { ...response.receipt, commandVersion: "5" },
-            }
-          : { ...response, commandVersion: "5" };
-      expect(FinanceSubmissionResponse.safeParse(invalid).success).toBe(false);
-    }
+  it.each(["4", "5"])(
+    "preserves version %s in every nested Settlement lookup outcome",
+    (commandVersion) => {
+      const receipt = {
+        ...settlementReceipt(transactionId),
+        commandVersion,
+      };
+      const {
+        resolvedAt: _resolvedAt,
+        outcome: _outcome,
+        ...unfinished
+      } = receipt;
+      const problem = {
+        type: "about:blank",
+        title: "Conflict",
+        status: 409,
+        code: "finance_settlement_preview_stale",
+        detail: "Selected debt changed; review the consequences again.",
+      };
+      const responses = [
+        { ...unfinished, state: "unfinished" },
+        { state: "terminal", receipt },
+        {
+          state: "terminal",
+          receipt: { ...receipt, outcome: { kind: "rejected", problem } },
+        },
+      ];
+      for (const response of responses) {
+        expect(FinanceSubmissionResponse.parse(response)).toEqual(response);
+        const invalid =
+          "receipt" in response
+            ? {
+                ...response,
+                receipt: { ...response.receipt, commandVersion: "6" },
+              }
+            : { ...response, commandVersion: "6" };
+        expect(FinanceSubmissionResponse.safeParse(invalid).success).toBe(
+          false,
+        );
+      }
+    },
+  );
+
+  it("preserves distinct non-cash forgiveness sources", () => {
+    expect(SettlementSource.parse(forgiveness)).toEqual(forgiveness);
+    expect(
+      SettlementSource.safeParse({
+        ...forgiveness,
+        receivingAccountId: accountId,
+      }).success,
+    ).toBe(false);
+    expect(
+      SettlementSource.safeParse({
+        ...forgiveness,
+        allocations: [
+          {
+            ...forgiveness.allocations[0],
+            cashPaid: { amount: "20.00", currency: "CNY" },
+          },
+        ],
+      }).success,
+    ).toBe(false);
   });
 
   it("preserves Account semantic-correction request constraints", () => {
