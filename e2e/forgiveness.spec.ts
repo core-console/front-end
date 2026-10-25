@@ -240,7 +240,38 @@ test("explicit keyboard selection, preview, pending protection and non-cash hist
   await expect(dialog.getByLabel("Reason")).toBeDisabled();
   await expect.poll(() => backend.posts.length).toBe(1);
   await page.keyboard.press("Enter");
+  const command = { ...backend.posts[0]! };
+  const review = dialog.getByRole("region", { name: "Forgiveness preview" });
+  const reviewedText = await review.textContent();
+  for (const obligation of [...outstandingObligations].reverse()) {
+    const selected = forgiveness.selectedObligationIds.includes(obligation.id);
+    const checkbox = dialog.getByRole("checkbox", {
+      name: new RegExp(obligation.id),
+    });
+    await checkbox.focus();
+    await page.keyboard.press("Space");
+    await expect(checkbox).toBeChecked({ checked: selected });
+    // Use physical pointer input: locator.click waits for disabled controls.
+    for (const target of [
+      checkbox,
+      dialog.locator("label", { hasText: obligation.id }),
+    ]) {
+      await target.scrollIntoViewIfNeeded();
+      const box = await target.boundingBox();
+      expect(box).not.toBeNull();
+      await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+      await expect(checkbox).toBeChecked({ checked: selected });
+    }
+    await expect(checkbox).toBeDisabled();
+  }
+  await expect(review).toHaveText(reviewedText!);
+  await dialog.getByRole("button", { name: "Close to recovery" }).focus();
+  await page.keyboard.press("Tab");
+  await expect(dialog.getByRole("checkbox").first()).not.toBeFocused();
+  await expect(dialog.getByRole("checkbox").last()).not.toBeFocused();
+  await axe(page);
   expect(backend.posts).toHaveLength(1);
+  expect(backend.posts[0]).toEqual(command);
   release();
   await expect(dialog).toBeHidden();
   await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
