@@ -12,6 +12,7 @@ import {
   CreateFinanceSettlementBody,
 } from "@/api/generated/schemas";
 import { resolveApiBaseUrl } from "@/config/env";
+import { settlementCommandBody } from "./settlement-command-schema";
 import {
   equalJson,
   submissionResolutionSchema,
@@ -102,7 +103,7 @@ const settlementCommand = z.strictObject({
   operation: z.literal("createFinanceSettlement"),
   endpoint: z.string(),
   targetLedgerId: z.uuid(),
-  body: CreateFinanceSettlementBody,
+  body: settlementCommandBody,
   workflow: z.literal("settlement"),
 });
 export type CreateSubmissionCommand =
@@ -141,7 +142,7 @@ const recordSchema = z
     recordsFor(transactionCommand.shape, z.literal("1")),
     recordsFor(adjustmentCommand.shape, z.literal("1")),
     recordsFor(advanceCommand.shape, z.enum(["1", "2"])),
-    recordsFor(settlementCommand.shape, z.enum(["1", "2", "3", "4", "5"])),
+    recordsFor(settlementCommand.shape, z.enum(["1", "2", "3", "4", "5", "6"])),
   ])
   .refine(
     (record) =>
@@ -177,6 +178,7 @@ export type FinanceSubmission = z.infer<typeof recordSchema>;
 function settlementCommandVersion(
   body: z.infer<typeof CreateFinanceSettlementBody>,
 ) {
+  if ("kind" in body && body.kind === "combined") return "6";
   if ("kind" in body && body.kind === "forgiveness") return "5";
   if ("selectedObligationIds" in body) return "4";
   if (!("excessDisposition" in body)) return "1";
@@ -212,7 +214,7 @@ export function isQuickEntrySubmission(command: CreateSubmissionCommand) {
 
 export function rejectionMessage(record: FinanceSubmission) {
   if (record.operation === "createFinanceSettlement")
-    return `${"kind" in record.body ? "The forgiveness" : "The repayment"} was rejected without financial effects. Preserve the draft, refresh the preview and review current Allocations before a deliberate new confirmation.`;
+    return `${"kind" in record.body && record.body.kind === "combined" ? "The combined Settlement" : "kind" in record.body ? "The forgiveness" : "The repayment"} was rejected without financial effects. Preserve the draft, refresh the preview and review current Allocations before a deliberate new confirmation.`;
   if (record.operation === "createFinanceAdvance") {
     const stale =
       record.state === "resolved" &&

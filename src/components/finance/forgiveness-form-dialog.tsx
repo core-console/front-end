@@ -12,11 +12,16 @@ import {
 import {
   FinanceRequestDate,
   ForgivenessPreview,
+  CombinedSettlementPreview,
+  type AccountResponse,
   ObligationResponse,
   PreviewFinanceSettlementBody,
   type CurrencyResponse,
   type ParticipantResponse,
 } from "@/api/generated/schemas";
+import { buildAccountWorkflowLabels } from "./account-identity";
+import { validCombinedPreview } from "./combined-settlement";
+import { settlementPreviewBody } from "./settlement-command-schema";
 import { formatFinanceMoney } from "./finance-money";
 import { subtractExactDecimals } from "./finance-decimal";
 import { SettlementAllocations } from "./settlement-allocations";
@@ -50,7 +55,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 type ForgivenessDraft = Extract<
   PreviewFinanceSettlementBody,
-  { kind: "forgiveness" }
+  { kind: "forgiveness" | "combined" }
 >;
 const positiveDecimal = (value: string) =>
   /^\d+(?:\.\d+)?$/.test(value) && /[1-9]/.test(value);
@@ -59,6 +64,8 @@ const equalAmount = (left: string, right: string) =>
 
 export function ForgivenessFormDialog({
   ledgerId,
+  combined = false,
+  accounts = [],
   participants,
   currencies,
   initialParticipantId,
@@ -68,6 +75,8 @@ export function ForgivenessFormDialog({
   refreshDependencies,
 }: {
   ledgerId: string;
+  combined?: boolean;
+  accounts?: AccountResponse[];
   participants: ParticipantResponse[];
   currencies: CurrencyResponse[];
   initialParticipantId?: string | undefined;
@@ -79,7 +88,13 @@ export function ForgivenessFormDialog({
   const [participantId, setParticipantId] = useState(
     initialParticipantId ?? "",
   );
-  const [currencyCode, setCurrencyCode] = useState("");
+  const [chosenCurrency, setCurrencyCode] = useState("");
+  const [receivingAccountId, setReceivingAccountId] = useState("");
+  const [cashAmount, setCashAmount] = useState("");
+  const receiving = accounts.find((item) => item.id === receivingAccountId);
+  const currencyCode = combined ? (receiving?.currency ?? "") : chosenCurrency;
+  const accountLabels = buildAccountWorkflowLabels(accounts);
+  const action = combined ? "combined Settlement" : "forgiveness";
   const selectedCurrency = currencies.find(
     (item) => item.code === currencyCode,
   );
@@ -96,7 +111,7 @@ export function ForgivenessFormDialog({
   const [refreshing, setRefreshing] = useState(false);
   const [storedReview, setReview] = useState<{
     draft: ForgivenessDraft;
-    preview: ForgivenessPreview;
+    preview: ForgivenessPreview | CombinedSettlementPreview;
   } | null>(null);
   const first = useRef<HTMLSelectElement>(null);
   const confirmButton = useRef<HTMLButtonElement>(null);
@@ -181,9 +196,25 @@ export function ForgivenessFormDialog({
     if (!participants.some((item) => item.id === participantId))
       invalid.participant =
         "Choose a Participant in this Ledger. Archived Participants may resolve existing debt.";
-    if (!currency) invalid.currency = "Choose an available currency.";
-    if (!FinanceRequestDate.safeParse(date).success)
-      invalid.date = "Enter a valid forgiveness date.";
+    if (combined) {
+      if (!receiving || receiving.status !== "active" || !currency)
+        invalid.receiving =
+          "Choose an active receiving Account with an available currency.";
+      if (
+        !positiveDecimal(cashAmount) ||
+        (cashAmount.split(".")[1]?.length ?? 0) > (currency?.minorUnit ?? 0) ||
+        cashAmount.split(".")[0]!.replace(/^0+/, "").length > 131072
+      )
+        invalid.cash =
+          "Enter a positive exact cash amount within the currency precision. Amounts are never rounded.";
+    } else if (!currency) invalid.currency = "Choose an available currency.";
+    if (
+      !FinanceRequestDate.safeParse(date).success ||
+      (combined && receiving && date < receiving.trackingStartDate)
+    )
+      invalid.date = combined
+        ? "Enter a valid date on or after the receiving Account Tracking Start Date."
+        : "Enter a valid forgiveness date.";
     if (!obligations.isSuccess || !selectedIds.length || unavailableIds.length)
       invalid.scope =
         "Select eligible outstanding Obligations. Remove unavailable selections explicitly or refresh dependencies to check current debt.";
@@ -194,10 +225,21 @@ export function ForgivenessFormDialog({
     )
       invalid.amount =
         "Enter a positive exact amount within the currency precision. Amounts are never rounded.";
-    else if (subtractExactDecimals(capacity, amount).startsWith("-"))
-      invalid.amount =
-        "Forgiveness cannot exceed selected outstanding debt. Adjust the amount or selection explicitly.";
-    if (!reason.trim() || reason.trim().length > 500)
+    else if (
+      subtractExactDecimals(
+        combined && positiveDecimal(cashAmount)
+          ? subtractExactDecimals(capacity, cashAmount)
+          : capacity,
+        amount,
+      ).startsWith("-")
+    )
+      invalid.amount = combined
+        ? "Cash and forgiveness cannot exceed selected outstanding debt. Forgiveness must fit the remaining selected capacity after cash. Adjust amounts or selection explicitly."
+        : "Forgiveness cannot exceed selected outstanding debt. Adjust the amount or selection explicitly.";
+    if (
+      !reason.trim() ||
+      (combined ? [...reason.trim()].length : reason.trim().length) > 500
+    )
       invalid.reason = "Enter a reason of 1–500 characters.";
     setErrors(invalid);
     if (Object.keys(invalid).length) {
@@ -206,12 +248,21 @@ export function ForgivenessFormDialog({
         ?.focus();
       return;
     }
-    const draft = PreviewFinanceSettlementBody.parse({
-      kind: "forgiveness",
+    const draft = settlementPreviewBody.parse({
+      kind: combined ? "combined" : "forgiveness",
       participantId,
       selectedObligationIds: selectedIds,
       transactionDate: date,
-      amount: { amount, currency: currencyCode },
+      amount: {
+        amount: combined ? cashAmount : amount,
+        currency: currencyCode,
+      },
+      ...(combined
+        ? {
+            receivingAccountId,
+            forgivenessAmount: { amount, currency: currencyCode },
+          }
+        : {}),
       reason: reason.trim(),
       note: note || null,
     });
@@ -219,55 +270,62 @@ export function ForgivenessFormDialog({
     setError("");
     try {
       const response = await preview.mutateAsync({ ledgerId, data: draft });
-      const parsed = ForgivenessPreview.refine(
-        (item) =>
-          item.amount.currency === draft.amount.currency &&
-          positiveDecimal(item.amount.amount) &&
-          equalAmount(item.amount.amount, draft.amount.amount) &&
-          item.expense.currency === draft.amount.currency &&
-          positiveDecimal(item.expense.amount) &&
-          equalAmount(item.expense.amount, draft.amount.amount) &&
-          item.outstandingBefore.currency === draft.amount.currency &&
-          item.outstandingAfter.currency === draft.amount.currency &&
-          /^\d+(?:\.\d+)?$/.test(item.outstandingBefore.amount) &&
-          /^\d+(?:\.\d+)?$/.test(item.outstandingAfter.amount) &&
-          equalAmount(
-            subtractExactDecimals(
-              item.outstandingBefore.amount,
-              item.outstandingAfter.amount,
-            ),
-            draft.amount.amount,
-          ) &&
-          item.allocations.length > 0 &&
-          new Set(item.allocations.map((row) => row.obligationId)).size ===
-            item.allocations.length &&
-          item.allocations.every(
-            (row) =>
-              draft.selectedObligationIds.includes(row.obligationId) &&
-              row.sourceDate <= draft.transactionDate &&
-              row.forgiven.currency === draft.amount.currency &&
-              row.remainingAfter.currency === draft.amount.currency &&
-              positiveDecimal(row.forgiven.amount) &&
-              /^\d+(?:\.\d+)?$/.test(row.remainingAfter.amount),
-          ) &&
-          equalAmount(
-            item.allocations.reduce(
-              (total, row) =>
-                subtractExactDecimals(
-                  total,
-                  subtractExactDecimals("0", row.forgiven.amount),
+      const parsed = (
+        draft.kind === "combined"
+          ? CombinedSettlementPreview.refine(
+              (item) => validCombinedPreview(item, draft, receiving!.nature),
+              "Combined preview does not match the explicit cash and forgiveness intent.",
+            )
+          : ForgivenessPreview.refine(
+              (item) =>
+                item.amount.currency === draft.amount.currency &&
+                positiveDecimal(item.amount.amount) &&
+                equalAmount(item.amount.amount, draft.amount.amount) &&
+                item.expense.currency === draft.amount.currency &&
+                positiveDecimal(item.expense.amount) &&
+                equalAmount(item.expense.amount, draft.amount.amount) &&
+                item.outstandingBefore.currency === draft.amount.currency &&
+                item.outstandingAfter.currency === draft.amount.currency &&
+                /^\d+(?:\.\d+)?$/.test(item.outstandingBefore.amount) &&
+                /^\d+(?:\.\d+)?$/.test(item.outstandingAfter.amount) &&
+                equalAmount(
+                  subtractExactDecimals(
+                    item.outstandingBefore.amount,
+                    item.outstandingAfter.amount,
+                  ),
+                  draft.amount.amount,
+                ) &&
+                item.allocations.length > 0 &&
+                new Set(item.allocations.map((row) => row.obligationId))
+                  .size === item.allocations.length &&
+                item.allocations.every(
+                  (row) =>
+                    draft.selectedObligationIds.includes(row.obligationId) &&
+                    row.sourceDate <= draft.transactionDate &&
+                    row.forgiven.currency === draft.amount.currency &&
+                    row.remainingAfter.currency === draft.amount.currency &&
+                    positiveDecimal(row.forgiven.amount) &&
+                    /^\d+(?:\.\d+)?$/.test(row.remainingAfter.amount),
+                ) &&
+                equalAmount(
+                  item.allocations.reduce(
+                    (total, row) =>
+                      subtractExactDecimals(
+                        total,
+                        subtractExactDecimals("0", row.forgiven.amount),
+                      ),
+                    "0",
+                  ),
+                  draft.amount.amount,
                 ),
-              "0",
-            ),
-            draft.amount.amount,
-          ),
-        "Forgiveness preview does not match the explicit intent or selected scope.",
+              "Forgiveness preview does not match the explicit intent or selected scope.",
+            )
       ).parse(response.data);
       if (journal.isCurrentNamespace()) setReview({ draft, preview: parsed });
     } catch {
       if (journal.isCurrentNamespace())
         setError(
-          "Preview could not be loaded. Your forgiveness intent is preserved. Refresh dependencies and review the selected debt, date and amount before trying again. Nothing was confirmed.",
+          `Preview could not be loaded. Your ${action} intent is preserved. Refresh dependencies and review the selected debt, date and amounts before trying again. Nothing was confirmed.`,
         );
     }
   }
@@ -300,9 +358,43 @@ export function ForgivenessFormDialog({
       ),
     },
     {
-      id: "currency",
-      label: "Currency",
-      control: (
+      id: combined ? "receiving" : "currency",
+      label: combined ? "Receiving Account" : "Currency",
+      control: combined ? (
+        <NativeSelect
+          id="forgiveness-receiving"
+          value={receivingAccountId}
+          aria-invalid={!!errors.receiving}
+          aria-describedby={
+            errors.receiving ? "forgiveness-receiving-error" : undefined
+          }
+          onChange={(event) => {
+            edit();
+            setReceivingAccountId(event.target.value);
+          }}
+        >
+          <NativeSelectOption value="">
+            Choose receiving Account
+          </NativeSelectOption>
+          {receivingAccountId &&
+          !accounts.some(
+            (item) =>
+              item.id === receivingAccountId && item.status === "active",
+          ) ? (
+            <NativeSelectOption value={receivingAccountId}>
+              Unavailable Account · {receivingAccountId}
+            </NativeSelectOption>
+          ) : null}
+          {accounts
+            .filter((item) => item.status === "active")
+            .map((item) => (
+              <NativeSelectOption key={item.id} value={item.id}>
+                {accountLabels.get(item.id)} · {item.currency} ·{" "}
+                {item.nature === "liability" ? "Liability" : "Asset"}
+              </NativeSelectOption>
+            ))}
+        </NativeSelect>
+      ) : (
         <NativeSelect
           id="forgiveness-currency"
           value={currencyCode}
@@ -326,7 +418,7 @@ export function ForgivenessFormDialog({
     },
     {
       id: "date",
-      label: "Forgiveness date",
+      label: combined ? "Settlement date" : "Forgiveness date",
       control: (
         <Input
           id="forgiveness-date"
@@ -341,6 +433,29 @@ export function ForgivenessFormDialog({
         />
       ),
     },
+    ...(combined
+      ? [
+          {
+            id: "cash",
+            label: "Cash received",
+            control: (
+              <Input
+                id="forgiveness-cash"
+                inputMode="decimal"
+                value={cashAmount}
+                aria-invalid={!!errors.cash}
+                aria-describedby={
+                  errors.cash ? "forgiveness-cash-error" : undefined
+                }
+                onChange={(event) => {
+                  edit();
+                  setCashAmount(event.target.value);
+                }}
+              />
+            ),
+          },
+        ]
+      : []),
     {
       id: "amount",
       label: "Forgiveness amount",
@@ -406,12 +521,16 @@ export function ForgivenessFormDialog({
         className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-2xl"
       >
         <DialogHeader>
-          <DialogTitle>Record forgiveness</DialogTitle>
+          <DialogTitle>Record {action}</DialogTitle>
           <DialogDescription>
-            Explicitly waive selected debt in one currency. Receivables decrease
-            and Expense increases by the same amount. Cash and available credit
-            remain unchanged. Future-dated recording affects Current Balance
-            immediately.
+            {combined
+              ? "Record actual cash and explicit forgiveness together. Cash allocates first, then forgiveness against the remaining selected debt. No surplus or existing credit is applied. "
+              : "Explicitly waive selected debt in one currency. "}{" "}
+            Receivables decrease and Expense increases by the forgiven amount.{" "}
+            {combined
+              ? "Only actual cash changes the receiving balance. Income and available credit remain unchanged."
+              : "Cash and available credit remain unchanged."}{" "}
+            Future-dated recording affects Current Balance immediately.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -442,7 +561,11 @@ export function ForgivenessFormDialog({
                   errors.scope ? "forgiveness-scope-error" : undefined
                 }
               >
-                <FieldLegend>Select debt to forgive</FieldLegend>
+                <FieldLegend>
+                  {combined
+                    ? "Select debt to resolve"
+                    : "Select debt to forgive"}
+                </FieldLegend>
                 <p className="text-sm text-muted-foreground">
                   Only checked Obligations in this Participant, currency and
                   event date are eligible. Unselected debt remains outstanding;
@@ -532,17 +655,20 @@ export function ForgivenessFormDialog({
           ) : null}
           {review ? (
             <section
-              aria-label="Forgiveness preview"
+              aria-label={
+                combined ? "Combined Settlement preview" : "Forgiveness preview"
+              }
               className="flex min-w-0 flex-col gap-3"
             >
-              <h2 className="font-semibold">Review forgiveness</h2>
+              <h2 className="font-semibold">Review {action}</h2>
               <p>
-                Forgiveness date: {review.draft.transactionDate}. Reason:{" "}
+                Event date: {review.draft.transactionDate}. Reason:{" "}
                 {review.draft.reason}
               </p>
               <p>
-                No cash receipt or payment is recorded. Income and available
-                credit remain unchanged. Unselected debt remains outstanding.
+                {combined
+                  ? "Actual cash is allocated first; forgiveness creates matching Expense. Income and available credit remain unchanged. Unselected debt and any remaining shortfall stay outstanding."
+                  : "No cash receipt or payment is recorded. Income and available credit remain unchanged. Unselected debt remains outstanding."}
               </p>
               <p className="text-sm [overflow-wrap:anywhere]">
                 Reviewed selected scope:{" "}
@@ -551,7 +677,25 @@ export function ForgivenessFormDialog({
               <dl className="grid gap-2 sm:grid-cols-2">
                 {(
                   [
-                    ["Forgiven principal", review.preview.amount],
+                    ...("forgivenessAmount" in review.preview
+                      ? ([
+                          ["Cash received", review.preview.amount],
+                          [
+                            "Receiving balance",
+                            review.preview.receivingBalance,
+                          ],
+                          [
+                            "Receiving balance after",
+                            review.preview.receivingBalanceAfter,
+                          ],
+                        ] as const)
+                      : []),
+                    [
+                      "Forgiven principal",
+                      "forgivenessAmount" in review.preview
+                        ? review.preview.forgivenessAmount
+                        : review.preview.amount,
+                    ],
                     ["Expense increase", review.preview.expense],
                     [
                       "Selected outstanding before",
@@ -600,7 +744,7 @@ export function ForgivenessFormDialog({
                 ? "Loading preview…"
                 : create.rejected
                   ? "Refresh preview"
-                  : "Preview forgiveness"}
+                  : `Preview ${action}`}
             </Button>
             {review ? (
               <Button
@@ -619,7 +763,7 @@ export function ForgivenessFormDialog({
                   })
                 }
               >
-                {create.pending ? "Confirming…" : "Confirm forgiveness"}
+                {create.pending ? "Confirming…" : `Confirm ${action}`}
               </Button>
             ) : null}
           </DialogFooter>

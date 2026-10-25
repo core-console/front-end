@@ -7,10 +7,22 @@ import {
   CreditSettlementResponse,
   IncomeSettlementResponse,
   ForgivenessResponse,
+  CombinedSettlementResponse,
 } from "@/api/generated/schemas";
+
+import { validCombinedComposition } from "./combined-settlement";
 
 export const settlementSourceSchema = z
   .union([
+    CombinedSettlementResponse.refine(
+      (item) =>
+        validCombinedComposition(
+          item,
+          item.selectedObligationIds,
+          item.transactionDate,
+        ),
+      "Combined Allocations do not match retained cash, forgiveness or selected scope.",
+    ),
     ForgivenessResponse.refine(
       (item) =>
         new Set(item.selectedObligationIds).size ===

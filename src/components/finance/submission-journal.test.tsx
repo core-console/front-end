@@ -12,6 +12,58 @@ import {
   normalizedApiBaseUrl,
 } from "./submission-journal";
 import { createdLedgerReceipt } from "@/test/submission-fixtures";
+import {
+  combinedSettlement,
+  combinedPreview,
+  combinedReceipt,
+} from "@/test/combined-settlement-fixtures";
+
+it("retains the entire version 6 action and rejects older-version evidence", async () => {
+  globalThis.indexedDB = new IDBFactory();
+  const body = {
+    kind: "combined" as const,
+    participantId: combinedSettlement.participantId,
+    receivingAccountId: combinedSettlement.receivingAccountId,
+    selectedObligationIds: [...combinedSettlement.selectedObligationIds],
+    transactionDate: combinedSettlement.transactionDate,
+    amount: { ...combinedSettlement.amount },
+    forgivenessAmount: { ...combinedSettlement.forgivenessAmount },
+    reason: "😀".repeat(300),
+    previewToken: combinedPreview.previewToken,
+    note: null,
+  };
+  const original = structuredClone(body);
+  const record = await prepareSubmission(namespace, {
+    operation: "createFinanceSettlement",
+    workflow: "settlement",
+    targetLedgerId: combinedSettlement.ledgerId,
+    body,
+  });
+  body.amount.amount = "1";
+  body.forgivenessAmount.amount = "99";
+  body.reason = "Changed";
+  body.selectedObligationIds.pop();
+  expect(await readSubmission(record)).toMatchObject({
+    commandVersion: "6",
+    body: original,
+    state: "unresolved",
+  });
+  expect(
+    await readSubmissions({ ...namespace, ownerId: crypto.randomUUID() }),
+  ).toEqual([]);
+  const receipt = combinedReceipt(record.submissionId);
+  for (const commandVersion of ["4", "5"] as const) {
+    await expect(
+      resolveSubmission(record, {
+        kind: "receipt",
+        receipt: { ...receipt, commandVersion },
+      }),
+    ).rejects.toThrow(/does not match/);
+  }
+  expect((await readSubmission(record))?.state).toBe("unresolved");
+  await resolveSubmission(record, { kind: "receipt", receipt });
+  expect((await readSubmission(record))?.state).toBe("resolved");
+});
 
 const namespace = {
   apiBaseUrl: "http://localhost/api",

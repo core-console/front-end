@@ -336,8 +336,26 @@ historical composition and linked Expenses. Settlement history distinguishes
 forgiveness from cash repayment, including archived Participant attribution.
 
 Version 5 reuses durable original-command recovery and owner isolation; versions
-1–4 and T01–T07 remain supported. Combined cash/forgiveness and Corrections remain
-later slices. See the [T08 integration note](docs/finance-v2-standalone-forgiveness-t08.md)
+1–4 and T01–T07 remain supported. See the [T08 integration note](docs/finance-v2-standalone-forgiveness-t08.md)
 for contract, recovery and validation boundaries. Consumer delivery, exact-SHA CI,
 real delivered P+C acceptance and authorized backend [Issue #33](https://github.com/core-console/back-end/issues/33)
 closure remain separate steps.
+
+## Finance v2 combined repayment and forgiveness (T09)
+
+The synchronized delivered producer is
+`4dcadec11d2ec679bb17fe189cdec51a1339b63e`. **Record combined Settlement**
+on Repayments explicitly selects debt and records actual cash plus a positive
+forgiveness amount and reason. Preview shows receiving balances, reduced debt,
+matching forgiveness Expense and ordered cash-first, then forgiveness Allocations.
+Cash-paid and forgiven remain separate in history and current debt composition.
+Income and available credit remain unchanged; remaining shortfalls stay outstanding.
+
+Version 6 uses the existing durable owner-isolated submission journal. Uncertain
+outcomes retain the original complete command for lookup or explicit retry;
+stale rejection requires refreshed preview and deliberate new confirmation.
+Versions 1–5 and T01–T08 remain supported. See the
+[T09 integration note](docs/finance-v2-combined-settlement-t09.md) for contract,
+recovery and verification boundaries. Consumer delivery, exact-C CI, real delivered
+P+C acceptance and separately authorized [Issue #34](https://github.com/core-console/back-end/issues/34)
+closure remain separate dependencies. T10 and Corrections remain outside this slice.
