@@ -258,8 +258,13 @@ function endpointFor(command: CreateSubmissionCommand) {
 export function submissionDescription(record: FinanceSubmission) {
   if (record.operation === "createFinanceSettlement") {
     const receipt = `${record.body.amount.amount} ${record.body.amount.currency} · ${record.body.transactionDate} · Participant ${record.body.participantId}`;
-    if ("kind" in record.body)
-      return `Forgiveness ${receipt} · Reason ${record.body.reason} · Selected Obligations ${record.body.selectedObligationIds.join(", ")}`;
+    if ("kind" in record.body) {
+      const action =
+        record.body.kind === "combined"
+          ? `Combined Settlement · Cash received ${receipt} · Forgiveness ${record.body.forgivenessAmount.amount} ${record.body.forgivenessAmount.currency}`
+          : `Forgiveness ${receipt}`;
+      return `${action} · Reason ${record.body.reason} · Selected Obligations ${record.body.selectedObligationIds.join(", ")}`;
+    }
     if (
       "excessDisposition" in record.body &&
       record.body.excessDisposition === "acceptIncome"

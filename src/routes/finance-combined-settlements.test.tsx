@@ -10,6 +10,8 @@ import {
   getListFinanceCurrenciesMockHandler,
 } from "@/api/generated/core-console.msw";
 import { server } from "@/mocks/server";
+import { env } from "@/config/env";
+import { prepareSubmission } from "@/components/finance/submission-journal";
 import { renderRoute } from "@/test/render";
 import { submissionTestUser } from "@/test/submission-fixtures";
 import {
@@ -98,6 +100,114 @@ async function draft() {
   );
   return { user, dialog };
 }
+
+it("distinguishes cash 98 from forgiveness 2 throughout durable v6 recovery", async () => {
+  const user = userEvent.setup();
+  const body = {
+    kind: "combined" as const,
+    participantId: person.id,
+    receivingAccountId: account.id,
+    selectedObligationIds: [...combinedSettlement.selectedObligationIds],
+    transactionDate: combinedSettlement.transactionDate,
+    amount: money("98"),
+    forgivenessAmount: money("2"),
+    reason: "Explicitly waive the remaining two",
+    previewToken: combinedPreview.previewToken,
+    note: null,
+  };
+  const record = await prepareSubmission(
+    { apiBaseUrl: env.VITE_API_BASE_URL, ownerId: submissionTestUser.id },
+    {
+      operation: "createFinanceSettlement",
+      workflow: "settlement",
+      targetLedgerId: ledger.id,
+      body,
+    },
+  );
+  let lookups = 0;
+  const posts: {
+    key: string | null;
+    version: string | null;
+    owner: string | null;
+    body: unknown;
+  }[] = [];
+  server.use(
+    http.get("*/api/finance/submissions/:id", ({ params }) => {
+      lookups++;
+      return HttpResponse.json({
+        state: "unfinished",
+        submissionId: params.id,
+        operation: "createFinanceSettlement",
+        commandVersion: "6",
+        targetLedgerId: ledger.id,
+        admittedAt: combinedSettlement.confirmedAt,
+      });
+    }),
+    http.post(
+      "*/api/finance/ledgers/:ledger/settlements",
+      async ({ request }) => {
+        posts.push({
+          key: request.headers.get("Idempotency-Key"),
+          version: request.headers.get("Finance-Command-Version"),
+          owner: request.headers.get("Finance-Submission-Owner"),
+          body: await request.json(),
+        });
+        return HttpResponse.json(combinedReceipt(record.submissionId), {
+          status: 201,
+        });
+      },
+    ),
+  );
+  const path = `/finance/repayments?ledger=${ledger.id}&participant_id=${person.id}`;
+  const view = renderRoute(path);
+  const recovery = await screen.findByRole("region", {
+    name: "Finance submission recovery",
+  });
+  const unknown = await within(recovery).findByRole("status", {
+    name: /^Settlement outcome unknown:/,
+  });
+  expect(unknown).toHaveTextContent("Cash received 98 CNY");
+  expect(unknown).toHaveTextContent("Forgiveness 2 CNY");
+  expect(unknown).not.toHaveTextContent("Forgiveness 98 CNY");
+  expect(unknown).toHaveAccessibleName(
+    /Cash received 98 CNY.*Forgiveness 2 CNY/,
+  );
+  const retry = within(unknown).getByRole("button", {
+    name: "Retry original submission",
+  });
+  await waitFor(() => expect(retry).toBeEnabled());
+  expect(lookups).toBeGreaterThan(0);
+  expect(posts).toHaveLength(0);
+  await user.click(retry);
+  const created = await within(recovery).findByRole("status", {
+    name: /^Settlement created:/,
+  });
+  expect(created).toHaveTextContent("Cash received 98 CNY");
+  expect(created).toHaveTextContent("Forgiveness 2 CNY");
+  expect(created).not.toHaveTextContent("Forgiveness 98 CNY");
+  expect(created).toHaveAccessibleName(
+    /Cash received 98 CNY.*Forgiveness 2 CNY/,
+  );
+  expect(posts).toEqual([
+    {
+      key: record.submissionId,
+      version: "6",
+      owner: submissionTestUser.id,
+      body,
+    },
+  ]);
+  view.unmount();
+  renderRoute(path);
+  const restored = await screen.findByRole("status", {
+    name: /^Settlement created:/,
+  });
+  expect(restored).toHaveTextContent("Cash received 98 CNY");
+  expect(restored).toHaveTextContent("Forgiveness 2 CNY");
+  expect(
+    within(restored).getByRole("link", { name: "Open Settlement" }),
+  ).toBeVisible();
+  expect(posts).toHaveLength(1);
+});
 
 it("retries only the original v6 body, owner and key after an uncertain outcome", async () => {
   const posts: {
