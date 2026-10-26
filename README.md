@@ -59,6 +59,14 @@ Pass a different source when needed with
 `pnpm api:sync -- <path-to-openapi.json>`, then run `pnpm api:lint` and
 `pnpm api:generate`. `pnpm api:check` verifies the checked-in snapshot and
 generated output without requiring the backend repository or modifying files.
+Successful generation and contract-equality checks do not guarantee equivalent
+client-side validation semantics. For each new generated command variant,
+exercise producer-valid boundary values through form validation, preview, and
+durable command preparation and reopening; include non-BMP text when checking
+text-length constraints. Preserve generated constraints and keep required
+compatibility adjustments handwritten. See the [T05 Account and Category
+submission note](docs/finance-account-category-submission-t05.md) for an
+example.
 
 `pnpm e2e` builds the application and runs Chromium smoke and axe checks against
 a real Vite production preview. Authentication remains intentionally deferred
