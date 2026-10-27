@@ -379,7 +379,10 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
                     record.body.receivingAccountId)) ||
               ("kind" in record.body &&
                 (!("kind" in settlement) ||
-                  settlement.reason !== record.body.reason.trim() ||
+                  settlement.kind !== record.body.kind ||
+                  ("reason" in record.body &&
+                    (!("reason" in settlement) ||
+                      settlement.reason !== record.body.reason.trim())) ||
                   settlement.selectedObligationIds.length !==
                     record.body.selectedObligationIds.length ||
                   !record.body.selectedObligationIds.every((id) =>

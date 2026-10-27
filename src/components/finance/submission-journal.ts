@@ -142,7 +142,10 @@ const recordSchema = z
     recordsFor(transactionCommand.shape, z.literal("1")),
     recordsFor(adjustmentCommand.shape, z.literal("1")),
     recordsFor(advanceCommand.shape, z.enum(["1", "2"])),
-    recordsFor(settlementCommand.shape, z.enum(["1", "2", "3", "4", "5", "6"])),
+    recordsFor(
+      settlementCommand.shape,
+      z.enum(["1", "2", "3", "4", "5", "6", "7"]),
+    ),
   ])
   .refine(
     (record) =>
@@ -178,6 +181,7 @@ export type FinanceSubmission = z.infer<typeof recordSchema>;
 function settlementCommandVersion(
   body: z.infer<typeof CreateFinanceSettlementBody>,
 ) {
+  if ("kind" in body && body.kind === "creditApplication") return "7";
   if ("kind" in body && body.kind === "combined") return "6";
   if ("kind" in body && body.kind === "forgiveness") return "5";
   if ("selectedObligationIds" in body) return "4";
@@ -214,7 +218,7 @@ export function isQuickEntrySubmission(command: CreateSubmissionCommand) {
 
 export function rejectionMessage(record: FinanceSubmission) {
   if (record.operation === "createFinanceSettlement")
-    return `${"kind" in record.body && record.body.kind === "combined" ? "The combined Settlement" : "kind" in record.body ? "The forgiveness" : "The repayment"} was rejected without financial effects. Preserve the draft, refresh the preview and review current Allocations before a deliberate new confirmation.`;
+    return `${"kind" in record.body && record.body.kind === "creditApplication" ? "The credit application" : "kind" in record.body && record.body.kind === "combined" ? "The combined Settlement" : "kind" in record.body ? "The forgiveness" : "The repayment"} was rejected without financial effects. Preserve the draft, refresh the preview and review current Allocations before a deliberate new confirmation.`;
   if (record.operation === "createFinanceAdvance") {
     const stale =
       record.state === "resolved" &&
@@ -258,6 +262,8 @@ function endpointFor(command: CreateSubmissionCommand) {
 export function submissionDescription(record: FinanceSubmission) {
   if (record.operation === "createFinanceSettlement") {
     const receipt = `${record.body.amount.amount} ${record.body.amount.currency} · ${record.body.transactionDate} · Participant ${record.body.participantId}`;
+    if ("kind" in record.body && record.body.kind === "creditApplication")
+      return `Credit application ${receipt} · Selected Obligations ${record.body.selectedObligationIds.join(", ")} · No new cash, Income, Expense or forgiveness`;
     if ("kind" in record.body) {
       const action =
         record.body.kind === "combined"

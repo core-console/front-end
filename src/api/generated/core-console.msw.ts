@@ -54,6 +54,7 @@ import type {
   CategorySubmissionUnfinished,
   CategoryValidationResponse,
   CombinedSettlementPreview,
+  CreditApplicationPreview,
   CreditOriginResponse,
   CreditSettlementPreview,
   CurrencyResponse,
@@ -5204,6 +5205,59 @@ export const getListFinanceParticipantSettlementsResponseMock =
           allocations: Array.from(
             { length: faker.number.int({ min: 1, max: 10 }) },
             (_, i) => i + 1,
+          ).map(() => ({
+            advanceId: faker.string.uuid(),
+            creditApplied: (() =>
+              Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+            kind: (() => Object.freeze({ kind: "creditApplication" }).kind)(),
+            obligationId: faker.string.uuid(),
+            originSettlementId: faker.string.uuid(),
+            position: faker.number.int(),
+            remainingAfter: (() =>
+              Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+            sourceDate: faker.date.past().toISOString().slice(0, 10),
+          })),
+          amount: (() => Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+          confirmationOrder: faker.number.int(),
+          confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          id: faker.string.uuid(),
+          kind: "creditApplication",
+          ledgerId: faker.string.uuid(),
+          note: faker.helpers.arrayElement([
+            faker.string.alpha({ length: { min: 10, max: 20 } }),
+            null,
+          ]),
+          origins: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            amount: (() =>
+              Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+            availableAfter: (() =>
+              Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+            availableBefore: (() =>
+              Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+            liabilityAccountId: faker.string.uuid(),
+            originConfirmationOrder: faker.number.int(),
+            originDate: faker.date.past().toISOString().slice(0, 10),
+            originSettlementId: faker.string.uuid(),
+            originTransactionId: faker.string.uuid(),
+          })),
+          participantId: faker.string.uuid(),
+          selectedObligationIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+          transactionDate: faker.date.past().toISOString().slice(0, 10),
+          transactionIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+        },
+        {
+          allocations: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
           ).map(() =>
             faker.helpers.arrayElement([
               {
@@ -5536,6 +5590,59 @@ export const getListFinanceParticipantSettlementsResponseMock200 =
       (_, i) => i + 1,
     ).map(() =>
       faker.helpers.arrayElement([
+        {
+          allocations: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            advanceId: faker.string.uuid(),
+            creditApplied: (() =>
+              Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+            kind: (() => Object.freeze({ kind: "creditApplication" }).kind)(),
+            obligationId: faker.string.uuid(),
+            originSettlementId: faker.string.uuid(),
+            position: faker.number.int(),
+            remainingAfter: (() =>
+              Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+            sourceDate: faker.date.past().toISOString().slice(0, 10),
+          })),
+          amount: (() => Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+          confirmationOrder: faker.number.int(),
+          confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          id: faker.string.uuid(),
+          kind: "creditApplication",
+          ledgerId: faker.string.uuid(),
+          note: faker.helpers.arrayElement([
+            faker.string.alpha({ length: { min: 10, max: 20 } }),
+            null,
+          ]),
+          origins: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            amount: (() =>
+              Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+            availableAfter: (() =>
+              Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+            availableBefore: (() =>
+              Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+            liabilityAccountId: faker.string.uuid(),
+            originConfirmationOrder: faker.number.int(),
+            originDate: faker.date.past().toISOString().slice(0, 10),
+            originSettlementId: faker.string.uuid(),
+            originTransactionId: faker.string.uuid(),
+          })),
+          participantId: faker.string.uuid(),
+          selectedObligationIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+          transactionDate: faker.date.past().toISOString().slice(0, 10),
+          transactionIds: Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => faker.string.uuid()),
+        },
         {
           allocations: Array.from(
             { length: faker.number.int({ min: 1, max: 10 }) },
@@ -5981,6 +6088,7 @@ export const getCreateFinanceSettlementResponseMock = (
     "4",
     "5",
     "6",
+    "7",
   ] as const),
   operation: "createFinanceSettlement",
   outcome: {
@@ -6004,6 +6112,7 @@ export const getCreateFinanceSettlementResponseMock201 = (
     "4",
     "5",
     "6",
+    "7",
   ] as const),
   operation: "createFinanceSettlement",
   outcome: {
@@ -6148,6 +6257,7 @@ export const getCreateFinanceSettlementResponseMock404 =
             "4",
             "5",
             "6",
+            "7",
           ] as const),
           kind: "definitivelyNotAdmitted",
           operation: "createFinanceSettlement",
@@ -6202,6 +6312,7 @@ export const getCreateFinanceSettlementResponseMock404 =
             "4",
             "5",
             "6",
+            "7",
           ] as const),
           operation: "createFinanceSettlement",
           outcome: {
@@ -6269,6 +6380,7 @@ export const getCreateFinanceSettlementResponseMock409 =
             "4",
             "5",
             "6",
+            "7",
           ] as const),
           kind: "definitivelyNotAdmitted",
           operation: "createFinanceSettlement",
@@ -6323,6 +6435,7 @@ export const getCreateFinanceSettlementResponseMock409 =
             "4",
             "5",
             "6",
+            "7",
           ] as const),
           operation: "createFinanceSettlement",
           outcome: {
@@ -6390,6 +6503,7 @@ export const getCreateFinanceSettlementResponseMock422 =
             "4",
             "5",
             "6",
+            "7",
           ] as const),
           kind: "definitivelyNotAdmitted",
           operation: "createFinanceSettlement",
@@ -6444,6 +6558,7 @@ export const getCreateFinanceSettlementResponseMock422 =
             "4",
             "5",
             "6",
+            "7",
           ] as const),
           operation: "createFinanceSettlement",
           outcome: {
@@ -6512,12 +6627,56 @@ export const getCreateFinanceSettlementResponseMock503 = (
 });
 
 export const getPreviewFinanceSettlementResponseMock = ():
+  | CreditApplicationPreview
   | CombinedSettlementPreview
   | ForgivenessPreview
   | IncomeSettlementPreview
   | CreditSettlementPreview
   | SettlementPreview =>
   faker.helpers.arrayElement([
+    {
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        creditApplied: (() =>
+          Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        kind: (() => Object.freeze({ kind: "creditApplication" }).kind)(),
+        obligationId: faker.string.uuid(),
+        originSettlementId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: (() =>
+          Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: (() => Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+      availableCreditAfter: (() =>
+        Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+      availableCreditBefore: (() =>
+        Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+      kind: "creditApplication",
+      origins: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        amount: (() => Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        availableAfter: (() =>
+          Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        availableBefore: (() =>
+          Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        liabilityAccountId: faker.string.uuid(),
+        originConfirmationOrder: faker.number.int(),
+        originDate: faker.date.past().toISOString().slice(0, 10),
+        originSettlementId: faker.string.uuid(),
+        originTransactionId: faker.string.uuid(),
+      })),
+      outstandingAfter: (() =>
+        Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+      outstandingBefore: (() =>
+        Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+      previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    },
     {
       allocations: Array.from(
         { length: faker.number.int({ min: 1, max: 10 }) },
@@ -6682,12 +6841,56 @@ export const getPreviewFinanceSettlementResponseMock = ():
   ]);
 
 export const getPreviewFinanceSettlementResponseMock200 = ():
+  | CreditApplicationPreview
   | CombinedSettlementPreview
   | ForgivenessPreview
   | IncomeSettlementPreview
   | CreditSettlementPreview
   | SettlementPreview =>
   faker.helpers.arrayElement([
+    {
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        creditApplied: (() =>
+          Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        kind: (() => Object.freeze({ kind: "creditApplication" }).kind)(),
+        obligationId: faker.string.uuid(),
+        originSettlementId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: (() =>
+          Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: (() => Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+      availableCreditAfter: (() =>
+        Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+      availableCreditBefore: (() =>
+        Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+      kind: "creditApplication",
+      origins: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        amount: (() => Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        availableAfter: (() =>
+          Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        availableBefore: (() =>
+          Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        liabilityAccountId: faker.string.uuid(),
+        originConfirmationOrder: faker.number.int(),
+        originDate: faker.date.past().toISOString().slice(0, 10),
+        originSettlementId: faker.string.uuid(),
+        originTransactionId: faker.string.uuid(),
+      })),
+      outstandingAfter: (() =>
+        Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+      outstandingBefore: (() =>
+        Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+      previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    },
     {
       allocations: Array.from(
         { length: faker.number.int({ min: 1, max: 10 }) },
@@ -6979,6 +7182,58 @@ export const getPreviewFinanceSettlementResponseMock503 = (
 
 export const getGetFinanceSettlementResponseMock = (): SettlementSource =>
   faker.helpers.arrayElement([
+    {
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        creditApplied: (() =>
+          Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        kind: (() => Object.freeze({ kind: "creditApplication" }).kind)(),
+        obligationId: faker.string.uuid(),
+        originSettlementId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: (() =>
+          Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: (() => Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      id: faker.string.uuid(),
+      kind: "creditApplication",
+      ledgerId: faker.string.uuid(),
+      note: faker.helpers.arrayElement([
+        faker.string.alpha({ length: { min: 10, max: 20 } }),
+        null,
+      ]),
+      origins: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        amount: (() => Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        availableAfter: (() =>
+          Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        availableBefore: (() =>
+          Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        liabilityAccountId: faker.string.uuid(),
+        originConfirmationOrder: faker.number.int(),
+        originDate: faker.date.past().toISOString().slice(0, 10),
+        originSettlementId: faker.string.uuid(),
+        originTransactionId: faker.string.uuid(),
+      })),
+      participantId: faker.string.uuid(),
+      selectedObligationIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+    },
     {
       allocations: Array.from(
         { length: faker.number.int({ min: 1, max: 10 }) },
@@ -7300,6 +7555,58 @@ export const getGetFinanceSettlementResponseMock = (): SettlementSource =>
 
 export const getGetFinanceSettlementResponseMock200 = (): SettlementSource =>
   faker.helpers.arrayElement([
+    {
+      allocations: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        creditApplied: (() =>
+          Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        kind: (() => Object.freeze({ kind: "creditApplication" }).kind)(),
+        obligationId: faker.string.uuid(),
+        originSettlementId: faker.string.uuid(),
+        position: faker.number.int(),
+        remainingAfter: (() =>
+          Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      amount: (() => Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      id: faker.string.uuid(),
+      kind: "creditApplication",
+      ledgerId: faker.string.uuid(),
+      note: faker.helpers.arrayElement([
+        faker.string.alpha({ length: { min: 10, max: 20 } }),
+        null,
+      ]),
+      origins: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        amount: (() => Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        availableAfter: (() =>
+          Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        availableBefore: (() =>
+          Object.freeze({ amount: "12.34", currency: "CNY" }))(),
+        liabilityAccountId: faker.string.uuid(),
+        originConfirmationOrder: faker.number.int(),
+        originDate: faker.date.past().toISOString().slice(0, 10),
+        originSettlementId: faker.string.uuid(),
+        originTransactionId: faker.string.uuid(),
+      })),
+      participantId: faker.string.uuid(),
+      selectedObligationIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+      transactionIds: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => faker.string.uuid()),
+    },
     {
       allocations: Array.from(
         { length: faker.number.int({ min: 1, max: 10 }) },
@@ -9128,6 +9435,7 @@ export const getGetFinanceSubmissionResponseSettlementSubmissionUnfinishedMock =
         "4",
         "5",
         "6",
+        "7",
       ] as const),
       operation: faker.helpers.arrayElement([
         "createFinanceSettlement",
@@ -9625,6 +9933,7 @@ export const getGetFinanceSubmissionResponseSettlementSubmissionReceiptMock = (
       "4",
       "5",
       "6",
+      "7",
     ] as const),
     operation: faker.helpers.arrayElement(["createFinanceSettlement"] as const),
     outcome: faker.helpers.arrayElement([
@@ -16851,6 +17160,7 @@ export const getCreateFinanceSettlementMockHandler503 = (
 
 export const getPreviewFinanceSettlementMockHandler = (
   overrideResponse?:
+    | CreditApplicationPreview
     | CombinedSettlementPreview
     | ForgivenessPreview
     | IncomeSettlementPreview
@@ -16860,12 +17170,14 @@ export const getPreviewFinanceSettlementMockHandler = (
         info: Parameters<Parameters<typeof http.post>[1]>[0],
       ) =>
         | Promise<
+            | CreditApplicationPreview
             | CombinedSettlementPreview
             | ForgivenessPreview
             | IncomeSettlementPreview
             | CreditSettlementPreview
             | SettlementPreview
           >
+        | CreditApplicationPreview
         | CombinedSettlementPreview
         | ForgivenessPreview
         | IncomeSettlementPreview
@@ -16891,6 +17203,7 @@ export const getPreviewFinanceSettlementMockHandler = (
 
 export const getPreviewFinanceSettlementMockHandler200 = (
   overrideResponse?:
+    | CreditApplicationPreview
     | CombinedSettlementPreview
     | ForgivenessPreview
     | IncomeSettlementPreview
@@ -16900,12 +17213,14 @@ export const getPreviewFinanceSettlementMockHandler200 = (
         info: Parameters<Parameters<typeof http.post>[1]>[0],
       ) =>
         | Promise<
+            | CreditApplicationPreview
             | CombinedSettlementPreview
             | ForgivenessPreview
             | IncomeSettlementPreview
             | CreditSettlementPreview
             | SettlementPreview
           >
+        | CreditApplicationPreview
         | CombinedSettlementPreview
         | ForgivenessPreview
         | IncomeSettlementPreview

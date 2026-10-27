@@ -219,7 +219,7 @@ describe("generated Finance API boundary", () => {
     },
   );
 
-  it.each(["4", "5", "6"])(
+  it.each(["4", "5", "6", "7"])(
     "preserves version %s in every nested Settlement lookup outcome",
     (commandVersion) => {
       const receipt = {
@@ -252,9 +252,9 @@ describe("generated Finance API boundary", () => {
           "receipt" in response
             ? {
                 ...response,
-                receipt: { ...response.receipt, commandVersion: "7" },
+                receipt: { ...response.receipt, commandVersion: "8" },
               }
-            : { ...response, commandVersion: "7" };
+            : { ...response, commandVersion: "8" };
         expect(FinanceSubmissionResponse.safeParse(invalid).success).toBe(
           false,
         );

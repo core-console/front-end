@@ -58,6 +58,11 @@ export default defineConfig({
             month: "2026-09",
           },
           schemas: {
+            CreditApplicationAllocationResponse: {
+              properties: {
+                kind: () => Object.freeze({ kind: "creditApplication" }).kind,
+              },
+            },
             ForgivenessAllocationResponse: {
               properties: { kind: forgivenessMockKind },
             },

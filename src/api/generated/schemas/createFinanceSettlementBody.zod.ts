@@ -41,6 +41,10 @@ export const createFinanceSettlementBodySixPreviewTokenRegExp = new RegExp(
 );
 export const createFinanceSettlementBodySixReasonMax = 500;
 
+export const createFinanceSettlementBodySevenPreviewTokenRegExp = new RegExp(
+  "^[0-9a-f]{64}$",
+);
+
 export const CreateFinanceSettlementBody = zod.union([
   zod.strictObject({
     amount: zod.strictObject({
@@ -237,6 +241,24 @@ export const CreateFinanceSettlementBody = zod.union([
       .regex(createFinanceSettlementBodySixPreviewTokenRegExp),
     reason: zod.string().min(1).max(createFinanceSettlementBodySixReasonMax),
     receivingAccountId: zod.uuid(),
+    selectedObligationIds: zod.array(zod.uuid()).min(1),
+    transactionDate: zod.iso.date(),
+  }),
+  zod.strictObject({
+    amount: zod.strictObject({
+      amount: zod
+        .string()
+        .describe(
+          "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+        ),
+      currency: zod.enum(["CNY", "JPY", "USD"]),
+    }),
+    kind: zod.literal("creditApplication").meta({ title: "Kind" }),
+    note: zod.union([zod.string(), zod.null()]).optional(),
+    participantId: zod.uuid(),
+    previewToken: zod
+      .string()
+      .regex(createFinanceSettlementBodySevenPreviewTokenRegExp),
     selectedObligationIds: zod.array(zod.uuid()).min(1),
     transactionDate: zod.iso.date(),
   }),

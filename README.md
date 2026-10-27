@@ -367,3 +367,20 @@ Versions 1–5 and T01–T08 remain supported. See the
 recovery and verification boundaries. Consumer delivery, exact-C CI, real delivered
 P+C acceptance and separately authorized [Issue #34](https://github.com/core-console/back-end/issues/34)
 closure remain separate dependencies. T10 and Corrections remain outside this slice.
+
+## Finance v2 explicit credit application (T10)
+
+The synchronized delivered producer is
+`6dc6f2b21f99e9af8666793c817ed9f9f8d734c9`. **Apply credit** on Repayments
+explicitly selects outstanding Obligations and applies an exact amount of retained
+Participant credit. Preview and history show oldest-origin consumption, provenance,
+typed credit-applied Allocations and remaining gross debt/credit. No new cash,
+Income, Expense or forgiveness is recorded. Version 7 retains the complete original
+command for owner-isolated durable recovery; stale rejection requires a fresh
+preview and deliberate confirmation. Versions 1–6 remain supported.
+
+See the [T10 integration note](docs/finance-v2-explicit-credit-application-t10.md)
+for boundary, recovery and verification details. Consumer delivery, exact-C CI,
+real delivered P+C acceptance and separately authorized backend
+[Issue #35](https://github.com/core-console/back-end/issues/35) closure remain gates.
+T11 credit return and later Corrections remain outside this slice.
