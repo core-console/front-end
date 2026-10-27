@@ -3,6 +3,7 @@ import type {
   SettlementPreview,
   ForgivenessPreview,
   CombinedSettlementPreview,
+  CreditApplicationPreview,
 } from "@/api/generated/schemas";
 import { formatFinanceMoney } from "./finance-money";
 import {
@@ -23,11 +24,13 @@ export function SettlementAllocations({
   allocations:
     | SettlementPreview["allocations"]
     | ForgivenessPreview["allocations"]
-    | CombinedSettlementPreview["allocations"];
+    | CombinedSettlementPreview["allocations"]
+    | CreditApplicationPreview["allocations"];
   ledgerId: string;
   participantId: string;
   confirmed?: boolean;
 }) {
+  const hasCredit = allocations.some((item) => "creditApplied" in item);
   const hasCash = allocations.some((item) => "cashPaid" in item);
   const hasForgiveness = allocations.some((item) => "forgiven" in item);
   return (
@@ -39,6 +42,7 @@ export function SettlementAllocations({
           {[
             "Order",
             "Advance source",
+            ...(hasCredit ? ["Credit applied", "Credit origin"] : []),
             ...(hasCash ? ["Cash paid"] : []),
             ...(hasForgiveness ? ["Forgiven"] : []),
             confirmed ? "Remaining at confirmation" : "Remaining after",
@@ -62,6 +66,27 @@ export function SettlementAllocations({
                 Obligation {item.obligationId}
               </p>
             </TableCell>
+            {hasCredit ? (
+              <>
+                <TableCell>
+                  {"creditApplied" in item
+                    ? formatFinanceMoney(item.creditApplied)
+                    : "—"}
+                </TableCell>
+                <TableCell className="break-all whitespace-normal">
+                  {"originSettlementId" in item ? (
+                    <Link
+                      className="underline underline-offset-4"
+                      to={`/finance/repayments?ledger=${ledgerId}&participant_id=${participantId}&settlement_id=${item.originSettlementId}`}
+                    >
+                      {item.originSettlementId}
+                    </Link>
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
+              </>
+            ) : null}
             {hasCash ? (
               <TableCell className="tabular-nums">
                 {"cashPaid" in item ? formatFinanceMoney(item.cashPaid) : "—"}

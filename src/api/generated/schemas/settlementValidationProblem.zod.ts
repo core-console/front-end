@@ -11,7 +11,7 @@ export const SettlementValidationProblem = zod.strictObject({
   code: zod.literal("validation_error").meta({ title: "Code" }),
   commandValidationRejection: zod.strictObject({
     attemptedBody: zod.record(zod.string(), zod.unknown()),
-    commandVersion: zod.enum(["1", "2", "3", "4", "5", "6"]),
+    commandVersion: zod.enum(["1", "2", "3", "4", "5", "6", "7"]),
     kind: zod.literal("definitivelyNotAdmitted").meta({ title: "Kind" }),
     operation: zod
       .literal("createFinanceSettlement")

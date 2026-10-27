@@ -59,6 +59,7 @@ import type {
   CreateFinanceTransactionBody,
   CreateFinanceTransactionHeaders,
   CreateUserRequest,
+  CreditApplicationPreview,
   CreditOriginResponse,
   CreditSettlementPreview,
   CurrencyResponse,
@@ -6883,7 +6884,7 @@ export const getCreateFinanceSettlementUrl = (ledgerId: string) => {
 };
 
 /**
- * Confirm one participant's accumulated cash repayment. Version 1 requires the matching previewToken and allocates all eligible debt oldest Advance date first. Version 2 requires excessDisposition=retainCredit and records any unallocated actual receipt as a participant credit Liability, including without eligible debt. Version 3 requires excessDisposition=acceptIncome and one complete Category Allocation equal to the positive actual surplus, creating linked Income without credit. Version 4 requires selectedObligationIds and allocates only within that eligible outstanding subset, with the same explicit excess choices. Version 5 requires kind=forgiveness, selectedObligationIds, a positive amount and reason. It records non-cash Expense against selected receivables without a receiving Account. Version 6 requires kind=combined, selectedObligationIds, positive cash amount, positive same-currency forgivenessAmount and reason. Cash allocates first, then forgiveness within remaining selected capacity; one atomic outcome retains both. Credit use and Corrections are not supported. Prepare one immutable submission identity before dispatch; recover under that same identity using getFinanceSubmission or an explicit retry.
+ * Confirm one participant's accumulated cash repayment. Version 1 requires the matching previewToken and allocates all eligible debt oldest Advance date first. Version 2 requires excessDisposition=retainCredit and records any unallocated actual receipt as a participant credit Liability, including without eligible debt. Version 3 requires excessDisposition=acceptIncome and one complete Category Allocation equal to the positive actual surplus, creating linked Income without credit. Version 4 requires selectedObligationIds and allocates only within that eligible outstanding subset, with the same explicit excess choices. Version 5 requires kind=forgiveness, selectedObligationIds, a positive amount and reason. It records non-cash Expense against selected receivables without a receiving Account. Version 6 requires kind=combined, selectedObligationIds, positive cash amount, positive same-currency forgivenessAmount and reason. Cash allocates first, then forgiveness within remaining selected capacity; one atomic outcome retains both. Version 7 requires kind=creditApplication, selectedObligationIds and a positive amount. It consumes oldest credit origins and selected debt without cash or Income/Expense. Credit return and Corrections are not supported. Prepare one immutable submission identity before dispatch; recover under that same identity using getFinanceSubmission or an explicit retry.
  * @summary Post Settlement
  */
 export const createFinanceSettlement = async (
@@ -7035,6 +7036,7 @@ export const useCreateFinanceSettlement = <
 
 export type previewFinanceSettlementResponse200 = {
   data:
+    | CreditApplicationPreview
     | CombinedSettlementPreview
     | ForgivenessPreview
     | IncomeSettlementPreview

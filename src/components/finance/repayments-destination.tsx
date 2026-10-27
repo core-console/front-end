@@ -15,6 +15,8 @@ import {
   CurrencyResponse,
 } from "@/api/generated/schemas";
 import { useFinanceSubmissions } from "./finance-submission-context";
+import { CreditApplicationFormDialog } from "./credit-application-form-dialog";
+import { CreditApplicationOrigins } from "./credit-application-origins";
 import { RepaymentFormDialog } from "./repayment-form-dialog";
 import { ForgivenessFormDialog } from "./forgiveness-form-dialog";
 import { ParticipantObligations } from "./participant-obligations";
@@ -111,13 +113,17 @@ function SettlementDetail({
               [
                 "kind" in item && item.kind === "forgiveness"
                   ? "Forgiveness date"
-                  : "Receipt date",
+                  : "kind" in item && item.kind === "creditApplication"
+                    ? "Application date"
+                    : "Receipt date",
                 item.transactionDate,
               ],
               [
                 "kind" in item && item.kind === "forgiveness"
                   ? "Forgiven principal / Expense"
-                  : "Cash received",
+                  : "kind" in item && item.kind === "creditApplication"
+                    ? "Credit applied"
+                    : "Cash received",
                 formatFinanceMoney(item.amount),
               ],
               ...("forgivenessAmount" in item
@@ -163,7 +169,9 @@ function SettlementDetail({
             ))}
           </dl>
           <p className="text-sm text-muted-foreground">
-            {"kind" in item && item.kind === "combined" ? (
+            {"kind" in item && item.kind === "creditApplication" ? (
+              "Receivables and credit Liability decrease equally. No new cash, Income, Expense or forgiveness. Allocations and origin consumption retain their confirmed order and balances."
+            ) : "kind" in item && item.kind === "combined" ? (
               "Cash and forgiveness are retained separately in confirmed order: cash first, then explicit forgiveness with matching Expense. Income and available credit are unchanged. Later Advances do not redistribute this Settlement."
             ) : "kind" in item ? (
               "Retained forgiveness Allocations and remaining amounts at confirmation. No cash receipt or payment is recorded. Expense increases by the forgiven principal. Income and available credit remain unchanged."
@@ -200,6 +208,13 @@ function SettlementDetail({
               </p>
             </div>
           ) : null}
+          {"origins" in item ? (
+            <CreditApplicationOrigins
+              origins={item.origins}
+              ledgerId={ledgerId}
+              participantId={item.participantId}
+            />
+          ) : null}
           <SettlementAllocations
             confirmed
             allocations={item.allocations}
@@ -215,11 +230,13 @@ function SettlementDetail({
               {"incomeTransactionId" in item &&
               transactionId === item.incomeTransactionId
                 ? "View accepted Income Transaction"
-                : "kind" in item && item.kind === "combined"
-                  ? "View linked cash / Expense Transaction"
-                  : "kind" in item
-                    ? "View linked Expense Transaction"
-                    : "View linked Transaction"}{" "}
+                : "kind" in item && item.kind === "creditApplication"
+                  ? "View linked credit application Internal Transfer"
+                  : "kind" in item && item.kind === "combined"
+                    ? "View linked cash / Expense Transaction"
+                    : "kind" in item
+                      ? "View linked Expense Transaction"
+                      : "View linked Transaction"}{" "}
               · {transactionId}
             </Link>
           ))}
@@ -272,9 +289,9 @@ function RepaymentHistory({
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">
-        Chronological cash and forgiveness activity by event date, then
-        immutable confirmation order. Follow each source for its retained
-        Allocation composition.
+        Chronological cash, forgiveness and credit application activity by event
+        date, then immutable confirmation order. Follow each source for its
+        retained Allocation composition.
       </p>
       {query.isPending ? (
         <p role="status">Loading Settlement history…</p>
@@ -292,7 +309,8 @@ function RepaymentHistory({
           <EmptyHeader>
             <EmptyTitle>No Settlements</EmptyTitle>
             <EmptyDescription>
-              Confirmed cash receipts and forgiveness will appear here.
+              Confirmed cash receipts, forgiveness and credit applications will
+              appear here.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -308,7 +326,9 @@ function RepaymentHistory({
                 {item.transactionDate} ·{" "}
                 {"kind" in item && item.kind === "forgiveness"
                   ? "Forgiven"
-                  : "Cash received"}{" "}
+                  : "kind" in item && item.kind === "creditApplication"
+                    ? "Credit applied"
+                    : "Cash received"}{" "}
                 {formatFinanceMoney(item.amount)}
                 {"forgivenessAmount" in item
                   ? ` · Forgiven ${formatFinanceMoney(item.forgivenessAmount)}`
@@ -323,6 +343,8 @@ function RepaymentHistory({
   );
 }
 export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
+  const [creditOpen, setCreditOpen] = useState(false);
+  const creditTrigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [forgivenessOpen, setForgivenessOpen] = useState(false);
   const [combinedOpen, setCombinedOpen] = useState(false);
@@ -387,9 +409,27 @@ export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
         subset in one currency, oldest Advance date first. Explicitly retain
         surplus as Participant credit, including receipts without eligible debt.
         Record standalone forgiveness separately to waive selected debt with a
-        matching Expense and unchanged cash.
+        matching Expense and unchanged cash. Apply existing credit explicitly to
+        selected debt without new cash or P&L.
       </p>
       <div className="flex flex-wrap gap-2">
+        <Button
+          ref={creditTrigger}
+          variant="outline"
+          disabled={
+            !ready ||
+            !journal.ready ||
+            !journal.recoveryLoaded ||
+            pending ||
+            retained
+          }
+          onClick={() => {
+            confirmed.current = false;
+            setCreditOpen(true);
+          }}
+        >
+          Apply credit
+        </Button>
         <Button
           ref={trigger}
           disabled={
@@ -529,6 +569,30 @@ export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
             participantId={selected.id}
           />
         </>
+      ) : null}
+      {creditOpen && participants.data && currencies.data ? (
+        <CreditApplicationFormDialog
+          ledgerId={ledgerId}
+          participants={participants.data}
+          currencies={currencies.data}
+          initialParticipantId={selected?.id}
+          onClose={() => setCreditOpen(false)}
+          onConfirmed={(id, participantId) => {
+            confirmed.current = true;
+            setCreditOpen(false);
+            setParams({
+              ledger: ledgerId,
+              participant_id: participantId,
+              settlement_id: id,
+            });
+          }}
+          finalFocus={() =>
+            confirmed.current
+              ? document.getElementById("finance-title")
+              : creditTrigger.current
+          }
+          refreshDependencies={refresh}
+        />
       ) : null}
       {open && accounts.data && participants.data && currencies.data ? (
         <RepaymentFormDialog

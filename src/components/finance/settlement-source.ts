@@ -8,12 +8,23 @@ import {
   IncomeSettlementResponse,
   ForgivenessResponse,
   CombinedSettlementResponse,
+  CreditApplicationResponse,
 } from "@/api/generated/schemas";
 
+import { validCreditApplicationComposition } from "./credit-application";
 import { validCombinedComposition } from "./combined-settlement";
 
 export const settlementSourceSchema = z
   .union([
+    CreditApplicationResponse.refine(
+      (item) =>
+        validCreditApplicationComposition(
+          item,
+          item.selectedObligationIds,
+          item.transactionDate,
+        ),
+      "Credit application does not match its origins or selected debt.",
+    ),
     CombinedSettlementResponse.refine(
       (item) =>
         validCombinedComposition(
