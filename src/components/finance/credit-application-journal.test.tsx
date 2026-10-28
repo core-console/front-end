@@ -25,7 +25,7 @@ it("prepares and reopens the immutable v7 command within its owner namespace", a
     selectedObligationIds: [crypto.randomUUID()],
     transactionDate: "2026-10-27",
     amount: { amount: "9007199254740993.01", currency: "CNY" as const },
-    note: "😀".repeat(500),
+    note: "\u0085" + "😀".repeat(500) + "\u0085",
     previewToken: "a".repeat(64),
   };
   const original = structuredClone(body);

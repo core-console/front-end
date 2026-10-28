@@ -26,6 +26,7 @@ async function api(
     [];
   let committed = false;
   let previews = 0;
+  const previewBodies: string[] = [];
   await context.route("**/api/**", async (route) => {
     const request = route.request(),
       path = new URL(request.url()).pathname;
@@ -56,6 +57,7 @@ async function api(
       );
     else if (path.endsWith("/settlements/preview")) {
       previews++;
+      previewBodies.push(request.postData()!);
       body = {
         ...creditPreview,
         previewToken: (previews === 1 ? "d" : "f").repeat(64),
@@ -107,6 +109,7 @@ async function api(
   });
   return {
     posts,
+    previewBodies,
     get committed() {
       return committed;
     },
@@ -173,9 +176,9 @@ test("T10 keyboard preview, origin provenance, confirmed gross composition and a
   await expect(
     page.getByRole("button", { name: "Apply credit", exact: true }),
   ).toBeEnabled();
-  await mkdir(".agent/t10/screenshots", { recursive: true });
+  await mkdir(".agent/t10-unicode-20261028/screenshots", { recursive: true });
   await page.screenshot({
-    path: ".agent/t10/screenshots/before.png",
+    path: ".agent/t10-unicode-20261028/screenshots/before.png",
     fullPage: true,
   });
   const dialog = await draft(page);
@@ -195,7 +198,7 @@ test("T10 keyboard preview, origin provenance, confirmed gross composition and a
   );
   await axe(page);
   await page.screenshot({
-    path: ".agent/t10/screenshots/preview.png",
+    path: ".agent/t10-unicode-20261028/screenshots/preview.png",
     fullPage: true,
   });
   await page.keyboard.press("Enter");
@@ -208,7 +211,7 @@ test("T10 keyboard preview, origin provenance, confirmed gross composition and a
   await expect(page.locator("#finance-title")).toBeFocused();
   await axe(page);
   await page.screenshot({
-    path: ".agent/t10/screenshots/confirmed.png",
+    path: ".agent/t10-unicode-20261028/screenshots/confirmed.png",
     fullPage: true,
   });
   expect(state.posts).toHaveLength(1);
@@ -218,16 +221,23 @@ test("T10 keyboard preview, origin provenance, confirmed gross composition and a
   });
   expect(errors).toEqual([]);
 });
-test("T10 committed-response loss reload and explicit original-key retry retain one application", async ({
+test("T10 Unicode boundary survives preview, response loss, reload and original-key retry", async ({
   page,
   context,
 }) => {
   const errors = errorsOn(page);
   const state = await api(context, "loss");
   const dialog = await draft(page);
+  const note = "\u0085" + "😀".repeat(500) + "\u0085";
+  await dialog.getByLabel("Note", { exact: true }).fill(note);
   await dialog
     .getByRole("button", { name: "Preview credit application" })
     .click();
+  await expect(
+    dialog.getByRole("region", { name: "Credit application preview" }),
+  ).toBeVisible();
+  expect(state.previewBodies).toHaveLength(1);
+  expect(JSON.parse(state.previewBodies[0]!).note).toBe(note);
   await dialog
     .getByRole("button", { name: "Confirm credit application" })
     .click();
@@ -254,6 +264,7 @@ test("T10 committed-response loss reload and explicit original-key retry retain 
     recovery.getByRole("link", { name: "Open Settlement" }),
   ).toBeVisible();
   expect(state.posts).toHaveLength(2);
+  expect(JSON.parse(state.posts[0]!.body).note).toBe(note);
   expect(state.posts[1]).toEqual(state.posts[0]);
   await recovery.getByRole("link", { name: "Open Settlement" }).click();
   await page.reload();
@@ -265,6 +276,32 @@ test("T10 committed-response loss reload and explicit original-key retry retain 
   expect(state.posts).toHaveLength(2);
   expect(errors).toEqual([]);
 });
+test("T10 rejects 501 emoji without preview or altering the note", async ({
+  page,
+  context,
+}) => {
+  const errors = errorsOn(page);
+  const state = await api(context);
+  const dialog = await draft(page);
+  const note = "\u0085" + "😀".repeat(501) + "\u0085";
+  await dialog.getByLabel("Note", { exact: true }).fill(note);
+  await dialog
+    .getByRole("button", { name: "Preview credit application" })
+    .click();
+  await expect(
+    dialog.getByText("Enter a note of at most 500 characters."),
+  ).toBeVisible();
+  await expect(dialog.getByLabel("Note", { exact: true })).toBeFocused();
+  await expect(dialog.getByLabel("Note", { exact: true })).toHaveValue(note);
+  await expect(
+    dialog.getByRole("button", { name: "Confirm credit application" }),
+  ).toHaveCount(0);
+  expect(state.previewBodies).toEqual([]);
+  expect(state.posts).toEqual([]);
+  await axe(page);
+  expect(errors).toEqual([]);
+});
+
 test("T10 stale preview preserves explicit intent and requires a new key and confirmation", async ({
   page,
   context,

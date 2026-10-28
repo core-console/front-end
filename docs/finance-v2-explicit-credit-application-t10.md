@@ -32,7 +32,13 @@ confirmation. Versions 1–6 keep their previous meanings.
 
 Producer-valid boundary tests pass Money through form validation, preview and
 journal preparation/reopening: CNY 0.01, JPY 1, leading zeros, 131,072 integer
-digits, and a trimmed 500-code-point non-BMP note. No floating point conversion or
+digits, and 500-code-point non-BMP notes surrounded by producer whitespace.
+Note length validation follows the producer's Python `str.strip()` whitespace
+semantics (including U+0085 and U+001C–U+001F, excluding U+FEFF) and counts Unicode
+code points. Only the validation copy is stripped: preview and the durable v7
+command retain the original nonempty note, including surrounding and internal
+whitespace. The producer owns canonical normalization. Empty input remains `null`.
+No floating point conversion or
 rounding is used. A linear shared Money grouping pass supports the producer's
 maximum digit count without the previous quadratic regex. Generator configuration
 retains a literal allocation kind in Faker callbacks; generated code is not edited.
