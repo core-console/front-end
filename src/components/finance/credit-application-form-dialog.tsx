@@ -215,7 +215,13 @@ export function CreditApplicationFormDialog({
       invalid.amount =
         "Credit application cannot exceed selected outstanding debt. Adjust the amount or selection explicitly.";
     // Availability is advisory; the producer authoritatively checks current credit.
-    if ([...note.trim()].length > 500)
+    // P validates after Python str.strip(): Unicode White_Space plus U+001C–001F,
+    // excluding JS trim's U+FEFF. Keep this validation copy out of the command.
+    const noteForValidation = note.replace(
+      /^[\p{White_Space}\u001c-\u001f]+|[\p{White_Space}\u001c-\u001f]+$/gu,
+      "",
+    );
+    if ([...noteForValidation].length > 500)
       invalid.note = "Enter a note of at most 500 characters.";
     setErrors(invalid);
     if (Object.keys(invalid).length) {
@@ -228,7 +234,7 @@ export function CreditApplicationFormDialog({
       selectedObligationIds: ids,
       transactionDate: date,
       amount: { amount, currency },
-      note: note.trim() || null,
+      note: note || null,
     });
     if (
       !parsed.success ||

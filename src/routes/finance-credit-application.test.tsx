@@ -392,14 +392,43 @@ it.each(["outsideScope", "wrongOrigin", "wrongBalance"])(
 );
 
 it.each([
+  {
+    value: "2",
+    currency: "CNY",
+    debt: "10",
+    remaining: "8",
+    note: "\u0085" + "😀".repeat(500) + "\u0085",
+  },
   { value: "2", currency: "CNY", debt: "10", remaining: "8" },
   { value: "0.01", currency: "CNY", debt: undefined, remaining: undefined },
   { value: "1", currency: "JPY" },
   { value: "9".repeat(131072), currency: "CNY" },
   { value: "000000.01", currency: "CNY" },
+  { value: "25", currency: "CNY", note: "Ordinary note" },
+  {
+    value: "25",
+    currency: "CNY",
+    note: " \u0085汉字 e\u0301 👩‍💻\u0085inside \u0085",
+  },
+  { value: "25", currency: "CNY", note: "e\u0301".repeat(250) },
+  { value: "25", currency: "CNY", note: "x\u0085" + "😀".repeat(498) },
+  {
+    value: "25",
+    currency: "CNY",
+    note:
+      "\u001c\u001d\u001e\u001f" +
+      "😀".repeat(500) +
+      "\u001c\u001d\u001e\u001f",
+  },
+  {
+    value: "25",
+    currency: "CNY",
+    note: " \t\u0085\u001c\u001d\u001e\u001f\u00a0\u1680\u2000\u200a\u2028\u2029\u202f\u205f\u3000",
+  },
 ])(
-  "preserves producer-valid Money and 500 non-BMP note characters through form, preview and journal ($currency, case %#)",
-  async ({ value, currency, debt, remaining }) => {
+  "preserves producer-valid Money and original Unicode notes through form, preview and journal ($currency, case %#)",
+  async ({ value, currency, debt, remaining, note }) => {
+    const originalNote = note ?? "  " + "😀".repeat(500) + "  ";
     const m = (amount: string) => ({ amount, currency });
     const authoritative = {
       ...creditPreview,
@@ -451,7 +480,7 @@ it.each([
       { target: { value } },
     );
     fireEvent.change(within(dialog).getByLabelText("Note"), {
-      target: { value: "  " + "😀".repeat(500) + "  " },
+      target: { value: originalNote },
     });
     await user.click(
       within(dialog).getByRole("button", {
@@ -461,7 +490,7 @@ it.each([
     await within(dialog).findByRole("region", {
       name: "Credit application preview",
     });
-    expect(sent).toMatchObject({ amount: m(value), note: "😀".repeat(500) });
+    expect(sent).toMatchObject({ amount: m(value), note: originalNote });
     const record = await prepareSubmission(
       { apiBaseUrl: env.VITE_API_BASE_URL, ownerId: submissionTestUser.id },
       {
@@ -476,11 +505,61 @@ it.each([
     );
     expect(await readSubmission(record)).toMatchObject({
       commandVersion: "7",
-      body: { amount: m(value), note: "😀".repeat(500) },
+      body: { amount: m(value), note: originalNote },
     });
   },
   20000,
 );
+
+it.each([
+  {
+    label: "501 emoji after Python strip",
+    note: "\u0085" + "😀".repeat(501) + "\u0085",
+  },
+  { label: "501 ordinary characters", note: "a".repeat(501) },
+  {
+    label: "combining characters count separately",
+    note: "e\u0301".repeat(251),
+  },
+  {
+    label: "internal whitespace counts",
+    note: "😀".repeat(250) + "\u0085" + "😀".repeat(250),
+  },
+  {
+    label: "BOM is not producer whitespace",
+    note: "\ufeff" + "😀".repeat(500) + "\ufeff",
+  },
+  {
+    label: "zero width space is not producer whitespace",
+    note: "\u200b" + "😀".repeat(500) + "\u200b",
+  },
+])("rejects over-limit notes before preview: $label", async ({ note }) => {
+  let previews = 0;
+  server.use(
+    http.post("*/api/finance/ledgers/:ledger/settlements/preview", () => {
+      previews++;
+      return HttpResponse.json(creditPreview);
+    }),
+  );
+  const { user, dialog } = await draft();
+  const input = within(dialog).getByLabelText("Note");
+  fireEvent.change(input, { target: { value: note } });
+  await user.click(
+    within(dialog).getByRole("button", { name: "Preview credit application" }),
+  );
+  expect(
+    await within(dialog).findByText("Enter a note of at most 500 characters."),
+  ).toBeVisible();
+  expect(input).toHaveFocus();
+  expect(input).toHaveValue(note);
+  expect(input).toHaveAttribute("aria-invalid", "true");
+  expect(previews).toBe(0);
+  expect(
+    within(dialog).queryByRole("button", {
+      name: "Confirm credit application",
+    }),
+  ).not.toBeInTheDocument();
+});
 
 it("rejects foreign Participant debt before selection", async () => {
   server.use(
