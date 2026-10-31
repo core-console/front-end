@@ -112,6 +112,8 @@ export * from "./creditApplicationPreview.zod.ts";
 export * from "./creditApplicationResponse.zod.ts";
 export * from "./creditConsumptionResponse.zod.ts";
 export * from "./creditOriginResponse.zod.ts";
+export * from "./creditReturnPreview.zod.ts";
+export * from "./creditReturnResponse.zod.ts";
 export * from "./creditSettlementPreview.zod.ts";
 export * from "./creditSettlementResponse.zod.ts";
 export * from "./currencyCode.zod.ts";

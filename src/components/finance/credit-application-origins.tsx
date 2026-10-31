@@ -5,17 +5,19 @@ export function CreditApplicationOrigins({
   origins,
   ledgerId,
   participantId,
+  action = "application",
 }: {
   origins: CreditApplicationPreview["origins"];
   ledgerId: string;
   participantId: string;
+  action?: "application" | "return";
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <h3 className="font-semibold">Consumed credit origins</h3>
       <p>
         Retained oldest receipt confirmation order, independently of financial
-        dates. Balances below are frozen at this application.
+        dates. Balances below are frozen at this {action}.
       </p>
       <ol
         aria-label="Consumed credit origins"

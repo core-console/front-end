@@ -266,7 +266,11 @@ export function ForgivenessFormDialog({
       reason: reason.trim(),
       note: note || null,
     });
-    if (!("kind" in draft) || draft.kind === "creditApplication") return;
+    if (
+      !("kind" in draft) ||
+      (draft.kind !== "forgiveness" && draft.kind !== "combined")
+    )
+      return;
     setError("");
     try {
       const response = await preview.mutateAsync({ ledgerId, data: draft });

@@ -7,15 +7,64 @@
  */
 import * as zod from "zod";
 
-export const settlementSourceOneAllocationsItemKindDefault = `creditApplication`;
-export const settlementSourceOneKindDefault = `creditApplication`;
-export const settlementSourceTwoAllocationsItemOneKindDefault = `cash`;
-export const settlementSourceTwoAllocationsItemTwoKindDefault = `forgiveness`;
-export const settlementSourceTwoKindDefault = `combined`;
-export const settlementSourceThreeAllocationsItemKindDefault = `forgiveness`;
-export const settlementSourceThreeKindDefault = `forgiveness`;
+export const settlementSourceOneKindDefault = `creditReturn`;
+export const settlementSourceTwoAllocationsItemKindDefault = `creditApplication`;
+export const settlementSourceTwoKindDefault = `creditApplication`;
+export const settlementSourceThreeAllocationsItemOneKindDefault = `cash`;
+export const settlementSourceThreeAllocationsItemTwoKindDefault = `forgiveness`;
+export const settlementSourceThreeKindDefault = `combined`;
+export const settlementSourceFourAllocationsItemKindDefault = `forgiveness`;
+export const settlementSourceFourKindDefault = `forgiveness`;
 
 export const SettlementSource = zod.union([
+  zod.strictObject({
+    amount: zod
+      .strictObject({
+        amount: zod.string(),
+        currency: zod.enum(["CNY", "JPY", "USD"]),
+      })
+      .describe("Closed public projection of exact Finance Money."),
+    confirmationOrder: zod.int(),
+    confirmedAt: zod.iso.datetime({ offset: true }),
+    id: zod.uuid(),
+    kind: zod
+      .literal("creditReturn")
+      .default(settlementSourceOneKindDefault)
+      .meta({ title: "Kind" }),
+    ledgerId: zod.uuid(),
+    note: zod.union([zod.string(), zod.null()]),
+    origins: zod.array(
+      zod.strictObject({
+        amount: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        availableAfter: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        availableBefore: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        liabilityAccountId: zod.uuid(),
+        originConfirmationOrder: zod.int(),
+        originDate: zod.iso.date(),
+        originSettlementId: zod.uuid(),
+        originTransactionId: zod.uuid(),
+      }),
+    ),
+    participantId: zod.uuid(),
+    payingAccountId: zod.uuid(),
+    transactionDate: zod.iso.date(),
+    transactionIds: zod.array(zod.uuid()),
+  }),
   zod.strictObject({
     allocations: zod.array(
       zod.strictObject({
@@ -28,7 +77,7 @@ export const SettlementSource = zod.union([
           .describe("Closed public projection of exact Finance Money."),
         kind: zod
           .literal("creditApplication")
-          .default(settlementSourceOneAllocationsItemKindDefault)
+          .default(settlementSourceTwoAllocationsItemKindDefault)
           .meta({ title: "Kind" }),
         obligationId: zod.uuid(),
         originSettlementId: zod.uuid(),
@@ -53,7 +102,7 @@ export const SettlementSource = zod.union([
     id: zod.uuid(),
     kind: zod
       .literal("creditApplication")
-      .default(settlementSourceOneKindDefault)
+      .default(settlementSourceTwoKindDefault)
       .meta({ title: "Kind" }),
     ledgerId: zod.uuid(),
     note: zod.union([zod.string(), zod.null()]),
@@ -102,7 +151,7 @@ export const SettlementSource = zod.union([
             .describe("Closed public projection of exact Finance Money."),
           kind: zod
             .literal("cash")
-            .default(settlementSourceTwoAllocationsItemOneKindDefault)
+            .default(settlementSourceThreeAllocationsItemOneKindDefault)
             .meta({ title: "Kind" }),
           obligationId: zod.uuid(),
           position: zod.int(),
@@ -124,7 +173,7 @@ export const SettlementSource = zod.union([
             .describe("Closed public projection of exact Finance Money."),
           kind: zod
             .literal("forgiveness")
-            .default(settlementSourceTwoAllocationsItemTwoKindDefault)
+            .default(settlementSourceThreeAllocationsItemTwoKindDefault)
             .meta({ title: "Kind" }),
           obligationId: zod.uuid(),
           position: zod.int(),
@@ -155,7 +204,7 @@ export const SettlementSource = zod.union([
     id: zod.uuid(),
     kind: zod
       .literal("combined")
-      .default(settlementSourceTwoKindDefault)
+      .default(settlementSourceThreeKindDefault)
       .meta({ title: "Kind" }),
     ledgerId: zod.uuid(),
     note: zod.union([zod.string(), zod.null()]),
@@ -178,7 +227,7 @@ export const SettlementSource = zod.union([
           .describe("Closed public projection of exact Finance Money."),
         kind: zod
           .literal("forgiveness")
-          .default(settlementSourceThreeAllocationsItemKindDefault)
+          .default(settlementSourceFourAllocationsItemKindDefault)
           .meta({ title: "Kind" }),
         obligationId: zod.uuid(),
         position: zod.int(),
@@ -202,7 +251,7 @@ export const SettlementSource = zod.union([
     id: zod.uuid(),
     kind: zod
       .literal("forgiveness")
-      .default(settlementSourceThreeKindDefault)
+      .default(settlementSourceFourKindDefault)
       .meta({ title: "Kind" }),
     ledgerId: zod.uuid(),
     note: zod.union([zod.string(), zod.null()]),

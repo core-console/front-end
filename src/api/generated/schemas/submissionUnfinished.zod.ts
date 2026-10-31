@@ -59,7 +59,7 @@ export const SubmissionUnfinished = zod
     }),
     zod.strictObject({
       admittedAt: zod.iso.datetime({ offset: true }),
-      commandVersion: zod.enum(["1", "2", "3", "4", "5", "6", "7"]),
+      commandVersion: zod.enum(["1", "2", "3", "4", "5", "6", "7", "8"]),
       operation: zod.enum(["createFinanceSettlement"]),
       state: zod.literal("unfinished").meta({ title: "State" }),
       submissionId: zod.uuid(),
