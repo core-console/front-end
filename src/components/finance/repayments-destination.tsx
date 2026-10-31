@@ -16,6 +16,7 @@ import {
 } from "@/api/generated/schemas";
 import { useFinanceSubmissions } from "./finance-submission-context";
 import { CreditApplicationFormDialog } from "./credit-application-form-dialog";
+import { CreditReturnFormDialog } from "./credit-return-form-dialog";
 import { CreditApplicationOrigins } from "./credit-application-origins";
 import { RepaymentFormDialog } from "./repayment-form-dialog";
 import { ForgivenessFormDialog } from "./forgiveness-form-dialog";
@@ -70,6 +71,10 @@ function SettlementDetail({
       "receivingAccountId" in item &&
       account.id === item.receivingAccountId,
   );
+  const payingAccount = accounts.find(
+    (account) =>
+      item && "payingAccountId" in item && account.id === item.payingAccountId,
+  );
   return (
     <section
       aria-label="Confirmed Settlement"
@@ -97,6 +102,14 @@ function SettlementDetail({
           <dl className="grid gap-3 sm:grid-cols-2">
             {[
               ["Settlement ID", item.id],
+              ...("payingAccountId" in item
+                ? [
+                    [
+                      "Paying Account",
+                      `${payingAccount?.name ?? item.payingAccountId} · ${payingAccount?.nature ?? ""} · ${item.payingAccountId}`,
+                    ],
+                  ]
+                : []),
               [
                 "Participant",
                 `${person?.name ?? item.participantId} (${person?.status ?? "unavailable"}) · ${item.participantId}`,
@@ -113,17 +126,21 @@ function SettlementDetail({
               [
                 "kind" in item && item.kind === "forgiveness"
                   ? "Forgiveness date"
-                  : "kind" in item && item.kind === "creditApplication"
-                    ? "Application date"
-                    : "Receipt date",
+                  : "kind" in item && item.kind === "creditReturn"
+                    ? "Return date"
+                    : "kind" in item && item.kind === "creditApplication"
+                      ? "Application date"
+                      : "Receipt date",
                 item.transactionDate,
               ],
               [
                 "kind" in item && item.kind === "forgiveness"
                   ? "Forgiven principal / Expense"
-                  : "kind" in item && item.kind === "creditApplication"
-                    ? "Credit applied"
-                    : "Cash received",
+                  : "kind" in item && item.kind === "creditReturn"
+                    ? "Credit returned / Account outflow"
+                    : "kind" in item && item.kind === "creditApplication"
+                      ? "Credit applied"
+                      : "Cash received",
                 formatFinanceMoney(item.amount),
               ],
               ...("forgivenessAmount" in item
@@ -169,7 +186,9 @@ function SettlementDetail({
             ))}
           </dl>
           <p className="text-sm text-muted-foreground">
-            {"kind" in item && item.kind === "creditApplication" ? (
+            {"kind" in item && item.kind === "creditReturn" ? (
+              "Actual paying Account outflow and matching credit Liability reduction. No Income, Expense or receivable change. Origin consumption retains its confirmed order and balances."
+            ) : "kind" in item && item.kind === "creditApplication" ? (
               "Receivables and credit Liability decrease equally. No new cash, Income, Expense or forgiveness. Allocations and origin consumption retain their confirmed order and balances."
             ) : "kind" in item && item.kind === "combined" ? (
               "Cash and forgiveness are retained separately in confirmed order: cash first, then explicit forgiveness with matching Expense. Income and available credit are unchanged. Later Advances do not redistribute this Settlement."
@@ -210,17 +229,20 @@ function SettlementDetail({
           ) : null}
           {"origins" in item ? (
             <CreditApplicationOrigins
+              action={item.kind === "creditReturn" ? "return" : "application"}
               origins={item.origins}
               ledgerId={ledgerId}
               participantId={item.participantId}
             />
           ) : null}
-          <SettlementAllocations
-            confirmed
-            allocations={item.allocations}
-            ledgerId={ledgerId}
-            participantId={item.participantId}
-          />
+          {"allocations" in item ? (
+            <SettlementAllocations
+              confirmed
+              allocations={item.allocations}
+              ledgerId={ledgerId}
+              participantId={item.participantId}
+            />
+          ) : null}
           {item.transactionIds.map((transactionId) => (
             <Link
               key={transactionId}
@@ -230,13 +252,15 @@ function SettlementDetail({
               {"incomeTransactionId" in item &&
               transactionId === item.incomeTransactionId
                 ? "View accepted Income Transaction"
-                : "kind" in item && item.kind === "creditApplication"
-                  ? "View linked credit application Internal Transfer"
-                  : "kind" in item && item.kind === "combined"
-                    ? "View linked cash / Expense Transaction"
-                    : "kind" in item
-                      ? "View linked Expense Transaction"
-                      : "View linked Transaction"}{" "}
+                : "kind" in item && item.kind === "creditReturn"
+                  ? "View linked credit return Internal Transfer"
+                  : "kind" in item && item.kind === "creditApplication"
+                    ? "View linked credit application Internal Transfer"
+                    : "kind" in item && item.kind === "combined"
+                      ? "View linked cash / Expense Transaction"
+                      : "kind" in item
+                        ? "View linked Expense Transaction"
+                        : "View linked Transaction"}{" "}
               · {transactionId}
             </Link>
           ))}
@@ -289,9 +313,9 @@ function RepaymentHistory({
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">
-        Chronological cash, forgiveness and credit application activity by event
-        date, then immutable confirmation order. Follow each source for its
-        retained Allocation composition.
+        Chronological cash, forgiveness, credit application and return activity
+        by event date, then immutable confirmation order. Follow each source for
+        its retained Allocation composition.
       </p>
       {query.isPending ? (
         <p role="status">Loading Settlement history…</p>
@@ -309,8 +333,8 @@ function RepaymentHistory({
           <EmptyHeader>
             <EmptyTitle>No Settlements</EmptyTitle>
             <EmptyDescription>
-              Confirmed cash receipts, forgiveness and credit applications will
-              appear here.
+              Confirmed cash receipts, forgiveness, credit applications and
+              returns will appear here.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -326,9 +350,11 @@ function RepaymentHistory({
                 {item.transactionDate} ·{" "}
                 {"kind" in item && item.kind === "forgiveness"
                   ? "Forgiven"
-                  : "kind" in item && item.kind === "creditApplication"
-                    ? "Credit applied"
-                    : "Cash received"}{" "}
+                  : "kind" in item && item.kind === "creditReturn"
+                    ? "Credit returned"
+                    : "kind" in item && item.kind === "creditApplication"
+                      ? "Credit applied"
+                      : "Cash received"}{" "}
                 {formatFinanceMoney(item.amount)}
                 {"forgivenessAmount" in item
                   ? ` · Forgiven ${formatFinanceMoney(item.forgivenessAmount)}`
@@ -343,6 +369,8 @@ function RepaymentHistory({
   );
 }
 export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
+  const [returnOpen, setReturnOpen] = useState(false);
+  const returnTrigger = useRef<HTMLButtonElement>(null);
   const [creditOpen, setCreditOpen] = useState(false);
   const creditTrigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -410,9 +438,27 @@ export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
         surplus as Participant credit, including receipts without eligible debt.
         Record standalone forgiveness separately to waive selected debt with a
         matching Expense and unchanged cash. Apply existing credit explicitly to
-        selected debt without new cash or P&L.
+        selected debt without new cash or P&L. Return available credit through
+        an explicit paying Account outflow with matching Liability reduction.
       </p>
       <div className="flex flex-wrap gap-2">
+        <Button
+          ref={returnTrigger}
+          variant="outline"
+          disabled={
+            !ready ||
+            !journal.ready ||
+            !journal.recoveryLoaded ||
+            pending ||
+            retained
+          }
+          onClick={() => {
+            confirmed.current = false;
+            setReturnOpen(true);
+          }}
+        >
+          Return credit
+        </Button>
         <Button
           ref={creditTrigger}
           variant="outline"
@@ -569,6 +615,31 @@ export function RepaymentsDestination({ ledgerId }: { ledgerId: string }) {
             participantId={selected.id}
           />
         </>
+      ) : null}
+      {returnOpen && accounts.data && participants.data && currencies.data ? (
+        <CreditReturnFormDialog
+          ledgerId={ledgerId}
+          accounts={accounts.data}
+          participants={participants.data}
+          currencies={currencies.data}
+          initialParticipantId={selected?.id}
+          onClose={() => setReturnOpen(false)}
+          onConfirmed={(id, participantId) => {
+            confirmed.current = true;
+            setReturnOpen(false);
+            setParams({
+              ledger: ledgerId,
+              participant_id: participantId,
+              settlement_id: id,
+            });
+          }}
+          finalFocus={() =>
+            confirmed.current || returnTrigger.current?.disabled
+              ? document.getElementById("finance-title")
+              : returnTrigger.current
+          }
+          refreshDependencies={refresh}
+        />
       ) : null}
       {creditOpen && participants.data && currencies.data ? (
         <CreditApplicationFormDialog

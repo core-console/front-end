@@ -9,13 +9,22 @@ import {
   ForgivenessResponse,
   CombinedSettlementResponse,
   CreditApplicationResponse,
+  CreditReturnResponse,
 } from "@/api/generated/schemas";
 
 import { validCreditApplicationComposition } from "./credit-application";
+import { validCreditReturnComposition } from "./credit-return";
 import { validCombinedComposition } from "./combined-settlement";
 
 export const settlementSourceSchema = z
   .union([
+    CreditReturnResponse.refine(
+      (item) =>
+        validCreditReturnComposition(item) &&
+        item.transactionIds.length === item.origins.length &&
+        new Set(item.transactionIds).size === item.transactionIds.length,
+      "Credit return does not match its ordered origins or linked transfers.",
+    ),
     CreditApplicationResponse.refine(
       (item) =>
         validCreditApplicationComposition(

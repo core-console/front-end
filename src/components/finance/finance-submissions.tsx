@@ -351,6 +351,14 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
                       ),
                     ]
                   : []),
+                ...("payingAccountId" in record.body
+                  ? [
+                      getGetBalanceAdjustmentContextQueryKey(
+                        record.targetLedgerId,
+                        record.body.payingAccountId,
+                      ),
+                    ]
+                  : []),
               ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
             );
             // Each generated detail key embeds its ID in a single URL string.
@@ -373,6 +381,10 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
               record.body.participantId,
             );
             if (
+              ("payingAccountId" in record.body &&
+                (!("payingAccountId" in settlement) ||
+                  settlement.payingAccountId !==
+                    record.body.payingAccountId)) ||
               ("receivingAccountId" in record.body &&
                 (!("receivingAccountId" in settlement) ||
                   settlement.receivingAccountId !==
@@ -383,11 +395,13 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
                   ("reason" in record.body &&
                     (!("reason" in settlement) ||
                       settlement.reason !== record.body.reason.trim())) ||
-                  settlement.selectedObligationIds.length !==
-                    record.body.selectedObligationIds.length ||
-                  !record.body.selectedObligationIds.every((id) =>
-                    settlement.selectedObligationIds.includes(id),
-                  ) ||
+                  ("selectedObligationIds" in record.body &&
+                    (!("selectedObligationIds" in settlement) ||
+                      settlement.selectedObligationIds.length !==
+                        record.body.selectedObligationIds.length ||
+                      !record.body.selectedObligationIds.every((id) =>
+                        settlement.selectedObligationIds.includes(id),
+                      ))) ||
                   !/^-?\d+(?:\.\d+)?$/.test(settlement.amount.amount) ||
                   !/^0(?:\.0+)?$/.test(
                     subtractExactDecimals(

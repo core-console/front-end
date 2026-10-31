@@ -141,6 +141,13 @@ For Finance product and design authority, start with the
 the [design-authority index](docs/design/finance-v1/README.md), and the
 [Finance visual authority](DESIGN.md#finance-v1-authority).
 
+## Finance v2 available credit return (T11)
+
+For the version-8 available-credit return workflow synchronized with producer
+`e57e5a66ae2fbcac02741d227da1e2181492b0ec`, see the
+[T11 consumer integration note](docs/finance-v2-credit-return-t11.md).
+Consumer delivery, exact-SHA CI and real delivered P+C acceptance remain separate gates.
+
 ## Finance v2 Participants (T01)
 
 The synchronized OpenAPI producer is

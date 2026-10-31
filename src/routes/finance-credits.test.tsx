@@ -212,10 +212,11 @@ it("shows gross positions separately per currency at zero net and preserves immu
   );
   expect(
     screen.queryByRole("button", {
-      name: /Return credit|Accept surplus/,
+      name: /Accept surplus/,
     }),
   ).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Apply credit" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Return credit" })).toBeEnabled();
 });
 
 it("records 50 without eligible debt into a receiving Liability without inventing an Obligation or applying credit", async () => {
