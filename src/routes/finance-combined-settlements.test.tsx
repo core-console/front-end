@@ -102,6 +102,8 @@ async function draft() {
 }
 
 it("distinguishes cash 98 from forgiveness 2 throughout durable v6 recovery", async () => {
+  // Load the lazy route before measuring command recovery, including on a cold run.
+  await import("@/routes/finance");
   const user = userEvent.setup();
   const body = {
     kind: "combined" as const,

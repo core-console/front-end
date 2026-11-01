@@ -391,3 +391,10 @@ for boundary, recovery and verification details. Consumer delivery, exact-C CI,
 real delivered P+C acceptance and separately authorized backend
 [Issue #35](https://github.com/core-console/back-end/issues/35) closure remain gates.
 T11 credit return and later Corrections remain outside this slice.
+
+## Finance v2 Advance Correction before settlements (T12)
+
+The consumer for producer `d87550d839d2b45a9bb8d5c804016e0936e20163` provides
+explicit correction preview/confirmation, retained history and durable recovery.
+See the [T12 consumer integration note](docs/finance-v2-advance-correction-t12.md)
+for scope, contract identity, financial invariants and verification boundaries.
