@@ -110,6 +110,7 @@ async function api(
       body = [
         { ...account, nature: options.liability ? "liability" : "asset" },
       ];
+    else if (path.endsWith("/corrections")) body = [];
     else if (path.endsWith("/participants"))
       body = [
         { ...person, status: options.existingCredit ? "active" : "archived" },

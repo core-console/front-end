@@ -15,16 +15,16 @@ import {
 } from "@/test/credit-return-fixtures";
 import { creditApplication } from "@/test/credit-application-fixtures";
 
-it("retains P's 37 paths and 46 operations with return through existing Settlement operations", () => {
+it("retains v8 credit return within the T12 producer's 41 paths and 50 operations", () => {
   const operations = Object.values(openApi.paths).flatMap((path) =>
     Object.values(path).filter(
       (value) =>
         typeof value === "object" && value !== null && "operationId" in value,
     ),
   );
-  expect(Object.keys(openApi.paths)).toHaveLength(37);
-  expect(operations).toHaveLength(46);
-  expect(new Set(operations.map((op) => op.operationId)).size).toBe(46);
+  expect(Object.keys(openApi.paths)).toHaveLength(41);
+  expect(operations).toHaveLength(50);
+  expect(new Set(operations.map((op) => op.operationId)).size).toBe(50);
   expect(operations.map((op) => op.operationId)).toEqual(
     expect.arrayContaining([
       "createFinanceSettlement",

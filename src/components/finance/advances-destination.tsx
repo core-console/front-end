@@ -178,6 +178,8 @@ export function AdvancesDestination({ ledgerId }: { ledgerId: string }) {
           advanceId={advance.id}
           accounts={accounts.data ?? []}
           participants={participants.data ?? []}
+          dependenciesReady={ready}
+          refreshDependencies={refresh}
         />
       ) : null}
       {open && accounts.data && participants.data && currencies.data ? (

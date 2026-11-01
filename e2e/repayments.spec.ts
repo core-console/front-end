@@ -74,6 +74,7 @@ async function api(
       body = [{ code: "CNY", minorUnit: 2 }];
     else if (path.endsWith("/accounts"))
       body = [{ ...account, nature: liability ? "liability" : "asset" }];
+    else if (path.endsWith("/corrections")) body = [];
     else if (path.endsWith("/participants"))
       body = [{ ...person, status: "archived" }];
     else if (path.endsWith("/credits") || path.endsWith("/positions"))

@@ -87,6 +87,7 @@ async function api(
               )
             : [advance.obligation]
           : [];
+    else if (path.endsWith("/corrections")) body = [];
     else if (path.endsWith(`/advances/${advance.id}`)) body = source;
     else if (path.includes("/submissions/")) {
       const key = path.split("/").at(-1)!;

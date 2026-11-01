@@ -1,3 +1,9 @@
+import { useRef, useState } from "react";
+import { useIsMutating } from "@tanstack/react-query";
+import { AdvanceCorrectionFormDialog } from "./advance-correction-form-dialog";
+import { AdvanceCorrectionHistory } from "./advance-correction-history";
+import { correctionEligible } from "./advance-correction";
+import { useFinanceSubmissions } from "./finance-submission-context";
 import { Link } from "react-router";
 import { useGetFinanceAdvance } from "@/api/generated/core-console";
 import {
@@ -14,12 +20,27 @@ export function AdvanceDetail({
   advanceId,
   accounts,
   participants,
+  dependenciesReady = true,
+  refreshDependencies = async () => {},
 }: {
   ledgerId: string;
   advanceId: string;
   accounts: AccountResponse[];
   participants: ParticipantResponse[];
+  dependenciesReady?: boolean;
+  refreshDependencies?: () => Promise<void>;
 }) {
+  const [correcting, setCorrecting] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const journal = useFinanceSubmissions();
+  const pending =
+    useIsMutating({ mutationKey: ["createFinanceAdvanceCorrection"] }) > 0;
+  const retained = journal.records.some(
+    (r) =>
+      r.operation === "createFinanceAdvanceCorrection" &&
+      r.targetLedgerId === ledgerId &&
+      r.state === "unresolved",
+  );
   const query = useGetFinanceAdvance(ledgerId, advanceId, {
     query: {
       select: (response) =>
@@ -54,6 +75,32 @@ export function AdvanceDetail({
       ) : null}
       {item ? (
         <>
+          <Button
+            ref={trigger}
+            disabled={
+              !dependenciesReady ||
+              !journal.ready ||
+              !journal.recoveryLoaded ||
+              pending ||
+              retained ||
+              !correctionEligible(item)
+            }
+            onClick={() => setCorrecting(true)}
+          >
+            Correct Advance
+          </Button>
+          {!correctionEligible(item) ? (
+            <p role="status">
+              This Advance has downstream settlement activity. Cash Allocations,
+              forgiveness or credit application prevent this correction.
+            </p>
+          ) : null}
+          {retained ? (
+            <p role="status">
+              Resolve the retained Advance Correction in Finance recovery before
+              correcting another Advance in this Ledger.
+            </p>
+          ) : null}
           <dl className="grid gap-3 sm:grid-cols-2">
             {[
               ["Advance ID", item.id],
@@ -118,6 +165,32 @@ export function AdvanceDetail({
               </section>
             );
           })}
+          <AdvanceCorrectionHistory
+            ledgerId={ledgerId}
+            advanceId={advanceId}
+            accounts={accounts}
+            participants={participants}
+          />
+          {correcting ? (
+            <AdvanceCorrectionFormDialog
+              key={journal.partitionKey + "|" + ledgerId + "|" + advanceId}
+              source={item}
+              accounts={accounts}
+              participants={participants}
+              onClose={() => setCorrecting(false)}
+              onConfirmed={() => {
+                setCorrecting(false);
+                void query.refetch();
+              }}
+              finalFocus={trigger}
+              refreshDependencies={async () => {
+                await Promise.allSettled([
+                  refreshDependencies(),
+                  query.refetch(),
+                ]);
+              }}
+            />
+          ) : null}
           <p className="text-sm text-muted-foreground">
             Total funding: {formatFinanceMoney(item.amount)}. Owner purchase
             Expense: {formatFinanceMoney(item.ownerShare)}. Participant

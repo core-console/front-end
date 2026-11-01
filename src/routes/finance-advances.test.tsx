@@ -824,6 +824,6 @@ it("confirms the preview once and exposes source and exact unpaid composition", 
   expect(within(composition).getAllByText("0.00 CNY")).toHaveLength(3);
   expect(attempts).toBe(1);
   expect(
-    screen.queryByRole("button", { name: /delete Advance|correct|repay/i }),
+    screen.queryByRole("button", { name: /delete Advance|repay/i }),
   ).not.toBeInTheDocument();
 });

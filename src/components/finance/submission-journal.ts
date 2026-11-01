@@ -12,6 +12,7 @@ import {
   CreateFinanceSettlementBody,
 } from "@/api/generated/schemas";
 import { resolveApiBaseUrl } from "@/config/env";
+import { correctionCommandBody } from "./advance-correction";
 import { settlementCommandBody } from "./settlement-command-schema";
 import {
   equalJson,
@@ -106,7 +107,15 @@ const settlementCommand = z.strictObject({
   body: settlementCommandBody,
   workflow: z.literal("settlement"),
 });
+const correctionCommand = z.strictObject({
+  operation: z.literal("createFinanceAdvanceCorrection"),
+  endpoint: z.string(),
+  targetLedgerId: z.uuid(),
+  body: correctionCommandBody,
+  workflow: z.literal("advanceCorrection"),
+});
 export type CreateSubmissionCommand =
+  | Omit<z.infer<typeof correctionCommand>, "endpoint">
   | Omit<z.infer<typeof ledgerCommand>, "endpoint">
   | Omit<z.infer<typeof accountCommand>, "endpoint">
   | Omit<z.infer<typeof categoryCommand>, "endpoint">
@@ -136,6 +145,7 @@ function recordsFor<T extends z.ZodRawShape, V extends z.ZodType>(
 }
 const recordSchema = z
   .discriminatedUnion("operation", [
+    recordsFor(correctionCommand.shape, z.literal("1")),
     recordsFor(ledgerCommand.shape, z.literal("1")),
     recordsFor(accountCommand.shape, z.literal("1")),
     recordsFor(categoryCommand.shape, z.literal("1")),
@@ -192,6 +202,8 @@ function settlementCommandVersion(
 
 export function submissionLabel(record: Pick<FinanceSubmission, "operation">) {
   switch (record.operation) {
+    case "createFinanceAdvanceCorrection":
+      return "Advance Correction";
     case "createFinanceLedger":
       return "Ledger";
     case "createFinanceAccount":
@@ -218,6 +230,8 @@ export function isQuickEntrySubmission(command: CreateSubmissionCommand) {
 }
 
 export function rejectionMessage(record: FinanceSubmission) {
+  if (record.operation === "createFinanceAdvanceCorrection")
+    return "The Advance Correction was rejected without financial effects. Preserve the corrected facts, refresh dependencies and the complete preview, then explicitly confirm again. Downstream settlement activity prevents this correction.";
   if (
     record.operation === "createFinanceSettlement" &&
     "kind" in record.body &&
@@ -249,6 +263,8 @@ export function rejectionMessage(record: FinanceSubmission) {
 
 function endpointFor(command: CreateSubmissionCommand) {
   switch (command.operation) {
+    case "createFinanceAdvanceCorrection":
+      return `/finance/ledgers/${command.targetLedgerId}/advance-corrections`;
     case "createFinanceLedger":
       return "/finance/ledgers";
     case "createFinanceAccount":
@@ -267,6 +283,19 @@ function endpointFor(command: CreateSubmissionCommand) {
 }
 
 export function submissionDescription(record: FinanceSubmission) {
+  if (record.operation === "createFinanceAdvanceCorrection")
+    return [
+      "Advance Correction",
+      record.body.advanceId,
+      "Reason",
+      record.body.reason,
+      "Funding",
+      record.body.amount.amount,
+      record.body.amount.currency,
+      "Owner Expense",
+      record.body.ownerShare.amount,
+      record.body.transactionDate,
+    ].join(" · ");
   if (record.operation === "createFinanceSettlement") {
     const receipt = `${record.body.amount.amount} ${record.body.amount.currency} · ${record.body.transactionDate} · Participant ${record.body.participantId}`;
     if ("kind" in record.body && record.body.kind === "creditReturn")

@@ -31,6 +31,10 @@ import type {
   AdjustmentNotFoundResponse,
   AdjustmentSuccessReceipt,
   AdjustmentValidationResponse,
+  AdvanceCorrectionCreatedReceipt,
+  AdvanceCorrectionFailureResponse,
+  AdvanceCorrectionPreview,
+  AdvanceCorrectionResponse,
   AdvanceCreatedReceipt,
   AdvanceDraftV1,
   AdvanceDraftV2,
@@ -49,6 +53,8 @@ import type {
   CreateFinanceAccountBody,
   CreateFinanceAccountHeaders,
   CreateFinanceAdvanceBody,
+  CreateFinanceAdvanceCorrectionBody,
+  CreateFinanceAdvanceCorrectionHeaders,
   CreateFinanceAdvanceHeaders,
   CreateFinanceCategoryBody,
   CreateFinanceCategoryHeaders,
@@ -83,6 +89,7 @@ import type {
   ParticipantNameRequest,
   ParticipantPositionResponse,
   ParticipantResponse,
+  PreviewFinanceAdvanceCorrectionBody,
   PreviewFinanceSettlementBody,
   ProblemDetails,
   ReplaceBalanceAdjustmentRequest,
@@ -2275,6 +2282,693 @@ export const useUnarchiveFinanceAccount = <
   );
 };
 
+export type createFinanceAdvanceCorrectionResponse201 = {
+  data: AdvanceCorrectionCreatedReceipt;
+  status: 201;
+};
+
+export type createFinanceAdvanceCorrectionResponse400 = {
+  data: ProblemDetails;
+  status: 400;
+};
+
+export type createFinanceAdvanceCorrectionResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type createFinanceAdvanceCorrectionResponse404 = {
+  data: AdvanceCorrectionFailureResponse;
+  status: 404;
+};
+
+export type createFinanceAdvanceCorrectionResponse409 = {
+  data: AdvanceCorrectionFailureResponse;
+  status: 409;
+};
+
+export type createFinanceAdvanceCorrectionResponse422 = {
+  data: AdvanceCorrectionFailureResponse;
+  status: 422;
+};
+
+export type createFinanceAdvanceCorrectionResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type createFinanceAdvanceCorrectionResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type createFinanceAdvanceCorrectionResponseSuccess =
+  createFinanceAdvanceCorrectionResponse201 & {
+    headers: Headers;
+  };
+export type createFinanceAdvanceCorrectionResponseError = (
+  | createFinanceAdvanceCorrectionResponse400
+  | createFinanceAdvanceCorrectionResponse403
+  | createFinanceAdvanceCorrectionResponse404
+  | createFinanceAdvanceCorrectionResponse409
+  | createFinanceAdvanceCorrectionResponse422
+  | createFinanceAdvanceCorrectionResponse500
+  | createFinanceAdvanceCorrectionResponse503
+) & {
+  headers: Headers;
+};
+
+export const getCreateFinanceAdvanceCorrectionUrl = (ledgerId: string) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/advance-corrections`;
+};
+
+/**
+ * @summary Post Correction
+ */
+export const createFinanceAdvanceCorrection = async (
+  ledgerId: string,
+  createFinanceAdvanceCorrectionBody: CreateFinanceAdvanceCorrectionBody,
+  headers: CreateFinanceAdvanceCorrectionHeaders,
+  options?: RequestInit,
+): Promise<createFinanceAdvanceCorrectionResponseSuccess> => {
+  const getHeaders = (
+    defaults: HeadersInit,
+    overrides?: HeadersInit,
+  ): Headers => {
+    const headers = new Headers(defaults);
+    if (overrides instanceof Headers) {
+      overrides.forEach((value, name) => headers.set(name, value));
+    } else {
+      const entries = Array.isArray(overrides)
+        ? overrides
+        : Object.entries(overrides ?? {});
+      for (const entry of entries) {
+        const [name, value] = entry as [string, string];
+        headers.set(name, value);
+      }
+    }
+    return headers;
+  };
+  const res = await fetch(getCreateFinanceAdvanceCorrectionUrl(ledgerId), {
+    ...options,
+    method: "POST",
+    headers: getHeaders(
+      { "Content-Type": "application/json", ...headers },
+      options?.headers,
+    ),
+    body: JSON.stringify(createFinanceAdvanceCorrectionBody),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: createFinanceAdvanceCorrectionResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: createFinanceAdvanceCorrectionResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: createFinanceAdvanceCorrectionResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as createFinanceAdvanceCorrectionResponseSuccess;
+};
+
+export const getCreateFinanceAdvanceCorrectionMutationKey = () =>
+  ["createFinanceAdvanceCorrection"] as const;
+
+export const getCreateFinanceAdvanceCorrectionMutationOptions = <
+  TError = globalThis.Error & {
+    info?: ProblemDetails | AdvanceCorrectionFailureResponse;
+    status?: number;
+  },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createFinanceAdvanceCorrection>>,
+    TError,
+    CreateFinanceAdvanceCorrectionMutationVariables,
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createFinanceAdvanceCorrection>>,
+  TError,
+  CreateFinanceAdvanceCorrectionMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreateFinanceAdvanceCorrectionMutationKey();
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createFinanceAdvanceCorrection>>,
+    CreateFinanceAdvanceCorrectionMutationVariables
+  > = (props) => {
+    const { ledgerId, data, headers } = props ?? {};
+
+    return createFinanceAdvanceCorrection(
+      ledgerId,
+      data,
+      headers,
+      fetchOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateFinanceAdvanceCorrectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createFinanceAdvanceCorrection>>
+>;
+export type CreateFinanceAdvanceCorrectionMutationBody =
+  CreateFinanceAdvanceCorrectionBody;
+export type CreateFinanceAdvanceCorrectionMutationError = globalThis.Error & {
+  info?: ProblemDetails | AdvanceCorrectionFailureResponse;
+  status?: number;
+};
+export type CreateFinanceAdvanceCorrectionMutationVariables = {
+  ledgerId: string;
+  data: CreateFinanceAdvanceCorrectionBody;
+  headers: CreateFinanceAdvanceCorrectionHeaders;
+};
+
+/**
+ * @summary Post Correction
+ */
+export const useCreateFinanceAdvanceCorrection = <
+  TError = globalThis.Error & {
+    info?: ProblemDetails | AdvanceCorrectionFailureResponse;
+    status?: number;
+  },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createFinanceAdvanceCorrection>>,
+      TError,
+      CreateFinanceAdvanceCorrectionMutationVariables,
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createFinanceAdvanceCorrection>>,
+  TError,
+  CreateFinanceAdvanceCorrectionMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getCreateFinanceAdvanceCorrectionMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type previewFinanceAdvanceCorrectionResponse200 = {
+  data: AdvanceCorrectionPreview;
+  status: 200;
+};
+
+export type previewFinanceAdvanceCorrectionResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type previewFinanceAdvanceCorrectionResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type previewFinanceAdvanceCorrectionResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type previewFinanceAdvanceCorrectionResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type previewFinanceAdvanceCorrectionResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type previewFinanceAdvanceCorrectionResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type previewFinanceAdvanceCorrectionResponseSuccess =
+  previewFinanceAdvanceCorrectionResponse200 & {
+    headers: Headers;
+  };
+export type previewFinanceAdvanceCorrectionResponseError = (
+  | previewFinanceAdvanceCorrectionResponse403
+  | previewFinanceAdvanceCorrectionResponse404
+  | previewFinanceAdvanceCorrectionResponse409
+  | previewFinanceAdvanceCorrectionResponse422
+  | previewFinanceAdvanceCorrectionResponse500
+  | previewFinanceAdvanceCorrectionResponse503
+) & {
+  headers: Headers;
+};
+
+export const getPreviewFinanceAdvanceCorrectionUrl = (ledgerId: string) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/advance-corrections/preview`;
+};
+
+/**
+ * @summary Post Preview
+ */
+export const previewFinanceAdvanceCorrection = async (
+  ledgerId: string,
+  previewFinanceAdvanceCorrectionBody: PreviewFinanceAdvanceCorrectionBody,
+  options?: RequestInit,
+): Promise<previewFinanceAdvanceCorrectionResponseSuccess> => {
+  const getHeaders = (
+    defaults: HeadersInit,
+    overrides?: HeadersInit,
+  ): Headers => {
+    const headers = new Headers(defaults);
+    if (overrides instanceof Headers) {
+      overrides.forEach((value, name) => headers.set(name, value));
+    } else {
+      const entries = Array.isArray(overrides)
+        ? overrides
+        : Object.entries(overrides ?? {});
+      for (const entry of entries) {
+        const [name, value] = entry as [string, string];
+        headers.set(name, value);
+      }
+    }
+    return headers;
+  };
+  const res = await fetch(getPreviewFinanceAdvanceCorrectionUrl(ledgerId), {
+    ...options,
+    method: "POST",
+    headers: getHeaders(
+      { "Content-Type": "application/json" },
+      options?.headers,
+    ),
+    body: JSON.stringify(previewFinanceAdvanceCorrectionBody),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: previewFinanceAdvanceCorrectionResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: previewFinanceAdvanceCorrectionResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: previewFinanceAdvanceCorrectionResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as previewFinanceAdvanceCorrectionResponseSuccess;
+};
+
+export const getPreviewFinanceAdvanceCorrectionMutationKey = () =>
+  ["previewFinanceAdvanceCorrection"] as const;
+
+export const getPreviewFinanceAdvanceCorrectionMutationOptions = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof previewFinanceAdvanceCorrection>>,
+    TError,
+    PreviewFinanceAdvanceCorrectionMutationVariables,
+    TContext
+  >;
+  fetch?: RequestInit;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof previewFinanceAdvanceCorrection>>,
+  TError,
+  PreviewFinanceAdvanceCorrectionMutationVariables,
+  TContext
+> => {
+  const mutationKey = getPreviewFinanceAdvanceCorrectionMutationKey();
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof previewFinanceAdvanceCorrection>>,
+    PreviewFinanceAdvanceCorrectionMutationVariables
+  > = (props) => {
+    const { ledgerId, data } = props ?? {};
+
+    return previewFinanceAdvanceCorrection(ledgerId, data, fetchOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PreviewFinanceAdvanceCorrectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof previewFinanceAdvanceCorrection>>
+>;
+export type PreviewFinanceAdvanceCorrectionMutationBody =
+  PreviewFinanceAdvanceCorrectionBody;
+export type PreviewFinanceAdvanceCorrectionMutationError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+export type PreviewFinanceAdvanceCorrectionMutationVariables = {
+  ledgerId: string;
+  data: PreviewFinanceAdvanceCorrectionBody;
+};
+
+/**
+ * @summary Post Preview
+ */
+export const usePreviewFinanceAdvanceCorrection = <
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof previewFinanceAdvanceCorrection>>,
+      TError,
+      PreviewFinanceAdvanceCorrectionMutationVariables,
+      TContext
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof previewFinanceAdvanceCorrection>>,
+  TError,
+  PreviewFinanceAdvanceCorrectionMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getPreviewFinanceAdvanceCorrectionMutationOptions(options),
+    queryClient,
+  );
+};
+
+export type getFinanceAdvanceCorrectionResponse200 = {
+  data: AdvanceCorrectionResponse;
+  status: 200;
+};
+
+export type getFinanceAdvanceCorrectionResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type getFinanceAdvanceCorrectionResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type getFinanceAdvanceCorrectionResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type getFinanceAdvanceCorrectionResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type getFinanceAdvanceCorrectionResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type getFinanceAdvanceCorrectionResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type getFinanceAdvanceCorrectionResponseSuccess =
+  getFinanceAdvanceCorrectionResponse200 & {
+    headers: Headers;
+  };
+export type getFinanceAdvanceCorrectionResponseError = (
+  | getFinanceAdvanceCorrectionResponse403
+  | getFinanceAdvanceCorrectionResponse404
+  | getFinanceAdvanceCorrectionResponse409
+  | getFinanceAdvanceCorrectionResponse422
+  | getFinanceAdvanceCorrectionResponse500
+  | getFinanceAdvanceCorrectionResponse503
+) & {
+  headers: Headers;
+};
+
+export const getGetFinanceAdvanceCorrectionUrl = (
+  ledgerId: string,
+  correctionId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/advance-corrections/${correctionId}`;
+};
+
+/**
+ * @summary Get Correction
+ */
+export const getFinanceAdvanceCorrection = async (
+  ledgerId: string,
+  correctionId: string,
+  options?: RequestInit,
+): Promise<getFinanceAdvanceCorrectionResponseSuccess> => {
+  const res = await fetch(
+    getGetFinanceAdvanceCorrectionUrl(ledgerId, correctionId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: getFinanceAdvanceCorrectionResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: getFinanceAdvanceCorrectionResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: getFinanceAdvanceCorrectionResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getFinanceAdvanceCorrectionResponseSuccess;
+};
+
+export const getGetFinanceAdvanceCorrectionQueryKey = (
+  ledgerId: string,
+  correctionId: string,
+) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/advance-corrections/${correctionId}`,
+  ] as const;
+};
+
+export const getGetFinanceAdvanceCorrectionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  correctionId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetFinanceAdvanceCorrectionQueryKey(ledgerId, correctionId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>
+  > = ({ signal }) =>
+    getFinanceAdvanceCorrection(ledgerId, correctionId, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      ledgerId !== null &&
+      ledgerId !== undefined &&
+      correctionId !== null &&
+      correctionId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetFinanceAdvanceCorrectionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>
+>;
+export type GetFinanceAdvanceCorrectionQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useGetFinanceAdvanceCorrection<
+  TData = Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  correctionId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>,
+          TError,
+          Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetFinanceAdvanceCorrection<
+  TData = Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  correctionId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>,
+          TError,
+          Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetFinanceAdvanceCorrection<
+  TData = Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  correctionId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Get Correction
+ */
+
+export function useGetFinanceAdvanceCorrection<
+  TData = Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  correctionId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFinanceAdvanceCorrection>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetFinanceAdvanceCorrectionQueryOptions(
+    ledgerId,
+    correctionId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
 export type createFinanceAdvanceResponse201 = {
   data: AdvanceCreatedReceipt;
   status: 201;
@@ -2932,6 +3626,280 @@ export function useGetFinanceAdvance<
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
   const queryOptions = getGetFinanceAdvanceQueryOptions(
+    ledgerId,
+    advanceId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export type listFinanceAdvanceCorrectionsResponse200 = {
+  data: AdvanceCorrectionResponse[];
+  status: 200;
+};
+
+export type listFinanceAdvanceCorrectionsResponse403 = {
+  data: ProblemDetails;
+  status: 403;
+};
+
+export type listFinanceAdvanceCorrectionsResponse404 = {
+  data: ProblemDetails;
+  status: 404;
+};
+
+export type listFinanceAdvanceCorrectionsResponse409 = {
+  data: ProblemDetails;
+  status: 409;
+};
+
+export type listFinanceAdvanceCorrectionsResponse422 = {
+  data: ProblemDetails;
+  status: 422;
+};
+
+export type listFinanceAdvanceCorrectionsResponse500 = {
+  data: ProblemDetails;
+  status: 500;
+};
+
+export type listFinanceAdvanceCorrectionsResponse503 = {
+  data: ProblemDetails;
+  status: 503;
+};
+
+export type listFinanceAdvanceCorrectionsResponseSuccess =
+  listFinanceAdvanceCorrectionsResponse200 & {
+    headers: Headers;
+  };
+export type listFinanceAdvanceCorrectionsResponseError = (
+  | listFinanceAdvanceCorrectionsResponse403
+  | listFinanceAdvanceCorrectionsResponse404
+  | listFinanceAdvanceCorrectionsResponse409
+  | listFinanceAdvanceCorrectionsResponse422
+  | listFinanceAdvanceCorrectionsResponse500
+  | listFinanceAdvanceCorrectionsResponse503
+) & {
+  headers: Headers;
+};
+
+export const getListFinanceAdvanceCorrectionsUrl = (
+  ledgerId: string,
+  advanceId: string,
+) => {
+  return `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/advances/${advanceId}/corrections`;
+};
+
+/**
+ * @summary Get History
+ */
+export const listFinanceAdvanceCorrections = async (
+  ledgerId: string,
+  advanceId: string,
+  options?: RequestInit,
+): Promise<listFinanceAdvanceCorrectionsResponseSuccess> => {
+  const res = await fetch(
+    getListFinanceAdvanceCorrectionsUrl(ledgerId, advanceId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+  if (!res.ok) {
+    const err: globalThis.Error & {
+      info?: listFinanceAdvanceCorrectionsResponseError["data"];
+      status?: number;
+    } = new globalThis.Error();
+    const data: listFinanceAdvanceCorrectionsResponseError["data"] = body
+      ? JSON.parse(body)
+      : {};
+    err.info = data;
+    err.status = res.status;
+    throw err;
+  }
+  const data: listFinanceAdvanceCorrectionsResponseSuccess["data"] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as listFinanceAdvanceCorrectionsResponseSuccess;
+};
+
+export const getListFinanceAdvanceCorrectionsQueryKey = (
+  ledgerId: string,
+  advanceId: string,
+) => {
+  return [
+    `${env.VITE_API_BASE_URL}/finance/ledgers/${ledgerId}/advances/${advanceId}/corrections`,
+  ] as const;
+};
+
+export const getListFinanceAdvanceCorrectionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  advanceId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+) => {
+  const { query: queryOptions, fetch: fetchOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListFinanceAdvanceCorrectionsQueryKey(ledgerId, advanceId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>
+  > = ({ signal }) =>
+    listFinanceAdvanceCorrections(ledgerId, advanceId, {
+      ...(signal ? { signal } : {}),
+      ...fetchOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled:
+      ledgerId !== null &&
+      ledgerId !== undefined &&
+      advanceId !== null &&
+      advanceId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListFinanceAdvanceCorrectionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>
+>;
+export type ListFinanceAdvanceCorrectionsQueryError = globalThis.Error & {
+  info?: ProblemDetails;
+  status?: number;
+};
+
+export function useListFinanceAdvanceCorrections<
+  TData = Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  advanceId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceAdvanceCorrections<
+  TData = Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  advanceId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>,
+          TError,
+          Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>
+        >,
+        "initialData"
+      >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListFinanceAdvanceCorrections<
+  TData = Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  advanceId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Get History
+ */
+
+export function useListFinanceAdvanceCorrections<
+  TData = Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>,
+  TError = globalThis.Error & { info?: ProblemDetails; status?: number },
+>(
+  ledgerId: string,
+  advanceId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listFinanceAdvanceCorrections>>,
+        TError,
+        TData
+      >
+    >;
+    fetch?: RequestInit;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListFinanceAdvanceCorrectionsQueryOptions(
     ledgerId,
     advanceId,
     options,
