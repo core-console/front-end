@@ -134,7 +134,9 @@ it("previews and confirms 40 plus 10 with retained Allocations and separate curr
   const source = await screen.findByRole("region", {
     name: "Confirmed Settlement",
   });
-  expect(await within(source).findByText(/Cash repayment/)).toBeVisible();
+  expect(
+    await within(source).findByText("Cash repayment", { exact: true }),
+  ).toBeVisible();
   expect(
     within(source).getByRole("table", { name: "Confirmed Allocations" }),
   ).toHaveTextContent("10.00 CNY");

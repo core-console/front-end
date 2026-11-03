@@ -398,3 +398,11 @@ The consumer for producer `d87550d839d2b45a9bb8d5c804016e0936e20163` provides
 explicit correction preview/confirmation, retained history and durable recovery.
 See the [T12 consumer integration note](docs/finance-v2-advance-correction-t12.md)
 for scope, contract identity, financial invariants and verification boundaries.
+
+## Finance v2 cash repayment amount Correction (T13)
+
+The consumer for producer `26290aeb2fbc125896c3687e284e8f055330f15f` provides
+explicit cash receipt correction preview/confirmation, immutable history,
+stale-preview reconfirmation and durable original-command recovery. See the
+[T13 consumer integration note](docs/finance-v2-cash-repayment-correction-t13.md)
+for scope, exact-P contract synchronization and verification boundaries.

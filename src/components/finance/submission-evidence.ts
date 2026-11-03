@@ -28,12 +28,16 @@ import {
   AdjustmentValidationProblem,
   AdvanceSubmissionReceipt,
   AdvanceCorrectionSubmissionReceipt,
+  SettlementCorrectionSubmissionReceipt,
   AdvanceCreatedReceipt,
   AdvanceCorrectionCreatedReceipt,
+  SettlementCorrectionCreatedReceipt,
   AdvanceTerminalProblem,
   AdvanceCorrectionTerminalProblem,
+  SettlementCorrectionTerminalProblem,
   AdvanceValidationProblem,
   AdvanceCorrectionValidationProblem,
+  SettlementCorrectionValidationProblem,
   SettlementSubmissionReceipt,
   SettlementCreatedReceipt,
   SettlementTerminalProblem,
@@ -48,6 +52,7 @@ const receiptSchema = z.union([
   AdjustmentSubmissionReceipt,
   AdvanceSubmissionReceipt,
   AdvanceCorrectionSubmissionReceipt,
+  SettlementCorrectionSubmissionReceipt,
   SettlementSubmissionReceipt,
 ]);
 const successReceiptSchema = z.union([
@@ -58,6 +63,7 @@ const successReceiptSchema = z.union([
   AdjustmentSuccessReceipt,
   AdvanceCreatedReceipt,
   AdvanceCorrectionCreatedReceipt,
+  SettlementCorrectionCreatedReceipt,
   SettlementCreatedReceipt,
 ]);
 const terminalProblemSchema = z.union([
@@ -72,6 +78,7 @@ const terminalProblemSchema = z.union([
   AdjustmentInvalidTerminalProblem,
   AdvanceTerminalProblem,
   AdvanceCorrectionTerminalProblem,
+  SettlementCorrectionTerminalProblem,
   SettlementTerminalProblem,
 ]);
 const validationProblemSchema = z.union([
@@ -82,6 +89,7 @@ const validationProblemSchema = z.union([
   AdjustmentValidationProblem,
   AdvanceValidationProblem,
   AdvanceCorrectionValidationProblem,
+  SettlementCorrectionValidationProblem,
   SettlementValidationProblem,
 ]);
 

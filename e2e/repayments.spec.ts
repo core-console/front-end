@@ -82,6 +82,7 @@ async function api(
     else if (path.endsWith("/obligations"))
       body =
         confirmed || lookupCreated ? repaidObligations : outstandingObligations;
+    else if (path.endsWith("/corrections")) body = [];
     else if (path.endsWith(`/settlements/${settlement.id}`)) body = settlement;
     else if (path.endsWith(`/advances/${confirmedAdvance.id}`))
       body = confirmedAdvance;

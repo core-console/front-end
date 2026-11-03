@@ -205,15 +205,20 @@ export function FinanceSubmissionRecovery({
                           className="underline underline-offset-4"
                           to={
                             record.operation ===
-                            "createFinanceAdvanceCorrection"
-                              ? `/finance/advances?ledger=${record.targetLedgerId}&advance_id=${record.body.advanceId}`
-                              : record.operation === "createFinanceLedger"
-                                ? `/finance/overview?ledger=${outcome.resource.id}`
-                                : record.operation === "createFinanceSettlement"
-                                  ? `/finance/repayments?ledger=${record.targetLedgerId}&participant_id=${record.body.participantId}&settlement_id=${outcome.resource.id}`
-                                  : record.operation === "createFinanceAdvance"
-                                    ? `/finance/advances?ledger=${record.targetLedgerId}${"participantId" in record.body ? `&participant_id=${record.body.participantId}` : ""}&advance_id=${outcome.resource.id}`
-                                    : `/finance/${record.operation === "createFinanceAccount" ? "accounts" : record.operation === "createFinanceCategory" ? "categories" : "transactions"}?ledger=${record.targetLedgerId}`
+                            "createFinanceSettlementCorrection"
+                              ? `/finance/repayments?ledger=${record.targetLedgerId}&settlement_id=${record.body.settlementId}`
+                              : record.operation ===
+                                  "createFinanceAdvanceCorrection"
+                                ? `/finance/advances?ledger=${record.targetLedgerId}&advance_id=${record.body.advanceId}`
+                                : record.operation === "createFinanceLedger"
+                                  ? `/finance/overview?ledger=${outcome.resource.id}`
+                                  : record.operation ===
+                                      "createFinanceSettlement"
+                                    ? `/finance/repayments?ledger=${record.targetLedgerId}&participant_id=${record.body.participantId}&settlement_id=${outcome.resource.id}`
+                                    : record.operation ===
+                                        "createFinanceAdvance"
+                                      ? `/finance/advances?ledger=${record.targetLedgerId}${"participantId" in record.body ? `&participant_id=${record.body.participantId}` : ""}&advance_id=${outcome.resource.id}`
+                                      : `/finance/${record.operation === "createFinanceAccount" ? "accounts" : record.operation === "createFinanceCategory" ? "categories" : "transactions"}?ledger=${record.targetLedgerId}`
                           }
                         >
                           {localized ? (
@@ -222,22 +227,26 @@ export function FinanceSubmissionRecovery({
                             <>
                               Open{" "}
                               {record.operation ===
-                              "createFinanceAdvanceCorrection"
-                                ? "Advance Correction history"
-                                : record.operation === "createFinanceLedger"
-                                  ? "Ledger"
-                                  : record.operation === "createFinanceAccount"
-                                    ? "Accounts"
+                              "createFinanceSettlementCorrection"
+                                ? "Cash repayment Correction history"
+                                : record.operation ===
+                                    "createFinanceAdvanceCorrection"
+                                  ? "Advance Correction history"
+                                  : record.operation === "createFinanceLedger"
+                                    ? "Ledger"
                                     : record.operation ===
-                                        "createFinanceSettlement"
-                                      ? "Settlement"
+                                        "createFinanceAccount"
+                                      ? "Accounts"
                                       : record.operation ===
-                                          "createFinanceAdvance"
-                                        ? "Advance"
+                                          "createFinanceSettlement"
+                                        ? "Settlement"
                                         : record.operation ===
-                                            "createFinanceCategory"
-                                          ? "Categories"
-                                          : "Transactions"}
+                                            "createFinanceAdvance"
+                                          ? "Advance"
+                                          : record.operation ===
+                                              "createFinanceCategory"
+                                            ? "Categories"
+                                            : "Transactions"}
                             </>
                           )}
                         </Link>
