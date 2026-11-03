@@ -90,6 +90,7 @@ async function api(
       );
     else if (path.includes("/participants/") && path.endsWith("/settlements"))
       body = confirmed || lookupCreated ? [source] : [];
+    else if (path.endsWith("/corrections")) body = [];
     else if (path.endsWith(`/settlements/${source.id}`)) body = source;
     else if (path.includes("/submissions/"))
       body = lookupCreated

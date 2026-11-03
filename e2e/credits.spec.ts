@@ -158,6 +158,7 @@ async function api(
           : outstandingObligations;
     else if (path.includes("/participants/") && path.endsWith("/settlements"))
       body = resolved ? [currentSource] : [];
+    else if (path.endsWith("/corrections")) body = [];
     else if (path.endsWith(`/settlements/${source.id}`)) body = currentSource;
     else if (path.endsWith("/advances/preview")) body = advancePreview;
     else if (path.endsWith(`/advances/${confirmedAdvance.id}`))

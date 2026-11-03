@@ -20,6 +20,9 @@ import {
   createBalanceAdjustment,
   createFinanceAdvance,
   createFinanceAdvanceCorrection,
+  createFinanceSettlementCorrection,
+  getFinanceSettlementCorrection,
+  getGetFinanceSettlementCorrectionQueryKey,
   getFinanceAdvanceCorrection,
   getGetFinanceAdvanceCorrectionQueryKey,
   createFinanceSettlement,
@@ -53,6 +56,7 @@ import {
   MeResponse,
 } from "@/api/generated/schemas";
 import { env } from "@/config/env";
+import { parseSettlementCorrection } from "./settlement-correction";
 import { parseCorrection } from "./advance-correction";
 import { parseAdvanceSource, advanceObligations } from "./advance-source";
 import { parseSettlementSource } from "./settlement-source";
@@ -430,9 +434,10 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
             resource = { settlement };
             break;
           }
+          case "createFinanceSettlementCorrection":
           case "createFinanceAdvanceCorrection": {
             if (!matches(record)) return {};
-            // Restatement changes old and new attribution, dates, balances and linked transactions.
+            // A coordinated restatement changes source/history and linked Ledger projections.
             void queryClient.invalidateQueries({
               predicate: (query) =>
                 query.queryKey.some(
@@ -446,28 +451,46 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
                     ),
                 ),
             });
-            const response = await getFinanceAdvanceCorrection(
-              record.targetLedgerId,
-              id,
-              { cache: "no-store" },
-            );
-            const correction = parseCorrection(
-              response.data,
-              record.targetLedgerId,
-              record.body.advanceId,
-              id,
-            );
+            const cash =
+              record.operation === "createFinanceSettlementCorrection";
+            const response = cash
+              ? await getFinanceSettlementCorrection(
+                  record.targetLedgerId,
+                  id,
+                  { cache: "no-store" },
+                )
+              : await getFinanceAdvanceCorrection(record.targetLedgerId, id, {
+                  cache: "no-store",
+                });
+            const correction = cash
+              ? parseSettlementCorrection(
+                  response.data,
+                  record.targetLedgerId,
+                  record.body.settlementId,
+                  id,
+                )
+              : parseCorrection(
+                  response.data,
+                  record.targetLedgerId,
+                  record.body.advanceId,
+                  id,
+                );
             if (!matches(record)) return {};
-            const key = getGetFinanceAdvanceCorrectionQueryKey(
-              record.targetLedgerId,
-              id,
-            );
+            const key = cash
+              ? getGetFinanceSettlementCorrectionQueryKey(
+                  record.targetLedgerId,
+                  id,
+                )
+              : getGetFinanceAdvanceCorrectionQueryKey(
+                  record.targetLedgerId,
+                  id,
+                );
             await queryClient.cancelQueries({ queryKey: key });
             if (!matches(record)) return {};
             queryClient.setQueryData(key, { ...response, data: correction });
             showMessage(
               record,
-              "Advance Correction is confirmed. Its retained history is available; financial views refresh separately.",
+              `${cash ? "Cash repayment" : "Advance"} Correction is confirmed. Its retained history is available; financial views refresh separately.`,
             );
             return {};
           }
@@ -708,49 +731,55 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
           "Finance-Submission-Owner": record.ownerId,
         };
         const response =
-          record.operation === "createFinanceAdvanceCorrection"
-            ? await createFinanceAdvanceCorrection(
+          record.operation === "createFinanceSettlementCorrection"
+            ? await createFinanceSettlementCorrection(
                 record.targetLedgerId,
                 record.body,
                 headers,
               )
-            : record.operation === "createFinanceLedger"
-              ? await createFinanceLedger(record.body, headers)
-              : record.operation === "createFinanceAccount"
-                ? await createFinanceAccount(
-                    record.targetLedgerId,
-                    record.body,
-                    headers,
-                  )
-                : record.operation === "createFinanceCategory"
-                  ? await createFinanceCategory(
+            : record.operation === "createFinanceAdvanceCorrection"
+              ? await createFinanceAdvanceCorrection(
+                  record.targetLedgerId,
+                  record.body,
+                  headers,
+                )
+              : record.operation === "createFinanceLedger"
+                ? await createFinanceLedger(record.body, headers)
+                : record.operation === "createFinanceAccount"
+                  ? await createFinanceAccount(
                       record.targetLedgerId,
                       record.body,
                       headers,
                     )
-                  : record.operation === "createBalanceAdjustment"
-                    ? await createBalanceAdjustment(
+                  : record.operation === "createFinanceCategory"
+                    ? await createFinanceCategory(
                         record.targetLedgerId,
                         record.body,
                         headers,
                       )
-                    : record.operation === "createFinanceSettlement"
-                      ? await createFinanceSettlement(
+                    : record.operation === "createBalanceAdjustment"
+                      ? await createBalanceAdjustment(
                           record.targetLedgerId,
                           record.body,
                           headers,
                         )
-                      : record.operation === "createFinanceAdvance"
-                        ? await createFinanceAdvance(
+                      : record.operation === "createFinanceSettlement"
+                        ? await createFinanceSettlement(
                             record.targetLedgerId,
                             record.body,
                             headers,
                           )
-                        : await createFinanceTransaction(
-                            record.targetLedgerId,
-                            record.body,
-                            headers,
-                          );
+                        : record.operation === "createFinanceAdvance"
+                          ? await createFinanceAdvance(
+                              record.targetLedgerId,
+                              record.body,
+                              headers,
+                            )
+                          : await createFinanceTransaction(
+                              record.targetLedgerId,
+                              record.body,
+                              headers,
+                            );
         resolution = createResponseResolution(record, response.data);
         if (!resolution)
           throw new SubmissionRecoveryError(
@@ -834,6 +863,11 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
     },
   });
 
+  const receiptCorrectionRetry = useMutation({
+    mutationKey: ["createFinanceSettlementCorrection"],
+    mutationFn: ({ record }: { ledgerId: string; record: FinanceSubmission }) =>
+      dispatch(record),
+  });
   const correctionRetry = useMutation({
     mutationKey: ["createFinanceAdvanceCorrection"],
     mutationFn: ({ record }: { ledgerId: string; record: FinanceSubmission }) =>
@@ -1036,32 +1070,37 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
               record,
               async () => {
                 const result =
-                  record.operation === "createFinanceAdvanceCorrection"
-                    ? await correctionRetry.mutateAsync({
+                  record.operation === "createFinanceSettlementCorrection"
+                    ? await receiptCorrectionRetry.mutateAsync({
                         ledgerId: record.targetLedgerId,
                         record,
                       })
-                    : record.operation === "createFinanceTransaction"
-                      ? await transactionRetry.mutateAsync({
+                    : record.operation === "createFinanceAdvanceCorrection"
+                      ? await correctionRetry.mutateAsync({
                           ledgerId: record.targetLedgerId,
                           record,
                         })
-                      : record.operation === "createBalanceAdjustment"
-                        ? await adjustmentRetry.mutateAsync({
+                      : record.operation === "createFinanceTransaction"
+                        ? await transactionRetry.mutateAsync({
                             ledgerId: record.targetLedgerId,
                             record,
                           })
-                        : record.operation === "createFinanceSettlement"
-                          ? await settlementRetry.mutateAsync({
+                        : record.operation === "createBalanceAdjustment"
+                          ? await adjustmentRetry.mutateAsync({
                               ledgerId: record.targetLedgerId,
                               record,
                             })
-                          : record.operation === "createFinanceAdvance"
-                            ? await advanceRetry.mutateAsync({
+                          : record.operation === "createFinanceSettlement"
+                            ? await settlementRetry.mutateAsync({
                                 ledgerId: record.targetLedgerId,
                                 record,
                               })
-                            : await dispatch(record);
+                            : record.operation === "createFinanceAdvance"
+                              ? await advanceRetry.mutateAsync({
+                                  ledgerId: record.targetLedgerId,
+                                  record,
+                                })
+                              : await dispatch(record);
                 if (result.message) showMessage(record, result.message);
                 // Uncertain original-key retries and outcome checks may overlap:
                 // backend idempotency and retained evidence own convergence.

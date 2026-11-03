@@ -14,6 +14,9 @@ import {
   ParticipantResponse,
   CurrencyResponse,
 } from "@/api/generated/schemas";
+import { SettlementCorrectionFormDialog } from "./settlement-correction-form-dialog";
+import { SettlementCorrectionHistory } from "./settlement-correction-history";
+import { cashCorrectionEligible } from "./settlement-correction";
 import { useFinanceSubmissions } from "./finance-submission-context";
 import { CreditApplicationFormDialog } from "./credit-application-form-dialog";
 import { CreditReturnFormDialog } from "./credit-return-form-dialog";
@@ -55,6 +58,18 @@ function SettlementDetail({
   accounts: AccountResponse[];
   participants: ParticipantResponse[];
 }) {
+  const [correctionOpen, setCorrectionOpen] = useState(false);
+  const correctionTrigger = useRef<HTMLButtonElement>(null);
+  const correctionConfirmed = useRef(false);
+  const journal = useFinanceSubmissions();
+  const pendingCorrection =
+    useIsMutating({ mutationKey: ["createFinanceSettlementCorrection"] }) > 0;
+  const retainedCorrection = journal.records.some(
+    (r) =>
+      r.operation === "createFinanceSettlementCorrection" &&
+      r.targetLedgerId === ledgerId &&
+      r.state === "unresolved",
+  );
   const query = useGetFinanceSettlement(ledgerId, id, {
     query: {
       select: (response) =>
@@ -99,6 +114,57 @@ function SettlementDetail({
       ) : null}
       {item ? (
         <>
+          {cashCorrectionEligible(item) ? (
+            <>
+              <Button
+                ref={correctionTrigger}
+                variant="outline"
+                disabled={
+                  !journal.ready ||
+                  !journal.recoveryLoaded ||
+                  pendingCorrection ||
+                  retainedCorrection
+                }
+                onClick={() => {
+                  correctionConfirmed.current = false;
+                  setCorrectionOpen(true);
+                }}
+              >
+                Correct cash repayment
+              </Button>
+              <p className="text-sm text-muted-foreground">
+                Correct only the entered cash amount. The server checks
+                eligibility; consumed or returned receipt credit requires a
+                later lifecycle workflow.
+              </p>
+              {retainedCorrection ? (
+                <p role="status">
+                  Resolve the retained cash repayment Correction in Finance
+                  recovery before another Correction.
+                </p>
+              ) : null}
+              <SettlementCorrectionHistory
+                ledgerId={ledgerId}
+                settlementId={item.id}
+              />
+              {correctionOpen ? (
+                <SettlementCorrectionFormDialog
+                  source={item}
+                  onClose={() => setCorrectionOpen(false)}
+                  onConfirmed={() => {
+                    correctionConfirmed.current = true;
+                    setCorrectionOpen(false);
+                  }}
+                  finalFocus={() =>
+                    correctionConfirmed.current ||
+                    correctionTrigger.current?.disabled
+                      ? document.getElementById("finance-title")
+                      : correctionTrigger.current
+                  }
+                />
+              ) : null}
+            </>
+          ) : null}
           <dl className="grid gap-3 sm:grid-cols-2">
             {[
               ["Settlement ID", item.id],
@@ -196,10 +262,12 @@ function SettlementDetail({
               "Retained forgiveness Allocations and remaining amounts at confirmation. No cash receipt or payment is recorded. Expense increases by the forgiven principal. Income and available credit remain unchanged."
             ) : (
               <>
-                Retained cash Allocations and remaining amounts at confirmation.
-                Current debt appears separately below. Later backdated Advances
-                do not redistribute this receipt. Principal creates no Income or
-                Expense; no forgiveness or credit is applied.
+                Effective cash Allocations and retained remaining projections
+                include confirmed Corrections. Original cash amounts and order
+                remain in Correction history. Current debt appears separately
+                below. Later backdated Advances do not redistribute this
+                receipt. Principal creates no Income or Expense; no forgiveness
+                or credit is applied.
               </>
             )}
           </p>

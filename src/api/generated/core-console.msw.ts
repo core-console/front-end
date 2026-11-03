@@ -95,6 +95,17 @@ import type {
   ProblemDetails,
   ReplaceBalanceAdjustmentResultResponse,
   SettlementConflictProblem,
+  SettlementCorrectionConflictProblem,
+  SettlementCorrectionCreatedOutcome,
+  SettlementCorrectionCreatedReceipt,
+  SettlementCorrectionFailureResponse,
+  SettlementCorrectionInvalidProblem,
+  SettlementCorrectionMissingProblem,
+  SettlementCorrectionPreview,
+  SettlementCorrectionRejectedOutcome,
+  SettlementCorrectionResponse,
+  SettlementCorrectionSubmissionReceipt,
+  SettlementCorrectionSubmissionUnfinished,
   SettlementCreatedOutcome,
   SettlementCreatedReceipt,
   SettlementFailureResponse,
@@ -8053,6 +8064,1368 @@ export const getListFinanceParticipantSettlementsResponseMock503 = (
   ...overrideResponse,
 });
 
+export const getCreateFinanceSettlementCorrectionResponseMock = (
+  overrideResponse: Partial<
+    Extract<SettlementCorrectionCreatedReceipt, object>
+  > = {},
+): SettlementCorrectionCreatedReceipt => ({
+  admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  commandVersion: "1",
+  operation: "createFinanceSettlementCorrection",
+  outcome: {
+    kind: "created",
+    resource: { id: faker.string.uuid(), type: "settlementCorrection" },
+  },
+  resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  submissionId: faker.string.uuid(),
+  targetLedgerId: faker.string.uuid(),
+  ...overrideResponse,
+});
+
+export const getCreateFinanceSettlementCorrectionResponseMock201 = (
+  overrideResponse: Partial<
+    Extract<SettlementCorrectionCreatedReceipt, object>
+  > = {},
+): SettlementCorrectionCreatedReceipt => ({
+  admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  commandVersion: "1",
+  operation: "createFinanceSettlementCorrection",
+  outcome: {
+    kind: "created",
+    resource: { id: faker.string.uuid(), type: "settlementCorrection" },
+  },
+  resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  submissionId: faker.string.uuid(),
+  targetLedgerId: faker.string.uuid(),
+  ...overrideResponse,
+});
+
+export const getCreateFinanceSettlementCorrectionResponseMock400 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getCreateFinanceSettlementCorrectionResponseMock403 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getCreateFinanceSettlementCorrectionResponseSettlementCorrectionInvalidProblemMock =
+  (
+    overrideResponse: Partial<SettlementCorrectionInvalidProblem> = {},
+  ): SettlementCorrectionInvalidProblem => ({
+    ...{
+      code: "validation_error",
+      detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      status: 422,
+      title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    },
+    ...overrideResponse,
+  });
+
+export const getCreateFinanceSettlementCorrectionResponseSettlementCorrectionConflictProblemMock =
+  (
+    overrideResponse: Partial<SettlementCorrectionConflictProblem> = {},
+  ): SettlementCorrectionConflictProblem => ({
+    ...{
+      code: faker.helpers.arrayElement([
+        "finance_category_archived",
+        "finance_account_archived",
+        "finance_participant_archived",
+        "finance_settlement_correction_preview_stale",
+        "finance_settlement_correction_ineligible",
+        "finance_linked_record_protected",
+      ] as const),
+      detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      status: 409,
+      title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    },
+    ...overrideResponse,
+  });
+
+export const getCreateFinanceSettlementCorrectionResponseSettlementCorrectionMissingProblemMock =
+  (
+    overrideResponse: Partial<SettlementCorrectionMissingProblem> = {},
+  ): SettlementCorrectionMissingProblem => ({
+    ...{
+      code: faker.helpers.arrayElement([
+        "finance_category_not_found",
+        "finance_account_not_found",
+        "finance_participant_not_found",
+        "finance_settlement_not_found",
+      ] as const),
+      detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      status: 404,
+      title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    },
+    ...overrideResponse,
+  });
+
+export const getCreateFinanceSettlementCorrectionResponseMock404 =
+  (): SettlementCorrectionFailureResponse =>
+    faker.helpers.arrayElement([
+      {
+        code: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: faker.helpers.arrayElement([
+          Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            [faker.string.alphanumeric(5)]: {},
+          })),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.number.int({ min: 100, max: 599 }),
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: "validation_error",
+        commandValidationRejection: {
+          attemptedBody: {
+            [faker.string.alphanumeric(5)]: {},
+          },
+          commandVersion: "1",
+          kind: "definitivelyNotAdmitted",
+          operation: "createFinanceSettlementCorrection",
+          ownerId: faker.string.uuid(),
+          submissionId: faker.string.uuid(),
+          targetLedgerId: faker.string.uuid(),
+        },
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          [faker.string.alphanumeric(5)]: {},
+        })),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: 422,
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: faker.helpers.arrayElement([
+          "validation_error",
+          "finance_category_archived",
+          "finance_account_archived",
+          "finance_participant_archived",
+          "finance_settlement_correction_preview_stale",
+          "finance_settlement_correction_ineligible",
+          "finance_linked_record_protected",
+          "finance_category_not_found",
+          "finance_account_not_found",
+          "finance_participant_not_found",
+          "finance_settlement_not_found",
+        ] as const),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.helpers.arrayElement([404, 409, 422] as const),
+        submissionReceipt: {
+          admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          commandVersion: "1",
+          operation: "createFinanceSettlementCorrection",
+          outcome: {
+            kind: "rejected",
+            problem: faker.helpers.arrayElement([
+              {
+                ...getCreateFinanceSettlementCorrectionResponseSettlementCorrectionInvalidProblemMock(),
+              },
+              {
+                ...getCreateFinanceSettlementCorrectionResponseSettlementCorrectionConflictProblemMock(),
+              },
+              {
+                ...getCreateFinanceSettlementCorrectionResponseSettlementCorrectionMissingProblemMock(),
+              },
+            ]),
+          },
+          resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          submissionId: faker.string.uuid(),
+          targetLedgerId: faker.string.uuid(),
+        },
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+    ]);
+
+export const getCreateFinanceSettlementCorrectionResponseMock409 =
+  (): SettlementCorrectionFailureResponse =>
+    faker.helpers.arrayElement([
+      {
+        code: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: faker.helpers.arrayElement([
+          Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            [faker.string.alphanumeric(5)]: {},
+          })),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.number.int({ min: 100, max: 599 }),
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: "validation_error",
+        commandValidationRejection: {
+          attemptedBody: {
+            [faker.string.alphanumeric(5)]: {},
+          },
+          commandVersion: "1",
+          kind: "definitivelyNotAdmitted",
+          operation: "createFinanceSettlementCorrection",
+          ownerId: faker.string.uuid(),
+          submissionId: faker.string.uuid(),
+          targetLedgerId: faker.string.uuid(),
+        },
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          [faker.string.alphanumeric(5)]: {},
+        })),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: 422,
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: faker.helpers.arrayElement([
+          "validation_error",
+          "finance_category_archived",
+          "finance_account_archived",
+          "finance_participant_archived",
+          "finance_settlement_correction_preview_stale",
+          "finance_settlement_correction_ineligible",
+          "finance_linked_record_protected",
+          "finance_category_not_found",
+          "finance_account_not_found",
+          "finance_participant_not_found",
+          "finance_settlement_not_found",
+        ] as const),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.helpers.arrayElement([404, 409, 422] as const),
+        submissionReceipt: {
+          admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          commandVersion: "1",
+          operation: "createFinanceSettlementCorrection",
+          outcome: {
+            kind: "rejected",
+            problem: faker.helpers.arrayElement([
+              {
+                ...getCreateFinanceSettlementCorrectionResponseSettlementCorrectionInvalidProblemMock(),
+              },
+              {
+                ...getCreateFinanceSettlementCorrectionResponseSettlementCorrectionConflictProblemMock(),
+              },
+              {
+                ...getCreateFinanceSettlementCorrectionResponseSettlementCorrectionMissingProblemMock(),
+              },
+            ]),
+          },
+          resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          submissionId: faker.string.uuid(),
+          targetLedgerId: faker.string.uuid(),
+        },
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+    ]);
+
+export const getCreateFinanceSettlementCorrectionResponseMock422 =
+  (): SettlementCorrectionFailureResponse =>
+    faker.helpers.arrayElement([
+      {
+        code: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: faker.helpers.arrayElement([
+          Array.from(
+            { length: faker.number.int({ min: 1, max: 10 }) },
+            (_, i) => i + 1,
+          ).map(() => ({
+            [faker.string.alphanumeric(5)]: {},
+          })),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.number.int({ min: 100, max: 599 }),
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: "validation_error",
+        commandValidationRejection: {
+          attemptedBody: {
+            [faker.string.alphanumeric(5)]: {},
+          },
+          commandVersion: "1",
+          kind: "definitivelyNotAdmitted",
+          operation: "createFinanceSettlementCorrection",
+          ownerId: faker.string.uuid(),
+          submissionId: faker.string.uuid(),
+          targetLedgerId: faker.string.uuid(),
+        },
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        errors: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          [faker.string.alphanumeric(5)]: {},
+        })),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: 422,
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+      {
+        code: faker.helpers.arrayElement([
+          "validation_error",
+          "finance_category_archived",
+          "finance_account_archived",
+          "finance_participant_archived",
+          "finance_settlement_correction_preview_stale",
+          "finance_settlement_correction_ineligible",
+          "finance_linked_record_protected",
+          "finance_category_not_found",
+          "finance_account_not_found",
+          "finance_participant_not_found",
+          "finance_settlement_not_found",
+        ] as const),
+        detail: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        instance: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        status: faker.helpers.arrayElement([404, 409, 422] as const),
+        submissionReceipt: {
+          admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          commandVersion: "1",
+          operation: "createFinanceSettlementCorrection",
+          outcome: {
+            kind: "rejected",
+            problem: faker.helpers.arrayElement([
+              {
+                ...getCreateFinanceSettlementCorrectionResponseSettlementCorrectionInvalidProblemMock(),
+              },
+              {
+                ...getCreateFinanceSettlementCorrectionResponseSettlementCorrectionConflictProblemMock(),
+              },
+              {
+                ...getCreateFinanceSettlementCorrectionResponseSettlementCorrectionMissingProblemMock(),
+              },
+            ]),
+          },
+          resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          submissionId: faker.string.uuid(),
+          targetLedgerId: faker.string.uuid(),
+        },
+        title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+        type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      },
+    ]);
+
+export const getCreateFinanceSettlementCorrectionResponseMock500 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getCreateFinanceSettlementCorrectionResponseMock503 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getPreviewFinanceSettlementCorrectionResponseMock = (
+  overrideResponse: Partial<Extract<SettlementCorrectionPreview, object>> = {},
+): SettlementCorrectionPreview => ({
+  accountEffects: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    accountId: faker.string.uuid(),
+    balanceAfter: { amount: "12.34", currency: "CNY" },
+    balanceBefore: { amount: "12.34", currency: "CNY" },
+    nature: faker.helpers.arrayElement(["asset", "liability"] as const),
+  })),
+  after: {
+    acceptedSurplus: { amount: "12.34", currency: "CNY" },
+    allocations: Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      cashPaid: { amount: "12.34", currency: "CNY" },
+      obligationId: faker.string.uuid(),
+      originalCashPaid: { amount: "12.34", currency: "CNY" },
+      position: faker.number.int(),
+    })),
+    amount: { amount: "12.34", currency: "CNY" },
+    categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+    retainedCredit: { amount: "12.34", currency: "CNY" },
+  },
+  before: {
+    acceptedSurplus: { amount: "12.34", currency: "CNY" },
+    allocations: Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      cashPaid: { amount: "12.34", currency: "CNY" },
+      obligationId: faker.string.uuid(),
+      originalCashPaid: { amount: "12.34", currency: "CNY" },
+      position: faker.number.int(),
+    })),
+    amount: { amount: "12.34", currency: "CNY" },
+    categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+    retainedCredit: { amount: "12.34", currency: "CNY" },
+  },
+  confirmationOrder: faker.number.int(),
+  excessDisposition: faker.helpers.arrayElement([
+    "none",
+    "retainCredit",
+    "acceptIncome",
+  ] as const),
+  financialEffectsAfter: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+    income: { amount: "12.34", currency: "CNY" },
+    kind: faker.helpers.arrayElement(["internalTransfer", "income"] as const),
+    movements: Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      accountId: faker.string.uuid(),
+      amount: { amount: "12.34", currency: "CNY" },
+      role: faker.helpers.arrayElement([
+        "source",
+        "destination",
+        "primary",
+      ] as const),
+    })),
+    note: faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    transactionDate: faker.date.past().toISOString().slice(0, 10),
+    transactionId: faker.string.uuid(),
+  })),
+  financialEffectsBefore: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+    income: { amount: "12.34", currency: "CNY" },
+    kind: faker.helpers.arrayElement(["internalTransfer", "income"] as const),
+    movements: Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      accountId: faker.string.uuid(),
+      amount: { amount: "12.34", currency: "CNY" },
+      role: faker.helpers.arrayElement([
+        "source",
+        "destination",
+        "primary",
+      ] as const),
+    })),
+    note: faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    transactionDate: faker.date.past().toISOString().slice(0, 10),
+    transactionId: faker.string.uuid(),
+  })),
+  obligationsAfter: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    advanceId: faker.string.uuid(),
+    cashPaid: { amount: "12.34", currency: "CNY" },
+    creditApplied: { amount: "12.34", currency: "CNY" },
+    forgiven: { amount: "12.34", currency: "CNY" },
+    id: faker.string.uuid(),
+    ledgerId: faker.string.uuid(),
+    participantId: faker.string.uuid(),
+    principal: { amount: "12.34", currency: "CNY" },
+    receivableAccountId: faker.string.uuid(),
+    remaining: { amount: "12.34", currency: "CNY" },
+    sourceDate: faker.date.past().toISOString().slice(0, 10),
+  })),
+  obligationsBefore: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    advanceId: faker.string.uuid(),
+    cashPaid: { amount: "12.34", currency: "CNY" },
+    creditApplied: { amount: "12.34", currency: "CNY" },
+    forgiven: { amount: "12.34", currency: "CNY" },
+    id: faker.string.uuid(),
+    ledgerId: faker.string.uuid(),
+    participantId: faker.string.uuid(),
+    principal: { amount: "12.34", currency: "CNY" },
+    receivableAccountId: faker.string.uuid(),
+    remaining: { amount: "12.34", currency: "CNY" },
+    sourceDate: faker.date.past().toISOString().slice(0, 10),
+  })),
+  originalConfirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  participantId: faker.string.uuid(),
+  previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  reason: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  receivingAccountId: faker.string.uuid(),
+  selectedObligationIds: faker.helpers.arrayElement([
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => faker.string.uuid()),
+    null,
+  ]),
+  settlementId: faker.string.uuid(),
+  transactionDate: faker.date.past().toISOString().slice(0, 10),
+  ...overrideResponse,
+});
+
+export const getPreviewFinanceSettlementCorrectionResponseMock200 = (
+  overrideResponse: Partial<Extract<SettlementCorrectionPreview, object>> = {},
+): SettlementCorrectionPreview => ({
+  accountEffects: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    accountId: faker.string.uuid(),
+    balanceAfter: { amount: "12.34", currency: "CNY" },
+    balanceBefore: { amount: "12.34", currency: "CNY" },
+    nature: faker.helpers.arrayElement(["asset", "liability"] as const),
+  })),
+  after: {
+    acceptedSurplus: { amount: "12.34", currency: "CNY" },
+    allocations: Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      cashPaid: { amount: "12.34", currency: "CNY" },
+      obligationId: faker.string.uuid(),
+      originalCashPaid: { amount: "12.34", currency: "CNY" },
+      position: faker.number.int(),
+    })),
+    amount: { amount: "12.34", currency: "CNY" },
+    categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+    retainedCredit: { amount: "12.34", currency: "CNY" },
+  },
+  before: {
+    acceptedSurplus: { amount: "12.34", currency: "CNY" },
+    allocations: Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      cashPaid: { amount: "12.34", currency: "CNY" },
+      obligationId: faker.string.uuid(),
+      originalCashPaid: { amount: "12.34", currency: "CNY" },
+      position: faker.number.int(),
+    })),
+    amount: { amount: "12.34", currency: "CNY" },
+    categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+    retainedCredit: { amount: "12.34", currency: "CNY" },
+  },
+  confirmationOrder: faker.number.int(),
+  excessDisposition: faker.helpers.arrayElement([
+    "none",
+    "retainCredit",
+    "acceptIncome",
+  ] as const),
+  financialEffectsAfter: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+    income: { amount: "12.34", currency: "CNY" },
+    kind: faker.helpers.arrayElement(["internalTransfer", "income"] as const),
+    movements: Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      accountId: faker.string.uuid(),
+      amount: { amount: "12.34", currency: "CNY" },
+      role: faker.helpers.arrayElement([
+        "source",
+        "destination",
+        "primary",
+      ] as const),
+    })),
+    note: faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    transactionDate: faker.date.past().toISOString().slice(0, 10),
+    transactionId: faker.string.uuid(),
+  })),
+  financialEffectsBefore: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+    income: { amount: "12.34", currency: "CNY" },
+    kind: faker.helpers.arrayElement(["internalTransfer", "income"] as const),
+    movements: Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      accountId: faker.string.uuid(),
+      amount: { amount: "12.34", currency: "CNY" },
+      role: faker.helpers.arrayElement([
+        "source",
+        "destination",
+        "primary",
+      ] as const),
+    })),
+    note: faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    transactionDate: faker.date.past().toISOString().slice(0, 10),
+    transactionId: faker.string.uuid(),
+  })),
+  obligationsAfter: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    advanceId: faker.string.uuid(),
+    cashPaid: { amount: "12.34", currency: "CNY" },
+    creditApplied: { amount: "12.34", currency: "CNY" },
+    forgiven: { amount: "12.34", currency: "CNY" },
+    id: faker.string.uuid(),
+    ledgerId: faker.string.uuid(),
+    participantId: faker.string.uuid(),
+    principal: { amount: "12.34", currency: "CNY" },
+    receivableAccountId: faker.string.uuid(),
+    remaining: { amount: "12.34", currency: "CNY" },
+    sourceDate: faker.date.past().toISOString().slice(0, 10),
+  })),
+  obligationsBefore: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    advanceId: faker.string.uuid(),
+    cashPaid: { amount: "12.34", currency: "CNY" },
+    creditApplied: { amount: "12.34", currency: "CNY" },
+    forgiven: { amount: "12.34", currency: "CNY" },
+    id: faker.string.uuid(),
+    ledgerId: faker.string.uuid(),
+    participantId: faker.string.uuid(),
+    principal: { amount: "12.34", currency: "CNY" },
+    receivableAccountId: faker.string.uuid(),
+    remaining: { amount: "12.34", currency: "CNY" },
+    sourceDate: faker.date.past().toISOString().slice(0, 10),
+  })),
+  originalConfirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  participantId: faker.string.uuid(),
+  previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  reason: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  receivingAccountId: faker.string.uuid(),
+  selectedObligationIds: faker.helpers.arrayElement([
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => faker.string.uuid()),
+    null,
+  ]),
+  settlementId: faker.string.uuid(),
+  transactionDate: faker.date.past().toISOString().slice(0, 10),
+  ...overrideResponse,
+});
+
+export const getPreviewFinanceSettlementCorrectionResponseMock403 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getPreviewFinanceSettlementCorrectionResponseMock404 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getPreviewFinanceSettlementCorrectionResponseMock409 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getPreviewFinanceSettlementCorrectionResponseMock422 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getPreviewFinanceSettlementCorrectionResponseMock500 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getPreviewFinanceSettlementCorrectionResponseMock503 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSettlementCorrectionResponseMock = (
+  overrideResponse: Partial<Extract<SettlementCorrectionResponse, object>> = {},
+): SettlementCorrectionResponse => ({
+  accountEffects: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    accountId: faker.string.uuid(),
+    balanceAfter: { amount: "12.34", currency: "CNY" },
+    balanceBefore: { amount: "12.34", currency: "CNY" },
+    nature: faker.helpers.arrayElement(["asset", "liability"] as const),
+  })),
+  actorId: faker.string.uuid(),
+  after: {
+    acceptedSurplus: { amount: "12.34", currency: "CNY" },
+    allocations: Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      cashPaid: { amount: "12.34", currency: "CNY" },
+      obligationId: faker.string.uuid(),
+      originalCashPaid: { amount: "12.34", currency: "CNY" },
+      position: faker.number.int(),
+    })),
+    amount: { amount: "12.34", currency: "CNY" },
+    categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+    retainedCredit: { amount: "12.34", currency: "CNY" },
+  },
+  before: {
+    acceptedSurplus: { amount: "12.34", currency: "CNY" },
+    allocations: Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      cashPaid: { amount: "12.34", currency: "CNY" },
+      obligationId: faker.string.uuid(),
+      originalCashPaid: { amount: "12.34", currency: "CNY" },
+      position: faker.number.int(),
+    })),
+    amount: { amount: "12.34", currency: "CNY" },
+    categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+    retainedCredit: { amount: "12.34", currency: "CNY" },
+  },
+  confirmationOrder: faker.number.int(),
+  confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  excessDisposition: faker.helpers.arrayElement([
+    "none",
+    "retainCredit",
+    "acceptIncome",
+  ] as const),
+  financialEffectsAfter: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+    income: { amount: "12.34", currency: "CNY" },
+    kind: faker.helpers.arrayElement(["internalTransfer", "income"] as const),
+    movements: Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      accountId: faker.string.uuid(),
+      amount: { amount: "12.34", currency: "CNY" },
+      role: faker.helpers.arrayElement([
+        "source",
+        "destination",
+        "primary",
+      ] as const),
+    })),
+    note: faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    transactionDate: faker.date.past().toISOString().slice(0, 10),
+    transactionId: faker.string.uuid(),
+  })),
+  financialEffectsBefore: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+    income: { amount: "12.34", currency: "CNY" },
+    kind: faker.helpers.arrayElement(["internalTransfer", "income"] as const),
+    movements: Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      accountId: faker.string.uuid(),
+      amount: { amount: "12.34", currency: "CNY" },
+      role: faker.helpers.arrayElement([
+        "source",
+        "destination",
+        "primary",
+      ] as const),
+    })),
+    note: faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    transactionDate: faker.date.past().toISOString().slice(0, 10),
+    transactionId: faker.string.uuid(),
+  })),
+  id: faker.string.uuid(),
+  ledgerId: faker.string.uuid(),
+  obligationsAfter: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    advanceId: faker.string.uuid(),
+    cashPaid: { amount: "12.34", currency: "CNY" },
+    creditApplied: { amount: "12.34", currency: "CNY" },
+    forgiven: { amount: "12.34", currency: "CNY" },
+    id: faker.string.uuid(),
+    ledgerId: faker.string.uuid(),
+    participantId: faker.string.uuid(),
+    principal: { amount: "12.34", currency: "CNY" },
+    receivableAccountId: faker.string.uuid(),
+    remaining: { amount: "12.34", currency: "CNY" },
+    sourceDate: faker.date.past().toISOString().slice(0, 10),
+  })),
+  obligationsBefore: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    advanceId: faker.string.uuid(),
+    cashPaid: { amount: "12.34", currency: "CNY" },
+    creditApplied: { amount: "12.34", currency: "CNY" },
+    forgiven: { amount: "12.34", currency: "CNY" },
+    id: faker.string.uuid(),
+    ledgerId: faker.string.uuid(),
+    participantId: faker.string.uuid(),
+    principal: { amount: "12.34", currency: "CNY" },
+    receivableAccountId: faker.string.uuid(),
+    remaining: { amount: "12.34", currency: "CNY" },
+    sourceDate: faker.date.past().toISOString().slice(0, 10),
+  })),
+  originalConfirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  participantId: faker.string.uuid(),
+  previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  reason: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  receivingAccountId: faker.string.uuid(),
+  revision: faker.number.int(),
+  selectedObligationIds: faker.helpers.arrayElement([
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => faker.string.uuid()),
+    null,
+  ]),
+  settlementId: faker.string.uuid(),
+  transactionDate: faker.date.past().toISOString().slice(0, 10),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSettlementCorrectionResponseMock200 = (
+  overrideResponse: Partial<Extract<SettlementCorrectionResponse, object>> = {},
+): SettlementCorrectionResponse => ({
+  accountEffects: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    accountId: faker.string.uuid(),
+    balanceAfter: { amount: "12.34", currency: "CNY" },
+    balanceBefore: { amount: "12.34", currency: "CNY" },
+    nature: faker.helpers.arrayElement(["asset", "liability"] as const),
+  })),
+  actorId: faker.string.uuid(),
+  after: {
+    acceptedSurplus: { amount: "12.34", currency: "CNY" },
+    allocations: Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      cashPaid: { amount: "12.34", currency: "CNY" },
+      obligationId: faker.string.uuid(),
+      originalCashPaid: { amount: "12.34", currency: "CNY" },
+      position: faker.number.int(),
+    })),
+    amount: { amount: "12.34", currency: "CNY" },
+    categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+    retainedCredit: { amount: "12.34", currency: "CNY" },
+  },
+  before: {
+    acceptedSurplus: { amount: "12.34", currency: "CNY" },
+    allocations: Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      cashPaid: { amount: "12.34", currency: "CNY" },
+      obligationId: faker.string.uuid(),
+      originalCashPaid: { amount: "12.34", currency: "CNY" },
+      position: faker.number.int(),
+    })),
+    amount: { amount: "12.34", currency: "CNY" },
+    categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+    retainedCredit: { amount: "12.34", currency: "CNY" },
+  },
+  confirmationOrder: faker.number.int(),
+  confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  excessDisposition: faker.helpers.arrayElement([
+    "none",
+    "retainCredit",
+    "acceptIncome",
+  ] as const),
+  financialEffectsAfter: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+    income: { amount: "12.34", currency: "CNY" },
+    kind: faker.helpers.arrayElement(["internalTransfer", "income"] as const),
+    movements: Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      accountId: faker.string.uuid(),
+      amount: { amount: "12.34", currency: "CNY" },
+      role: faker.helpers.arrayElement([
+        "source",
+        "destination",
+        "primary",
+      ] as const),
+    })),
+    note: faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    transactionDate: faker.date.past().toISOString().slice(0, 10),
+    transactionId: faker.string.uuid(),
+  })),
+  financialEffectsBefore: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+    income: { amount: "12.34", currency: "CNY" },
+    kind: faker.helpers.arrayElement(["internalTransfer", "income"] as const),
+    movements: Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      accountId: faker.string.uuid(),
+      amount: { amount: "12.34", currency: "CNY" },
+      role: faker.helpers.arrayElement([
+        "source",
+        "destination",
+        "primary",
+      ] as const),
+    })),
+    note: faker.helpers.arrayElement([
+      faker.string.alpha({ length: { min: 10, max: 20 } }),
+      null,
+    ]),
+    transactionDate: faker.date.past().toISOString().slice(0, 10),
+    transactionId: faker.string.uuid(),
+  })),
+  id: faker.string.uuid(),
+  ledgerId: faker.string.uuid(),
+  obligationsAfter: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    advanceId: faker.string.uuid(),
+    cashPaid: { amount: "12.34", currency: "CNY" },
+    creditApplied: { amount: "12.34", currency: "CNY" },
+    forgiven: { amount: "12.34", currency: "CNY" },
+    id: faker.string.uuid(),
+    ledgerId: faker.string.uuid(),
+    participantId: faker.string.uuid(),
+    principal: { amount: "12.34", currency: "CNY" },
+    receivableAccountId: faker.string.uuid(),
+    remaining: { amount: "12.34", currency: "CNY" },
+    sourceDate: faker.date.past().toISOString().slice(0, 10),
+  })),
+  obligationsBefore: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => ({
+    advanceId: faker.string.uuid(),
+    cashPaid: { amount: "12.34", currency: "CNY" },
+    creditApplied: { amount: "12.34", currency: "CNY" },
+    forgiven: { amount: "12.34", currency: "CNY" },
+    id: faker.string.uuid(),
+    ledgerId: faker.string.uuid(),
+    participantId: faker.string.uuid(),
+    principal: { amount: "12.34", currency: "CNY" },
+    receivableAccountId: faker.string.uuid(),
+    remaining: { amount: "12.34", currency: "CNY" },
+    sourceDate: faker.date.past().toISOString().slice(0, 10),
+  })),
+  originalConfirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+  participantId: faker.string.uuid(),
+  previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  reason: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  receivingAccountId: faker.string.uuid(),
+  revision: faker.number.int(),
+  selectedObligationIds: faker.helpers.arrayElement([
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => faker.string.uuid()),
+    null,
+  ]),
+  settlementId: faker.string.uuid(),
+  transactionDate: faker.date.past().toISOString().slice(0, 10),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSettlementCorrectionResponseMock403 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSettlementCorrectionResponseMock404 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSettlementCorrectionResponseMock409 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSettlementCorrectionResponseMock422 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSettlementCorrectionResponseMock500 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getGetFinanceSettlementCorrectionResponseMock503 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
 export const getCreateFinanceSettlementResponseMock = (
   overrideResponse: Partial<Extract<SettlementCreatedReceipt, object>> = {},
 ): SettlementCreatedReceipt => ({
@@ -10141,6 +11514,456 @@ export const getGetFinanceSettlementResponseMock503 = (
   ...overrideResponse,
 });
 
+export const getListFinanceSettlementCorrectionsResponseMock =
+  (): SettlementCorrectionResponse[] =>
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      accountEffects: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        accountId: faker.string.uuid(),
+        balanceAfter: { amount: "12.34", currency: "CNY" },
+        balanceBefore: { amount: "12.34", currency: "CNY" },
+        nature: faker.helpers.arrayElement(["asset", "liability"] as const),
+      })),
+      actorId: faker.string.uuid(),
+      after: {
+        acceptedSurplus: { amount: "12.34", currency: "CNY" },
+        allocations: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          cashPaid: { amount: "12.34", currency: "CNY" },
+          obligationId: faker.string.uuid(),
+          originalCashPaid: { amount: "12.34", currency: "CNY" },
+          position: faker.number.int(),
+        })),
+        amount: { amount: "12.34", currency: "CNY" },
+        categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+        retainedCredit: { amount: "12.34", currency: "CNY" },
+      },
+      before: {
+        acceptedSurplus: { amount: "12.34", currency: "CNY" },
+        allocations: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          cashPaid: { amount: "12.34", currency: "CNY" },
+          obligationId: faker.string.uuid(),
+          originalCashPaid: { amount: "12.34", currency: "CNY" },
+          position: faker.number.int(),
+        })),
+        amount: { amount: "12.34", currency: "CNY" },
+        categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+        retainedCredit: { amount: "12.34", currency: "CNY" },
+      },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      excessDisposition: faker.helpers.arrayElement([
+        "none",
+        "retainCredit",
+        "acceptIncome",
+      ] as const),
+      financialEffectsAfter: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+        income: { amount: "12.34", currency: "CNY" },
+        kind: faker.helpers.arrayElement([
+          "internalTransfer",
+          "income",
+        ] as const),
+        movements: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          accountId: faker.string.uuid(),
+          amount: { amount: "12.34", currency: "CNY" },
+          role: faker.helpers.arrayElement([
+            "source",
+            "destination",
+            "primary",
+          ] as const),
+        })),
+        note: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionId: faker.string.uuid(),
+      })),
+      financialEffectsBefore: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+        income: { amount: "12.34", currency: "CNY" },
+        kind: faker.helpers.arrayElement([
+          "internalTransfer",
+          "income",
+        ] as const),
+        movements: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          accountId: faker.string.uuid(),
+          amount: { amount: "12.34", currency: "CNY" },
+          role: faker.helpers.arrayElement([
+            "source",
+            "destination",
+            "primary",
+          ] as const),
+        })),
+        note: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionId: faker.string.uuid(),
+      })),
+      id: faker.string.uuid(),
+      ledgerId: faker.string.uuid(),
+      obligationsAfter: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        creditApplied: { amount: "12.34", currency: "CNY" },
+        forgiven: { amount: "12.34", currency: "CNY" },
+        id: faker.string.uuid(),
+        ledgerId: faker.string.uuid(),
+        participantId: faker.string.uuid(),
+        principal: { amount: "12.34", currency: "CNY" },
+        receivableAccountId: faker.string.uuid(),
+        remaining: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      obligationsBefore: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        creditApplied: { amount: "12.34", currency: "CNY" },
+        forgiven: { amount: "12.34", currency: "CNY" },
+        id: faker.string.uuid(),
+        ledgerId: faker.string.uuid(),
+        participantId: faker.string.uuid(),
+        principal: { amount: "12.34", currency: "CNY" },
+        receivableAccountId: faker.string.uuid(),
+        remaining: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      originalConfirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      participantId: faker.string.uuid(),
+      previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      reason: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      receivingAccountId: faker.string.uuid(),
+      revision: faker.number.int(),
+      selectedObligationIds: faker.helpers.arrayElement([
+        Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => faker.string.uuid()),
+        null,
+      ]),
+      settlementId: faker.string.uuid(),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+    }));
+
+export const getListFinanceSettlementCorrectionsResponseMock200 =
+  (): SettlementCorrectionResponse[] =>
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      accountEffects: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        accountId: faker.string.uuid(),
+        balanceAfter: { amount: "12.34", currency: "CNY" },
+        balanceBefore: { amount: "12.34", currency: "CNY" },
+        nature: faker.helpers.arrayElement(["asset", "liability"] as const),
+      })),
+      actorId: faker.string.uuid(),
+      after: {
+        acceptedSurplus: { amount: "12.34", currency: "CNY" },
+        allocations: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          cashPaid: { amount: "12.34", currency: "CNY" },
+          obligationId: faker.string.uuid(),
+          originalCashPaid: { amount: "12.34", currency: "CNY" },
+          position: faker.number.int(),
+        })),
+        amount: { amount: "12.34", currency: "CNY" },
+        categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+        retainedCredit: { amount: "12.34", currency: "CNY" },
+      },
+      before: {
+        acceptedSurplus: { amount: "12.34", currency: "CNY" },
+        allocations: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          cashPaid: { amount: "12.34", currency: "CNY" },
+          obligationId: faker.string.uuid(),
+          originalCashPaid: { amount: "12.34", currency: "CNY" },
+          position: faker.number.int(),
+        })),
+        amount: { amount: "12.34", currency: "CNY" },
+        categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+        retainedCredit: { amount: "12.34", currency: "CNY" },
+      },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      excessDisposition: faker.helpers.arrayElement([
+        "none",
+        "retainCredit",
+        "acceptIncome",
+      ] as const),
+      financialEffectsAfter: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+        income: { amount: "12.34", currency: "CNY" },
+        kind: faker.helpers.arrayElement([
+          "internalTransfer",
+          "income",
+        ] as const),
+        movements: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          accountId: faker.string.uuid(),
+          amount: { amount: "12.34", currency: "CNY" },
+          role: faker.helpers.arrayElement([
+            "source",
+            "destination",
+            "primary",
+          ] as const),
+        })),
+        note: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionId: faker.string.uuid(),
+      })),
+      financialEffectsBefore: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        categoryId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+        income: { amount: "12.34", currency: "CNY" },
+        kind: faker.helpers.arrayElement([
+          "internalTransfer",
+          "income",
+        ] as const),
+        movements: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          accountId: faker.string.uuid(),
+          amount: { amount: "12.34", currency: "CNY" },
+          role: faker.helpers.arrayElement([
+            "source",
+            "destination",
+            "primary",
+          ] as const),
+        })),
+        note: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionId: faker.string.uuid(),
+      })),
+      id: faker.string.uuid(),
+      ledgerId: faker.string.uuid(),
+      obligationsAfter: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        creditApplied: { amount: "12.34", currency: "CNY" },
+        forgiven: { amount: "12.34", currency: "CNY" },
+        id: faker.string.uuid(),
+        ledgerId: faker.string.uuid(),
+        participantId: faker.string.uuid(),
+        principal: { amount: "12.34", currency: "CNY" },
+        receivableAccountId: faker.string.uuid(),
+        remaining: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      obligationsBefore: Array.from(
+        { length: faker.number.int({ min: 1, max: 10 }) },
+        (_, i) => i + 1,
+      ).map(() => ({
+        advanceId: faker.string.uuid(),
+        cashPaid: { amount: "12.34", currency: "CNY" },
+        creditApplied: { amount: "12.34", currency: "CNY" },
+        forgiven: { amount: "12.34", currency: "CNY" },
+        id: faker.string.uuid(),
+        ledgerId: faker.string.uuid(),
+        participantId: faker.string.uuid(),
+        principal: { amount: "12.34", currency: "CNY" },
+        receivableAccountId: faker.string.uuid(),
+        remaining: { amount: "12.34", currency: "CNY" },
+        sourceDate: faker.date.past().toISOString().slice(0, 10),
+      })),
+      originalConfirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      participantId: faker.string.uuid(),
+      previewToken: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      reason: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      receivingAccountId: faker.string.uuid(),
+      revision: faker.number.int(),
+      selectedObligationIds: faker.helpers.arrayElement([
+        Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => faker.string.uuid()),
+        null,
+      ]),
+      settlementId: faker.string.uuid(),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+    }));
+
+export const getListFinanceSettlementCorrectionsResponseMock403 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getListFinanceSettlementCorrectionsResponseMock404 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getListFinanceSettlementCorrectionsResponseMock409 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getListFinanceSettlementCorrectionsResponseMock422 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getListFinanceSettlementCorrectionsResponseMock500 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
+export const getListFinanceSettlementCorrectionsResponseMock503 = (
+  overrideResponse: Partial<Extract<ProblemDetails, object>> = {},
+): ProblemDetails => ({
+  code: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  detail: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  instance: faker.helpers.arrayElement([
+    faker.string.alpha({ length: { min: 10, max: 20 } }),
+    null,
+  ]),
+  status: faker.number.int({ min: 100, max: 599 }),
+  title: faker.string.alpha({ length: { min: 1, max: 20 } }),
+  type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+  ...overrideResponse,
+});
+
 export const getListFinanceTransactionsResponseIncomeTransactionResponseMock = (
   overrideResponse: Partial<IncomeTransactionResponse> = {},
 ): IncomeTransactionResponse => ({
@@ -11575,6 +13398,23 @@ export const getGetFinanceSubmissionResponseAdvanceCorrectionSubmissionUnfinishe
     ...overrideResponse,
   });
 
+export const getGetFinanceSubmissionResponseSettlementCorrectionSubmissionUnfinishedMock =
+  (
+    overrideResponse: Partial<SettlementCorrectionSubmissionUnfinished> = {},
+  ): SettlementCorrectionSubmissionUnfinished => ({
+    ...{
+      admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      commandVersion: "1",
+      operation: faker.helpers.arrayElement([
+        "createFinanceSettlementCorrection",
+      ] as const),
+      state: "unfinished",
+      submissionId: faker.string.uuid(),
+      targetLedgerId: faker.string.uuid(),
+    },
+    ...overrideResponse,
+  });
+
 export const getGetFinanceSubmissionResponseLedgerCreatedOutcomeMock = (
   overrideResponse: Partial<LedgerCreatedOutcome> = {},
 ): LedgerCreatedOutcome => ({
@@ -12185,6 +14025,117 @@ export const getGetFinanceSubmissionResponseAdvanceCorrectionSubmissionReceiptMo
     ...overrideResponse,
   });
 
+export const getGetFinanceSubmissionResponseSettlementCorrectionCreatedOutcomeMock =
+  (
+    overrideResponse: Partial<SettlementCorrectionCreatedOutcome> = {},
+  ): SettlementCorrectionCreatedOutcome => ({
+    ...{
+      kind: "created",
+      resource: { id: faker.string.uuid(), type: "settlementCorrection" },
+    },
+    ...overrideResponse,
+  });
+
+export const getGetFinanceSubmissionResponseSettlementCorrectionInvalidProblemMock =
+  (
+    overrideResponse: Partial<SettlementCorrectionInvalidProblem> = {},
+  ): SettlementCorrectionInvalidProblem => ({
+    ...{
+      code: "validation_error",
+      detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      status: 422,
+      title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    },
+    ...overrideResponse,
+  });
+
+export const getGetFinanceSubmissionResponseSettlementCorrectionConflictProblemMock =
+  (
+    overrideResponse: Partial<SettlementCorrectionConflictProblem> = {},
+  ): SettlementCorrectionConflictProblem => ({
+    ...{
+      code: faker.helpers.arrayElement([
+        "finance_category_archived",
+        "finance_account_archived",
+        "finance_participant_archived",
+        "finance_settlement_correction_preview_stale",
+        "finance_settlement_correction_ineligible",
+        "finance_linked_record_protected",
+      ] as const),
+      detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      status: 409,
+      title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    },
+    ...overrideResponse,
+  });
+
+export const getGetFinanceSubmissionResponseSettlementCorrectionMissingProblemMock =
+  (
+    overrideResponse: Partial<SettlementCorrectionMissingProblem> = {},
+  ): SettlementCorrectionMissingProblem => ({
+    ...{
+      code: faker.helpers.arrayElement([
+        "finance_category_not_found",
+        "finance_account_not_found",
+        "finance_participant_not_found",
+        "finance_settlement_not_found",
+      ] as const),
+      detail: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      status: 404,
+      title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    },
+    ...overrideResponse,
+  });
+
+export const getGetFinanceSubmissionResponseSettlementCorrectionRejectedOutcomeMock =
+  (
+    overrideResponse: Partial<SettlementCorrectionRejectedOutcome> = {},
+  ): SettlementCorrectionRejectedOutcome => ({
+    ...{
+      kind: "rejected",
+      problem: faker.helpers.arrayElement([
+        {
+          ...getGetFinanceSubmissionResponseSettlementCorrectionInvalidProblemMock(),
+        },
+        {
+          ...getGetFinanceSubmissionResponseSettlementCorrectionConflictProblemMock(),
+        },
+        {
+          ...getGetFinanceSubmissionResponseSettlementCorrectionMissingProblemMock(),
+        },
+      ]),
+    },
+    ...overrideResponse,
+  });
+
+export const getGetFinanceSubmissionResponseSettlementCorrectionSubmissionReceiptMock =
+  (
+    overrideResponse: Partial<SettlementCorrectionSubmissionReceipt> = {},
+  ): SettlementCorrectionSubmissionReceipt => ({
+    ...{
+      admittedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      commandVersion: "1",
+      operation: faker.helpers.arrayElement([
+        "createFinanceSettlementCorrection",
+      ] as const),
+      outcome: faker.helpers.arrayElement([
+        {
+          ...getGetFinanceSubmissionResponseSettlementCorrectionCreatedOutcomeMock(),
+        },
+        {
+          ...getGetFinanceSubmissionResponseSettlementCorrectionRejectedOutcomeMock(),
+        },
+      ]),
+      resolvedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      submissionId: faker.string.uuid(),
+      targetLedgerId: faker.string.uuid(),
+    },
+    ...overrideResponse,
+  });
+
 export const getGetFinanceSubmissionResponseFinanceSubmissionTerminalMock = (
   overrideResponse: Partial<FinanceSubmissionTerminal> = {},
 ): FinanceSubmissionTerminal => ({
@@ -12199,6 +14150,9 @@ export const getGetFinanceSubmissionResponseFinanceSubmissionTerminalMock = (
       { ...getGetFinanceSubmissionResponseSettlementSubmissionReceiptMock() },
       {
         ...getGetFinanceSubmissionResponseAdvanceCorrectionSubmissionReceiptMock(),
+      },
+      {
+        ...getGetFinanceSubmissionResponseSettlementCorrectionSubmissionReceiptMock(),
       },
     ]),
     state: faker.helpers.arrayElement(["terminal"] as const),
@@ -12235,6 +14189,9 @@ export const getGetFinanceSubmissionResponseMock =
           {
             ...getGetFinanceSubmissionResponseAdvanceCorrectionSubmissionUnfinishedMock(),
           },
+          {
+            ...getGetFinanceSubmissionResponseSettlementCorrectionSubmissionUnfinishedMock(),
+          },
         ]),
         state: faker.helpers.arrayElement(["unfinished"] as const),
       },
@@ -12269,6 +14226,9 @@ export const getGetFinanceSubmissionResponseMock200 =
           },
           {
             ...getGetFinanceSubmissionResponseAdvanceCorrectionSubmissionUnfinishedMock(),
+          },
+          {
+            ...getGetFinanceSubmissionResponseSettlementCorrectionSubmissionUnfinishedMock(),
           },
         ]),
         state: faker.helpers.arrayElement(["unfinished"] as const),
@@ -20045,6 +22005,675 @@ export const getListFinanceParticipantSettlementsMockHandler503 = (
   );
 };
 
+export const getCreateFinanceSettlementCorrectionMockHandler = (
+  overrideResponse?:
+    | SettlementCorrectionCreatedReceipt
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) =>
+        | Promise<SettlementCorrectionCreatedReceipt>
+        | SettlementCorrectionCreatedReceipt),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateFinanceSettlementCorrectionResponseMock(),
+        { status: 201 },
+      );
+    },
+    options,
+  );
+};
+
+export const getCreateFinanceSettlementCorrectionMockHandler201 = (
+  overrideResponse?:
+    | SettlementCorrectionCreatedReceipt
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) =>
+        | Promise<SettlementCorrectionCreatedReceipt>
+        | SettlementCorrectionCreatedReceipt),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateFinanceSettlementCorrectionResponseMock201(),
+        { status: 201 },
+      );
+    },
+    options,
+  );
+};
+
+export const getCreateFinanceSettlementCorrectionMockHandler400 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateFinanceSettlementCorrectionResponseMock400(),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getCreateFinanceSettlementCorrectionMockHandler403 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateFinanceSettlementCorrectionResponseMock403(),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getCreateFinanceSettlementCorrectionMockHandler404 = (
+  overrideResponse?:
+    | SettlementCorrectionFailureResponse
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) =>
+        | Promise<SettlementCorrectionFailureResponse>
+        | SettlementCorrectionFailureResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateFinanceSettlementCorrectionResponseMock404(),
+        {
+          status: 404,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getCreateFinanceSettlementCorrectionMockHandler409 = (
+  overrideResponse?:
+    | SettlementCorrectionFailureResponse
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) =>
+        | Promise<SettlementCorrectionFailureResponse>
+        | SettlementCorrectionFailureResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateFinanceSettlementCorrectionResponseMock409(),
+        {
+          status: 409,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getCreateFinanceSettlementCorrectionMockHandler422 = (
+  overrideResponse?:
+    | SettlementCorrectionFailureResponse
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) =>
+        | Promise<SettlementCorrectionFailureResponse>
+        | SettlementCorrectionFailureResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateFinanceSettlementCorrectionResponseMock422(),
+        {
+          status: 422,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getCreateFinanceSettlementCorrectionMockHandler500 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateFinanceSettlementCorrectionResponseMock500(),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getCreateFinanceSettlementCorrectionMockHandler503 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateFinanceSettlementCorrectionResponseMock503(),
+        {
+          status: 503,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getPreviewFinanceSettlementCorrectionMockHandler = (
+  overrideResponse?:
+    | SettlementCorrectionPreview
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<SettlementCorrectionPreview> | SettlementCorrectionPreview),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections/preview",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPreviewFinanceSettlementCorrectionResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
+export const getPreviewFinanceSettlementCorrectionMockHandler200 = (
+  overrideResponse?:
+    | SettlementCorrectionPreview
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<SettlementCorrectionPreview> | SettlementCorrectionPreview),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections/preview",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPreviewFinanceSettlementCorrectionResponseMock200(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
+export const getPreviewFinanceSettlementCorrectionMockHandler403 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections/preview",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPreviewFinanceSettlementCorrectionResponseMock403(),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getPreviewFinanceSettlementCorrectionMockHandler404 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections/preview",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPreviewFinanceSettlementCorrectionResponseMock404(),
+        {
+          status: 404,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getPreviewFinanceSettlementCorrectionMockHandler409 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections/preview",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPreviewFinanceSettlementCorrectionResponseMock409(),
+        {
+          status: 409,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getPreviewFinanceSettlementCorrectionMockHandler422 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections/preview",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPreviewFinanceSettlementCorrectionResponseMock422(),
+        {
+          status: 422,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getPreviewFinanceSettlementCorrectionMockHandler500 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections/preview",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPreviewFinanceSettlementCorrectionResponseMock500(),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getPreviewFinanceSettlementCorrectionMockHandler503 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections/preview",
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPreviewFinanceSettlementCorrectionResponseMock503(),
+        {
+          status: 503,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceSettlementCorrectionMockHandler = (
+  overrideResponse?:
+    | SettlementCorrectionResponse
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) =>
+        Promise<SettlementCorrectionResponse> | SettlementCorrectionResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections/:correctionId",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceSettlementCorrectionResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceSettlementCorrectionMockHandler200 = (
+  overrideResponse?:
+    | SettlementCorrectionResponse
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) =>
+        Promise<SettlementCorrectionResponse> | SettlementCorrectionResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections/:correctionId",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceSettlementCorrectionResponseMock200(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceSettlementCorrectionMockHandler403 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections/:correctionId",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceSettlementCorrectionResponseMock403(),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceSettlementCorrectionMockHandler404 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections/:correctionId",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceSettlementCorrectionResponseMock404(),
+        {
+          status: 404,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceSettlementCorrectionMockHandler409 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections/:correctionId",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceSettlementCorrectionResponseMock409(),
+        {
+          status: 409,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceSettlementCorrectionMockHandler422 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections/:correctionId",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceSettlementCorrectionResponseMock422(),
+        {
+          status: 422,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceSettlementCorrectionMockHandler500 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections/:correctionId",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceSettlementCorrectionResponseMock500(),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getGetFinanceSettlementCorrectionMockHandler503 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/settlement-corrections/:correctionId",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetFinanceSettlementCorrectionResponseMock503(),
+        {
+          status: 503,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
 export const getCreateFinanceSettlementMockHandler = (
   overrideResponse?:
     | SettlementCreatedReceipt
@@ -20709,6 +23338,220 @@ export const getGetFinanceSettlementMockHandler503 = (
             ? await overrideResponse(info)
             : overrideResponse
           : getGetFinanceSettlementResponseMock503(),
+        {
+          status: 503,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getListFinanceSettlementCorrectionsMockHandler = (
+  overrideResponse?:
+    | SettlementCorrectionResponse[]
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) =>
+        | Promise<SettlementCorrectionResponse[]>
+        | SettlementCorrectionResponse[]),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/settlements/:settlementId/corrections",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListFinanceSettlementCorrectionsResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
+export const getListFinanceSettlementCorrectionsMockHandler200 = (
+  overrideResponse?:
+    | SettlementCorrectionResponse[]
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) =>
+        | Promise<SettlementCorrectionResponse[]>
+        | SettlementCorrectionResponse[]),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/settlements/:settlementId/corrections",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListFinanceSettlementCorrectionsResponseMock200(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
+export const getListFinanceSettlementCorrectionsMockHandler403 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/settlements/:settlementId/corrections",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListFinanceSettlementCorrectionsResponseMock403(),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getListFinanceSettlementCorrectionsMockHandler404 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/settlements/:settlementId/corrections",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListFinanceSettlementCorrectionsResponseMock404(),
+        {
+          status: 404,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getListFinanceSettlementCorrectionsMockHandler409 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/settlements/:settlementId/corrections",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListFinanceSettlementCorrectionsResponseMock409(),
+        {
+          status: 409,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getListFinanceSettlementCorrectionsMockHandler422 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/settlements/:settlementId/corrections",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListFinanceSettlementCorrectionsResponseMock422(),
+        {
+          status: 422,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getListFinanceSettlementCorrectionsMockHandler500 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/settlements/:settlementId/corrections",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListFinanceSettlementCorrectionsResponseMock500(),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/problem+json" },
+        },
+      );
+    },
+    options,
+  );
+};
+
+export const getListFinanceSettlementCorrectionsMockHandler503 = (
+  overrideResponse?:
+    | ProblemDetails
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ProblemDetails> | ProblemDetails),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    "*/api/finance/ledgers/:ledgerId/settlements/:settlementId/corrections",
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === "function"
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListFinanceSettlementCorrectionsResponseMock503(),
         {
           status: 503,
           headers: { "Content-Type": "application/problem+json" },
@@ -23077,9 +25920,13 @@ export const getCoreConsoleAPIMock = () => [
   getListFinanceParticipantObligationsMockHandler(),
   getGetFinanceParticipantPositionsMockHandler(),
   getListFinanceParticipantSettlementsMockHandler(),
+  getCreateFinanceSettlementCorrectionMockHandler(),
+  getPreviewFinanceSettlementCorrectionMockHandler(),
+  getGetFinanceSettlementCorrectionMockHandler(),
   getCreateFinanceSettlementMockHandler(),
   getPreviewFinanceSettlementMockHandler(),
   getGetFinanceSettlementMockHandler(),
+  getListFinanceSettlementCorrectionsMockHandler(),
   getListFinanceTransactionsMockHandler(),
   getCreateFinanceTransactionMockHandler(),
   getDeleteFinanceTransactionMockHandler(),

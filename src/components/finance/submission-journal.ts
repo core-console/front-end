@@ -12,6 +12,7 @@ import {
   CreateFinanceSettlementBody,
 } from "@/api/generated/schemas";
 import { resolveApiBaseUrl } from "@/config/env";
+import { settlementCorrectionCommand } from "./settlement-correction";
 import { correctionCommandBody } from "./advance-correction";
 import { settlementCommandBody } from "./settlement-command-schema";
 import {
@@ -114,7 +115,15 @@ const correctionCommand = z.strictObject({
   body: correctionCommandBody,
   workflow: z.literal("advanceCorrection"),
 });
+const receiptCorrectionCommand = z.strictObject({
+  operation: z.literal("createFinanceSettlementCorrection"),
+  endpoint: z.string(),
+  targetLedgerId: z.uuid(),
+  body: settlementCorrectionCommand,
+  workflow: z.literal("settlementCorrection"),
+});
 export type CreateSubmissionCommand =
+  | Omit<z.infer<typeof receiptCorrectionCommand>, "endpoint">
   | Omit<z.infer<typeof correctionCommand>, "endpoint">
   | Omit<z.infer<typeof ledgerCommand>, "endpoint">
   | Omit<z.infer<typeof accountCommand>, "endpoint">
@@ -145,6 +154,7 @@ function recordsFor<T extends z.ZodRawShape, V extends z.ZodType>(
 }
 const recordSchema = z
   .discriminatedUnion("operation", [
+    recordsFor(receiptCorrectionCommand.shape, z.literal("1")),
     recordsFor(correctionCommand.shape, z.literal("1")),
     recordsFor(ledgerCommand.shape, z.literal("1")),
     recordsFor(accountCommand.shape, z.literal("1")),
@@ -202,6 +212,8 @@ function settlementCommandVersion(
 
 export function submissionLabel(record: Pick<FinanceSubmission, "operation">) {
   switch (record.operation) {
+    case "createFinanceSettlementCorrection":
+      return "Cash repayment Correction";
     case "createFinanceAdvanceCorrection":
       return "Advance Correction";
     case "createFinanceLedger":
@@ -230,6 +242,8 @@ export function isQuickEntrySubmission(command: CreateSubmissionCommand) {
 }
 
 export function rejectionMessage(record: FinanceSubmission) {
+  if (record.operation === "createFinanceSettlementCorrection")
+    return "The cash repayment Correction was rejected without financial effects. Its preview may be stale or the receipt ineligible. Preserve the draft, request a fresh complete preview and explicitly confirm again with a new identity.";
   if (record.operation === "createFinanceAdvanceCorrection")
     return "The Advance Correction was rejected without financial effects. Preserve the corrected facts, refresh dependencies and the complete preview, then explicitly confirm again. Downstream settlement activity prevents this correction.";
   if (
@@ -263,6 +277,8 @@ export function rejectionMessage(record: FinanceSubmission) {
 
 function endpointFor(command: CreateSubmissionCommand) {
   switch (command.operation) {
+    case "createFinanceSettlementCorrection":
+      return `/finance/ledgers/${command.targetLedgerId}/settlement-corrections`;
     case "createFinanceAdvanceCorrection":
       return `/finance/ledgers/${command.targetLedgerId}/advance-corrections`;
     case "createFinanceLedger":
@@ -283,6 +299,8 @@ function endpointFor(command: CreateSubmissionCommand) {
 }
 
 export function submissionDescription(record: FinanceSubmission) {
+  if (record.operation === "createFinanceSettlementCorrection")
+    return `Cash repayment Correction · ${record.body.settlementId} · ${record.body.amount.amount} ${record.body.amount.currency} · Reason ${record.body.reason} · Excess ${record.body.excessDisposition} · Category ${record.body.categoryId ?? "Uncategorized"}`;
   if (record.operation === "createFinanceAdvanceCorrection")
     return [
       "Advance Correction",
