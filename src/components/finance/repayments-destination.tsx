@@ -372,8 +372,10 @@ function RepaymentHistory({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">Settlement history</h2>
+        {/* Restore full text contrast as soon as the button is enabled. */}
         <Button
           variant="outline"
+          className="transition-[background-color,border-color,box-shadow,color,translate]"
           disabled={query.isFetching}
           onClick={() => void query.refetch()}
         >
