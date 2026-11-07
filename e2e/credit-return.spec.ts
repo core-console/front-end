@@ -235,6 +235,18 @@ test("T11 Unicode boundary survives preview, response loss, reload and original-
   ).toBeVisible();
   await expect.poll(() => state.committed).toBe(true);
   await expect(dialog).toContainText("The original credit return is retained");
+  let releaseHistory!: () => void;
+  const historyResponse = new Promise<void>((resolve) => {
+    releaseHistory = resolve;
+  });
+  await context.route(
+    `**/api/finance/ledgers/${ledger.id}/participants/${person.id}/settlements`,
+    async (route) => {
+      await historyResponse;
+      await route.fallback();
+    },
+    { times: 1 },
+  );
   await page.reload();
   await expect(
     page.getByRole("button", { name: "Return credit", exact: true }),
@@ -243,6 +255,29 @@ test("T11 Unicode boundary survives preview, response loss, reload and original-
     name: "Finance submission recovery",
   });
   await expect(recovery).toContainText("Credit return 25 CNY");
+  const refresh = page.getByRole("button", {
+    name: "Refresh Settlement history",
+  });
+  await expect(refresh).toBeDisabled();
+  const enabledStyle = await refresh.evaluateHandle((button) => ({
+    opacity: new Promise<string>((resolve) => {
+      // Sample the first enabled frame, before a disabled-state fade can finish.
+      const observer = new MutationObserver(() => {
+        if (button.matches(":disabled")) return;
+        observer.disconnect();
+        resolve(getComputedStyle(button).opacity);
+      });
+      observer.observe(button, {
+        attributes: true,
+        attributeFilter: ["disabled"],
+      });
+    }),
+  }));
+  releaseHistory();
+  const opacity = await enabledStyle.evaluate((style) => style.opacity);
+  await enabledStyle.dispose();
+  expect(opacity).toBe("1");
+  await expect(refresh).toBeEnabled();
   await axe(page);
   await recovery
     .getByRole("button", { name: "Retry original submission" })
