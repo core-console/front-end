@@ -128,6 +128,10 @@ for (const recovery of ["lookup", "retry"] as const)
       if (m.type() === "error") errors.push(m.text());
     });
     let observed: unknown;
+    let completeResponseLoss!: () => void;
+    const responseLossCompleted = new Promise<void>((resolve) => {
+      completeResponseLoss = resolve;
+    });
     await context.route("**/api/**", async (route) => {
       const r = route.request(),
         path = new URL(r.url()).pathname;
@@ -152,6 +156,7 @@ for (const recovery of ["lookup", "retry"] as const)
           expect(committed.commands[0].outcome).not.toBeNull();
           observed = committed;
           await route.fulfill({ status: 201, json: {} });
+          completeResponseLoss();
           return;
         }
       }
@@ -189,18 +194,26 @@ for (const recovery of ["lookup", "retry"] as const)
     await expect(
       dialog.getByText(/The original command is retained/),
     ).toBeVisible();
+    await responseLossCompleted;
     await dialog
       .locator("form")
       .getByRole("button", { name: "Close", exact: true })
       .click();
     await page.reload();
-    await page
-      .getByRole("button", {
-        name:
-          recovery === "lookup" ? "Check outcome" : "Retry original submission",
-        exact: true,
-      })
-      .click();
+    if (recovery === "retry") {
+      await expect(
+        page.getByText(
+          "The original submission is unfinished. Retry it explicitly to continue.",
+          { exact: true },
+        ),
+      ).toBeVisible();
+      await page
+        .getByRole("button", { name: "Retry original submission", exact: true })
+        .click();
+    }
+    await expect(
+      page.getByRole("region", { name: "Finance submission recovery" }),
+    ).toContainText("Cash repayment Correction is confirmed");
     await expect(
       page.getByRole("button", { name: "Acknowledge outcome" }),
     ).toBeVisible();
