@@ -11,6 +11,9 @@ import {
   FinanceSubmissionResponse,
 } from "../src/api/generated/schemas/index.ts";
 const backend = process.env.FINANCE_T12_TEST_BACKEND;
+const producer =
+  process.env.FINANCE_T12_TEST_PRODUCER ??
+  "d87550d839d2b45a9bb8d5c804016e0936e20163";
 test.skip(
   !backend,
   "Requires exact-P server on guarded PostgreSQL at 127.0.0.1:8299.",
@@ -144,29 +147,56 @@ for (const recovery of ["lookup", "retry"] as const)
       body: string;
     }[] = [];
     let observed: unknown;
+    let completeResponseLoss!: () => void;
+    const responseLoss = new Promise<void>((resolve) => {
+      completeResponseLoss = resolve;
+    });
+    let lookupRequests = 0;
     await context.route("**/api/**", async (route) => {
       const r = route.request(),
         path = new URL(r.url()).pathname;
-      const response = await route.fetch({
-        url: `${backend}${path}${new URL(r.url()).search}`,
-      });
       if (
-        path === `${data.base}/advance-corrections` &&
-        r.method() === "POST"
+        r.method() === "GET" &&
+        posts[0] &&
+        path === `/api/finance/submissions/${posts[0].key}`
       ) {
+        lookupRequests++;
+        if (recovery === "retry") {
+          await route.fulfill({
+            json: {
+              state: "unfinished",
+              submissionId: posts[0].key,
+              operation: "createFinanceAdvanceCorrection",
+              commandVersion: "1",
+              targetLedgerId: data.ledger,
+              admittedAt: new Date().toISOString(),
+            },
+          });
+          return;
+        }
+      }
+      const correctionPost =
+        path === `${data.base}/advance-corrections` && r.method() === "POST";
+      if (correctionPost) {
         posts.push({
           key: r.headers()["idempotency-key"]!,
           version: r.headers()["finance-command-version"]!,
           owner: r.headers()["finance-submission-owner"]!,
           body: r.postData()!,
         });
+      }
+      const response = await route.fetch({
+        url: `${backend}${path}${new URL(r.url()).search}`,
+      });
+      if (correctionPost) {
+        expect(response.status(), await response.text()).toBe(201);
         if (posts.length === 1) {
-          expect(response.status(), await response.text()).toBe(201);
           observed = await read(request, `/t12-test/effects/${data.ledger}`);
           expect(
             (observed as { corrections: unknown[] }).corrections,
           ).toHaveLength(1);
           await route.fulfill({ status: 201, json: {} });
+          completeResponseLoss();
           return;
         }
       }
@@ -211,24 +241,45 @@ for (const recovery of ["lookup", "retry"] as const)
     await expect(
       dialog.getByText(/The original command is retained/),
     ).toBeVisible();
+    await responseLoss;
     await dialog
       .locator("form")
       .getByRole("button", { name: "Close", exact: true })
       .click();
+    const lookupsBeforeReload = lookupRequests;
     await page.reload();
+    const action = page.getByRole("button", {
+      name: "Correct Advance",
+      exact: true,
+    });
+    const journal = page.getByRole("region", {
+      name: "Finance submission recovery",
+    });
+    const retry = journal.getByRole("button", {
+      name: "Retry original submission",
+      exact: true,
+    });
+    if (recovery === "retry") {
+      await expect(journal).toContainText(
+        "The original submission is unfinished. Retry it explicitly to continue.",
+      );
+      await expect(action).toBeDisabled();
+      expect(posts).toHaveLength(1);
+      await expect(retry).toBeEnabled();
+      await retry.click();
+    }
+    await expect(journal).toContainText("Advance Correction is confirmed");
+    expect(lookupRequests).toBeGreaterThan(lookupsBeforeReload);
+    await expect(retry).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: "Correct Advance", exact: true }),
-    ).toBeDisabled();
-    await page
-      .getByRole("button", {
-        name:
-          recovery === "lookup" ? "Check outcome" : "Retry original submission",
-        exact: true,
-      })
-      .click();
-    await expect(
-      page.getByRole("button", { name: "Acknowledge outcome", exact: true }),
-    ).toBeVisible();
+      journal.getByRole("button", { name: "Check outcome", exact: true }),
+    ).toHaveCount(0);
+    const acknowledge = journal.getByRole("button", {
+      name: "Acknowledge outcome",
+      exact: true,
+    });
+    await expect(acknowledge).toBeEnabled();
+    await expect(action).toBeEnabled();
     const history = page.getByRole("region", {
       name: "Advance Correction history",
       exact: true,
@@ -271,6 +322,18 @@ for (const recovery of ["lookup", "retry"] as const)
     const effects = await read(request, `/t12-test/effects/${data.ledger}`);
     expect(effects.corrections).toHaveLength(1);
     expect(effects.commands).toHaveLength(1);
+    expect(effects.producer).toBe(producer);
+    expect(effects).toEqual(observed);
+    await acknowledge.click();
+    await expect(acknowledge).toHaveCount(0);
+    await action.click();
+    await expect(dialog).toBeVisible();
+    await expect(
+      dialog.getByRole("button", { name: "Preview Correction", exact: true }),
+    ).toBeVisible();
+    await expect(
+      dialog.getByRole("button", { name: "Confirm Correction", exact: true }),
+    ).toHaveCount(0);
     if (recovery === "retry") {
       expect(posts).toHaveLength(2);
       expect(posts[1]).toEqual(posts[0]);
@@ -282,7 +345,15 @@ for (const recovery of ["lookup", "retry"] as const)
       info.outputPath(`evidence/${recovery}.json`),
       JSON.stringify(
         {
-          producer: "d87550d839d2b45a9bb8d5c804016e0936e20163",
+          producer,
+          responseLoss: {
+            simulatedStatus: 201,
+            simulatedBody: {},
+            committedObservation: "t12-test/effects",
+            lookupsAfterReload: lookupRequests - lookupsBeforeReload,
+            lookupResponse:
+              recovery === "retry" ? "injected unfinished" : "real Producer",
+          },
           data: { ...data, create: undefined },
           posts,
           observed,

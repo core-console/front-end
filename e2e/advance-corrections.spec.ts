@@ -12,11 +12,24 @@ import {
   correctionReceipt,
 } from "../src/test/advance-correction-fixtures.ts";
 import { submissionTestUser } from "../src/test/submission-fixtures.ts";
-async function api(context: BrowserContext, mode = "created") {
+async function api(
+  context: BrowserContext,
+  mode: "created" | "stale" | "lookup" | "manual" | "retry" = "created",
+) {
   const posts: { key: string; owner: string; version: string; body: string }[] =
     [];
   let committed = false;
   let previews = 0;
+  let terminalLookup = mode === "lookup";
+  let lookups = 0;
+  let completeResponseLoss!: () => void;
+  const responseLoss = new Promise<void>((resolve) => {
+    completeResponseLoss = resolve;
+  });
+  let releaseRetry!: () => void;
+  const retryResponse = new Promise<void>((resolve) => {
+    releaseRetry = resolve;
+  });
   await context.route("**/api/**", async (route) => {
     const r = route.request(),
       path = new URL(r.url()).pathname;
@@ -32,10 +45,25 @@ async function api(context: BrowserContext, mode = "created") {
       body = committed ? [correction] : [];
     else if (path.endsWith("/advance-corrections/preview")) {
       previews++;
+      const { reason, note } = JSON.parse(r.postData()!);
       body = {
         ...correctionPreview,
-        reason: JSON.parse(r.postData()!).reason,
+        reason,
         previewToken: (previews === 1 ? "f" : "e").repeat(64),
+        ...(committed
+          ? {
+              before: correction.after,
+              after: { ...correction.after, note },
+              financialEffectsBefore: correction.financialEffectsAfter,
+              financialEffectsAfter: correction.financialEffectsAfter.map(
+                (effect) => ({ ...effect, note }),
+              ),
+              accountEffects: correction.accountEffects.map((effect) => ({
+                ...effect,
+                balanceBefore: effect.balanceAfter,
+              })),
+            }
+          : {}),
       };
     } else if (path.endsWith("/advance-corrections") && r.method() === "POST") {
       const key = r.headers()["idempotency-key"]!;
@@ -63,23 +91,28 @@ async function api(context: BrowserContext, mode = "created") {
         status = 409;
       } else {
         committed = true;
-        body =
-          mode === "loss" && posts.length === 1 ? {} : correctionReceipt(key);
+        if (mode !== "created" && mode !== "stale" && posts.length === 1) {
+          await route.fulfill({ status: 201, json: {} });
+          completeResponseLoss();
+          return;
+        }
+        if (mode === "retry") await retryResponse;
+        body = correctionReceipt(key);
         status = 201;
       }
     } else if (path.includes("/submissions/")) {
       const key = path.split("/").at(-1)!;
-      body =
-        mode === "lookup"
-          ? { state: "terminal", receipt: correctionReceipt(key) }
-          : {
-              state: "unfinished",
-              submissionId: key,
-              operation: "createFinanceAdvanceCorrection",
-              commandVersion: "1",
-              targetLedgerId: ledger.id,
-              admittedAt: correction.confirmedAt,
-            };
+      lookups++;
+      body = terminalLookup
+        ? { state: "terminal", receipt: correctionReceipt(key) }
+        : {
+            state: "unfinished",
+            submissionId: key,
+            operation: "createFinanceAdvanceCorrection",
+            commandVersion: "1",
+            targetLedgerId: ledger.id,
+            admittedAt: correction.confirmedAt,
+          };
     } else if (path.endsWith(`/advance-corrections/${correction.id}`))
       body = correction;
     else if (path.endsWith(`/advances/${before.id}`))
@@ -89,6 +122,14 @@ async function api(context: BrowserContext, mode = "created") {
   });
   return {
     posts,
+    responseLoss,
+    releaseRetry,
+    revealTerminal() {
+      terminalLookup = true;
+    },
+    get lookups() {
+      return lookups;
+    },
     get previews() {
       return previews;
     },
@@ -210,41 +251,131 @@ test("stale Correction preserves draft and requires refreshed preview and a new 
   expect(state.previews).toBe(2);
   expect(errors).toEqual([]);
 });
-test("fresh page recovers original uncertain command through exact-key retry without duplicate Correction", async ({
-  page,
-  context,
-}) => {
-  const errors = errorsOn(page);
-  const state = await api(context, "loss");
-  const dialog = await draft(page);
-  await dialog.getByRole("button", { name: "Preview Correction" }).click();
-  await dialog.getByRole("button", { name: "Confirm Correction" }).click();
-  await expect(
-    dialog.getByText(/The original command is retained/),
-  ).toBeVisible();
-  await dialog
-    .locator("form")
-    .getByRole("button", { name: "Close", exact: true })
-    .click();
-  await page.reload();
-  await expect(
-    page.getByRole("button", { name: "Correct Advance", exact: true }),
-  ).toBeDisabled();
-  await page.getByRole("button", { name: "Check outcome" }).click();
-  await expect(
-    page.getByRole("button", { name: "Retry original submission" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Retry original submission" }).click();
-  await expect(
-    page.getByRole("button", { name: "Acknowledge outcome" }),
-  ).toBeVisible();
-  expect(state.posts).toHaveLength(2);
-  expect(state.posts[0]).toEqual(state.posts[1]);
-  await page
-    .getByRole("link", { name: "Open Advance Correction history" })
-    .click();
-  await expect(
-    page.getByRole("region", { name: "Advance Correction history" }),
-  ).toContainText("Revision 1");
-  expect(errors).toEqual([]);
-});
+for (const [mode, title] of [
+  [
+    "lookup",
+    "fresh page automatically recovers the terminal Advance Correction",
+  ],
+  [
+    "manual",
+    "manual lookup resolves a deliberately unfinished Advance Correction",
+  ],
+  [
+    "retry",
+    "fresh page recovers original uncertain command through exact-key retry without duplicate Correction",
+  ],
+] as const)
+  test(title, async ({ page, context }) => {
+    const errors = errorsOn(page);
+    const state = await api(context, mode);
+    const dialog = await draft(page);
+    await dialog.getByRole("button", { name: "Preview Correction" }).click();
+    await dialog.getByRole("button", { name: "Confirm Correction" }).click();
+    await expect(
+      dialog.getByText(/The original command is retained/),
+    ).toBeVisible();
+    await state.responseLoss;
+    await dialog
+      .locator("form")
+      .getByRole("button", { name: "Close", exact: true })
+      .click();
+    const lookupsBeforeReload = state.lookups;
+    await page.reload();
+
+    const action = page.getByRole("button", {
+      name: "Correct Advance",
+      exact: true,
+    });
+    const journal = page.getByRole("region", {
+      name: "Finance submission recovery",
+    });
+    const check = journal.getByRole("button", {
+      name: "Check outcome",
+      exact: true,
+    });
+    const retry = journal.getByRole("button", {
+      name: "Retry original submission",
+      exact: true,
+    });
+    if (mode !== "lookup") {
+      await expect(journal).toContainText(
+        "The original submission is unfinished. Retry it explicitly to continue.",
+      );
+      await expect(action).toBeDisabled();
+      await expect(check).toBeEnabled();
+      await expect(retry).toBeEnabled();
+      expect(state.posts).toHaveLength(1);
+    }
+    if (mode === "manual") {
+      const lookupsBeforeUnfinished = state.lookups;
+      await check.click();
+      await expect.poll(() => state.lookups).toBe(lookupsBeforeUnfinished + 1);
+      await expect(check).toBeEnabled();
+      await expect(action).toBeDisabled();
+      expect(state.posts).toHaveLength(1);
+
+      const lookupsBeforeClick = state.lookups;
+      state.revealTerminal();
+      await check.click();
+      await expect.poll(() => state.lookups).toBe(lookupsBeforeClick + 1);
+    }
+    if (mode === "retry") {
+      try {
+        await retry.click();
+        await expect.poll(() => state.posts.length).toBe(2);
+        await expect(action).toBeDisabled();
+        await expect(check).toBeDisabled();
+        await expect(retry).toBeDisabled();
+        expect(state.posts[1]).toEqual(state.posts[0]);
+      } finally {
+        state.releaseRetry();
+      }
+    }
+    await expect(journal).toContainText("Advance Correction is confirmed");
+    expect(state.lookups).toBeGreaterThan(lookupsBeforeReload);
+    await expect(check).toHaveCount(0);
+    await expect(retry).toHaveCount(0);
+    const acknowledge = journal.getByRole("button", {
+      name: "Acknowledge outcome",
+      exact: true,
+    });
+    await expect(acknowledge).toBeEnabled();
+    await expect(action).toBeEnabled();
+    await journal
+      .getByRole("link", { name: "Open Advance Correction history" })
+      .click();
+    const history = page.getByRole("region", {
+      name: "Advance Correction history",
+    });
+    await expect(history).toContainText("Revision 1");
+
+    await acknowledge.click();
+    await expect(acknowledge).toHaveCount(0);
+    await page.reload();
+    await expect(history).toContainText("Revision 1");
+    await expect(action).toBeEnabled();
+    await expect(acknowledge).toHaveCount(0);
+    const expectedPosts = mode === "retry" ? 2 : 1;
+    await action.click();
+    await expect(dialog).toBeVisible();
+    const confirm = dialog.getByRole("button", {
+      name: "Confirm Correction",
+      exact: true,
+    });
+    await expect(confirm).toHaveCount(0);
+    expect(state.posts).toHaveLength(expectedPosts);
+    expect(state.previews).toBe(1);
+    await dialog
+      .getByLabel("Reason", { exact: true })
+      .fill("Review a new change");
+    await dialog
+      .getByLabel("Note", { exact: true })
+      .fill("Updated purchase note");
+    await dialog
+      .getByRole("button", { name: "Preview Correction", exact: true })
+      .click();
+    await expect(confirm).toBeEnabled();
+    expect(state.previews).toBe(2);
+    expect(state.posts).toHaveLength(expectedPosts);
+    expect(errors).toEqual([]);
+  });
