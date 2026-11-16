@@ -417,8 +417,30 @@ for (const termination of ["close", "crash"] as const) {
     if (termination === "crash") {
       const session = await context.newCDPSession(page);
       const crashed = page.waitForEvent("crash");
-      void session.send("Page.crash").catch(() => undefined);
-      await crashed;
+      // Chromium can leave the crash command pending until its target is closed.
+      const command = session.send("Page.crash").then(
+        () => null,
+        (error: unknown) => error,
+      );
+      await Promise.race([
+        crashed,
+        command.then((error) => {
+          if (error) throw error;
+          return crashed;
+        }),
+      ]);
+      await page.close();
+      expect(context.pages()).not.toContain(page);
+      const error = await command;
+      if (
+        error &&
+        !(
+          error instanceof Error &&
+          error.message ===
+            "cdpSession.send: Target page, context or browser has been closed"
+        )
+      )
+        throw error;
     } else await page.close();
     await observer.reload();
     await expect(
@@ -449,7 +471,6 @@ for (const termination of ["close", "crash"] as const) {
       "Failed to load resource: the server responded with a status of 404 (Not Found)",
     ]);
     await observer.close();
-    if (termination === "crash") await page.close();
   });
 }
 

@@ -279,9 +279,16 @@ it.each(["missing", "busy", "wrong receipt"])(
       await screen.findByRole("button", { name: "Record repayment" }),
     ).toBeDisabled();
     expect(posts).toHaveLength(1);
-    await user.click(
-      await screen.findByRole("button", { name: "Retry original submission" }),
+    await screen.findByText(
+      mode === "wrong receipt"
+        ? /Outcome evidence does not match the original command/
+        : /Recovery could not complete/,
     );
+    const retry = screen.getByRole("button", {
+      name: "Retry original submission",
+    });
+    await waitFor(() => expect(retry).toBeEnabled());
+    await user.click(retry);
     await screen.findByRole("status", { name: /Settlement created:/ });
     expect(posts).toHaveLength(2);
     expect(posts[1]).toEqual(posts[0]);

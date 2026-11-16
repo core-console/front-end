@@ -543,9 +543,12 @@ it.each([false, true])(
       await screen.findByRole("button", { name: "Record Advance" }),
     ).toBeDisabled();
     expect(sent).toHaveLength(1);
-    await user.click(
-      await screen.findByRole("button", { name: "Retry original submission" }),
-    );
+    await screen.findByText(/Recovery could not complete/);
+    const retry = screen.getByRole("button", {
+      name: "Retry original submission",
+    });
+    await waitFor(() => expect(retry).toBeEnabled());
+    await user.click(retry);
     await screen.findByRole("status", { name: /Advance created:/ });
     expect(sent).toHaveLength(2);
     expect(sent[1]).toEqual(sent[0]);

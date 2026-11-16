@@ -18,9 +18,11 @@ export default defineConfig({
     },
   },
   test: {
-    exclude: [...configDefaults.exclude, "e2e/**"],
+    exclude: [...configDefaults.exclude, "e2e/**", ".agent/**"],
     // Limit simultaneous jsdom route suites so short interaction waits remain reliable.
     maxWorkers: 2,
+    // Full-route interactions can exceed Vitest's five-second default on Windows.
+    testTimeout: 10_000,
     env: {
       VITE_API_BASE_URL: "http://localhost/api",
     },

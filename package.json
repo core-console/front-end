@@ -18,7 +18,7 @@
     "api:generate": "orval --config orval.config.ts --fail-on-warnings",
     "api:check-generated": "node scripts/check-api-generated.mjs",
     "api:check": "pnpm api:lint && pnpm api:check-generated",
-    "lint": "oxlint",
+    "lint": "oxlint --ignore-pattern \".agent/**\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -b",
