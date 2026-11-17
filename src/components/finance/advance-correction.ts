@@ -48,7 +48,7 @@ const zero = (value: string) => correctionEqual(value, "0");
 const signed = (value: string) => /^-?\d+(?:\.\d+)?$/.test(value);
 export function correctionEligible(source: AdvanceSource) {
   return advanceObligations(source).every((o) =>
-    [o.cashPaid, o.forgiven, o.creditApplied].every(
+    [o.forgiven, o.creditApplied].every(
       (m) => signed(m.amount) && zero(m.amount),
     ),
   );
@@ -119,7 +119,15 @@ function validPlan(plan: AdvanceCorrectionPreview, ledgerId: string) {
             o.forgiven,
             o.creditApplied,
           ].every((m) => money(m, true)) &&
-          correctionEqual(o.principal.amount, o.remaining.amount),
+          correctionEqual(
+            o.principal.amount,
+            sum([
+              o.remaining.amount,
+              o.cashPaid.amount,
+              o.forgiven.amount,
+              o.creditApplied.amount,
+            ]),
+          ),
       )
     )
       return false;
@@ -210,6 +218,73 @@ function validPlan(plan: AdvanceCorrectionPreview, ledgerId: string) {
     )
   )
     return false;
+  const releases = plan.cashReleases ?? [];
+  if (
+    !unique(releases.map((r) => `${r.settlementId}:${r.position}`)) ||
+    !identities.every((old) => {
+      const after = plan.after.obligations.find((o) => o.id === old.id);
+      return (
+        after &&
+        correctionEqual(
+          subtractExactDecimals(old.cashPaid.amount, after.cashPaid.amount),
+          sum(
+            releases
+              .filter((r) => r.obligationId === old.id)
+              .map((r) => r.released.amount),
+          ),
+        )
+      );
+    }) ||
+    !releases.every((r) => {
+      const obligation = identities.find((o) => o.id === r.obligationId);
+      const effect = r.financialEffect;
+      return (
+        obligation &&
+        r.position > 0 &&
+        r.confirmationOrder > 0 &&
+        [
+          r.receiptAmount,
+          r.cashBefore,
+          r.cashAfter,
+          r.released,
+          r.creditBefore,
+          r.creditAfter,
+        ].every((m) => money(m, true)) &&
+        !zero(r.released.amount) &&
+        correctionEqual(
+          subtractExactDecimals(r.cashBefore.amount, r.cashAfter.amount),
+          r.released.amount,
+        ) &&
+        correctionEqual(
+          subtractExactDecimals(r.creditAfter.amount, r.creditBefore.amount),
+          r.released.amount,
+        ) &&
+        effect.kind === "internalTransfer" &&
+        effect.transactionDate === r.transactionDate &&
+        money(effect.ownerExpense, true) &&
+        zero(effect.ownerExpense.amount) &&
+        effect.movements.length === 2 &&
+        effect.movements.some(
+          (m) =>
+            m.accountId === r.creditAccountId &&
+            m.role === "source" &&
+            money(m.amount) &&
+            correctionEqual(m.amount.amount, r.released.amount),
+        ) &&
+        effect.movements.some(
+          (m) =>
+            m.accountId === obligation.receivableAccountId &&
+            m.role === "destination" &&
+            money(m.amount) &&
+            correctionEqual(m.amount.amount, r.released.amount),
+        ) &&
+        plan.accountEffects.some(
+          (a) => a.accountId === r.creditAccountId && a.nature === "liability",
+        )
+      );
+    })
+  )
+    return false;
   const delta = new Map<string, string>();
   for (const [sign, effects] of [
     [-1, plan.financialEffectsBefore],
@@ -223,6 +298,12 @@ function validPlan(plan: AdvanceCorrectionPreview, ledgerId: string) {
             : subtractExactDecimals("0", m.amount.amount);
         delta.set(m.accountId, sum([delta.get(m.accountId) ?? "0", v]));
       }
+  for (const release of releases)
+    for (const movement of release.financialEffect.movements)
+      delta.set(
+        movement.accountId,
+        sum([delta.get(movement.accountId) ?? "0", movement.amount.amount]),
+      );
   return (
     [...delta.keys()].every((id) =>
       plan.accountEffects.some((a) => a.accountId === id),

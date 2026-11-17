@@ -215,7 +215,7 @@ export function AdvanceCorrectionFormDialog({
     } catch {
       if (active.current && journal.isCurrentNamespace())
         setError(
-          "Correction preview is unavailable or ineligible. Any cash Allocation, forgiveness or credit application blocks this correction. Check ownership, Account eligibility and dates, refresh dependencies and request a complete preview. Your draft is preserved. Nothing was confirmed.",
+          "Correction preview is unavailable or ineligible. Forgiveness, applied or returned credit, or changing dates or attribution after settlement may require a separate correction. Check the facts, refresh dependencies and request a complete preview. Your draft is preserved. Nothing was confirmed.",
         );
     }
   }
@@ -323,11 +323,12 @@ export function AdvanceCorrectionFormDialog({
         <DialogHeader>
           <DialogTitle>Correct Advance</DialogTitle>
           <DialogDescription>
-            Repair incorrect original facts before settlement activity. Enter
-            actual funding and every share explicitly. Truthful funding remains
-            funded; a smaller participant share requires an explicitly increased
-            owner or other share. Fully owner-funded purchases are allowed. This
-            does not record refunds, renegotiation or cancellation.
+            Repair incorrect original facts, including after cash repayment.
+            Enter actual funding and every share explicitly. Truthful funding
+            remains funded; a smaller participant share requires an explicitly
+            increased owner or other share. Fully owner-funded purchases are
+            allowed. This does not record refunds, renegotiation or
+            cancellation.
           </DialogDescription>
         </DialogHeader>
         <form

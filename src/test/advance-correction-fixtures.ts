@@ -98,6 +98,116 @@ export const correctionDraft = {
   note: null,
   reason: correction.reason,
 };
+const creditAccountId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const releaseTransactionId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+export const cashBefore = {
+  ...before,
+  obligation: {
+    ...before.obligation,
+    cashPaid: correctionMoney("20.00"),
+    remaining: correctionMoney("5.01"),
+  },
+};
+export const cashCorrectionDraft = {
+  advanceId: before.id,
+  fundingAccountId: funding.id,
+  amount: before.amount,
+  ownerShare: correctionMoney("10.00"),
+  participantShares: [
+    { participantId: person.id, amount: correctionMoney("15.01") },
+  ],
+  transactionDate: before.transactionDate,
+  note: before.note,
+  reason: "Incorrect share after repayment",
+};
+export const cashCorrectionPreview = AdvanceCorrectionPreview.parse({
+  ...correctionPreview,
+  reason: cashCorrectionDraft.reason,
+  before: cashBefore,
+  after: {
+    ...correctionPreview.after,
+    transactionDate: before.transactionDate,
+    note: before.note,
+    ownerShare: correctionMoney("10.00"),
+    transactionIds: [
+      before.transactionId,
+      "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+    ].sort(),
+    obligations: [
+      {
+        ...cashBefore.obligation,
+        principal: correctionMoney("15.01"),
+        cashPaid: correctionMoney("15.01"),
+        remaining: correctionMoney("0.00"),
+      },
+    ],
+  },
+  financialEffectsAfter: [
+    effect(false, "15.01", before.transactionId),
+    {
+      ...effect(true, "10.00", "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"),
+      transactionDate: before.transactionDate,
+      note: before.note,
+    },
+  ],
+  cashReleases: [
+    {
+      settlementId: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+      confirmationOrder: 7,
+      confirmedAt: "2026-10-22T00:00:00Z",
+      transactionDate: "2026-10-22",
+      receiptAmount: correctionMoney("20.00"),
+      obligationId: before.obligation.id,
+      position: 1,
+      cashBefore: correctionMoney("20.00"),
+      cashAfter: correctionMoney("15.01"),
+      released: correctionMoney("4.99"),
+      creditAccountId,
+      creditBefore: correctionMoney("0.00"),
+      creditAfter: correctionMoney("4.99"),
+      financialEffect: {
+        transactionId: releaseTransactionId,
+        kind: "internalTransfer",
+        transactionDate: "2026-10-22",
+        note: null,
+        ownerExpense: correctionMoney("0.00"),
+        movements: [
+          {
+            accountId: creditAccountId,
+            role: "source",
+            amount: correctionMoney("4.99"),
+          },
+          {
+            accountId: before.obligation.receivableAccountId,
+            role: "destination",
+            amount: correctionMoney("4.99"),
+          },
+        ],
+      },
+    },
+  ],
+  accountEffects: [
+    correctionPreview.accountEffects[0],
+    {
+      ...correctionPreview.accountEffects[1],
+      balanceBefore: correctionMoney("5.01"),
+    },
+    {
+      accountId: creditAccountId,
+      nature: "liability",
+      balanceBefore: correctionMoney("0.00"),
+      balanceAfter: correctionMoney("4.99"),
+    },
+  ],
+});
+export const cashCorrection = AdvanceCorrectionResponse.parse({
+  ...cashCorrectionPreview,
+  id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  ledgerId: ledger.id,
+  actorId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  confirmedAt: "2026-11-01T00:00:00Z",
+  revision: 1,
+});
 export function correctionReceipt(submissionId: string) {
   return AdvanceCorrectionCreatedReceipt.parse({
     submissionId,

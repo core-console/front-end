@@ -91,8 +91,8 @@ export function AdvanceDetail({
           </Button>
           {!correctionEligible(item) ? (
             <p role="status">
-              This Advance has downstream settlement activity. Cash Allocations,
-              forgiveness or credit application prevent this correction.
+              This Advance has forgiveness or applied credit. Those consequences
+              require a separate correction workflow.
             </p>
           ) : null}
           {retained ? (

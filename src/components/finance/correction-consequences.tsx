@@ -87,6 +87,46 @@ export function CorrectionConsequences({
           ))}
         </section>
       ))}
+      {(plan.cashReleases ?? []).length > 0 ? (
+        <section
+          aria-label="Released cash and credit origins"
+          className="flex flex-col gap-2 rounded-md border p-3"
+        >
+          <h4 className="font-semibold">Released cash and credit origins</h4>
+          {(plan.cashReleases ?? []).map((release) => (
+            <div
+              key={`${release.settlementId}:${release.position}`}
+              className="flex flex-col gap-1"
+            >
+              <p>
+                Receipt {money(release.receiptAmount)} on{" "}
+                {release.transactionDate} · confirmed {release.confirmedAt} ·
+                order {release.confirmationOrder}
+              </p>
+              <p>
+                Obligation {release.obligationId} · Allocation{" "}
+                {release.position} · Cash applied {money(release.cashBefore)} →{" "}
+                {money(release.cashAfter)}
+              </p>
+              <p>
+                Released {money(release.released)} as credit from this receipt ·
+                Credit {money(release.creditBefore)} →{" "}
+                {money(release.creditAfter)}
+              </p>
+              <p>
+                Credit Account {account(release.creditAccountId)} · Transfer{" "}
+                {release.financialEffect.transactionId}
+              </p>
+              <Link
+                className="underline underline-offset-4"
+                to={`/finance/repayments?ledger=${plan.after.ledgerId}&settlement_id=${release.settlementId}`}
+              >
+                Open originating receipt
+              </Link>
+            </div>
+          ))}
+        </section>
+      ) : null}
       <section
         aria-label="Affected Account balances"
         className="flex flex-col gap-2"
@@ -102,7 +142,8 @@ export function CorrectionConsequences({
       <p>
         Original financial facts are restated at the corrected date. Recorded
         future-dated effects apply immediately. No cash repayment, forgiveness,
-        credit use, Income or Balance Adjustment is introduced.
+        credit use, Income or Balance Adjustment is introduced. Released cash
+        remains available as credit from its original receipt.
       </p>
       <Link
         className="underline underline-offset-4"

@@ -245,7 +245,7 @@ export function rejectionMessage(record: FinanceSubmission) {
   if (record.operation === "createFinanceSettlementCorrection")
     return "The cash repayment Correction was rejected without financial effects. Its preview may be stale or the receipt ineligible. Preserve the draft, request a fresh complete preview and explicitly confirm again with a new identity.";
   if (record.operation === "createFinanceAdvanceCorrection")
-    return "The Advance Correction was rejected without financial effects. Preserve the corrected facts, refresh dependencies and the complete preview, then explicitly confirm again. Downstream settlement activity prevents this correction.";
+    return "The Advance Correction was rejected without financial effects. Preserve the corrected facts, refresh dependencies and the complete preview, then explicitly confirm again. Some linked settlement consequences require a separate correction.";
   if (
     record.operation === "createFinanceSettlement" &&
     "kind" in record.body &&

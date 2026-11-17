@@ -21,6 +21,10 @@ import {
   correctionDraft,
   correctionPreview,
   correctionReceipt,
+  cashBefore,
+  cashCorrection,
+  cashCorrectionDraft,
+  cashCorrectionPreview,
 } from "@/test/advance-correction-fixtures";
 let creates = 0;
 beforeEach(() => {
@@ -131,7 +135,7 @@ it("blocks inexact shares without rounding or requesting preview", async () => {
   expect(creates).toBe(0);
 });
 
-it.each(["cashPaid", "forgiven", "creditApplied"] as const)(
+it.each(["forgiven", "creditApplied"] as const)(
   "blocks correction when %s downstream activity exists",
   async (field) => {
     const source = {
@@ -156,11 +160,80 @@ it.each(["cashPaid", "forgiven", "creditApplied"] as const)(
     );
     expect(button).toBeDisabled();
     expect(
-      screen.getByText(/This Advance has downstream settlement activity/),
+      screen.getByText(/This Advance has forgiveness or applied credit/),
     ).toBeVisible();
     expect(creates).toBe(0);
   },
 );
+it("previews and confirms a cash release with receipt-origin credit", async () => {
+  server.use(
+    http.get("*/api/finance/ledgers/:ledger/advances/:id", () =>
+      HttpResponse.json(creates ? cashCorrection.after : cashBefore),
+    ),
+    http.get("*/api/finance/ledgers/:ledger/advances/:id/corrections", () =>
+      HttpResponse.json(creates ? [cashCorrection] : []),
+    ),
+    http.get("*/api/finance/ledgers/:ledger/advance-corrections/:id", () =>
+      HttpResponse.json(cashCorrection),
+    ),
+    http.post(
+      "*/api/finance/ledgers/:ledger/advance-corrections/preview",
+      async ({ request }) => {
+        expect(await request.json()).toEqual(cashCorrectionDraft);
+        return HttpResponse.json(cashCorrectionPreview);
+      },
+    ),
+    http.post(
+      "*/api/finance/ledgers/:ledger/advance-corrections",
+      ({ request }) => {
+        creates++;
+        return HttpResponse.json(
+          correctionReceipt(request.headers.get("Idempotency-Key")!),
+          { status: 201 },
+        );
+      },
+    ),
+  );
+  const { user, dialog } = await open();
+  await user.type(
+    within(dialog).getByLabelText("Reason"),
+    cashCorrectionDraft.reason,
+  );
+  await user.clear(within(dialog).getByLabelText("Owner share"));
+  await user.type(within(dialog).getByLabelText("Owner share"), "10.00");
+  await user.clear(within(dialog).getByLabelText("Participant 1 share"));
+  await user.type(
+    within(dialog).getByLabelText("Participant 1 share"),
+    "15.01",
+  );
+  await user.click(
+    within(dialog).getByRole("button", { name: "Preview Correction" }),
+  );
+  const release = await within(dialog).findByRole("region", {
+    name: "Released cash and credit origins",
+  });
+  expect(within(release).getByText(/Released.*4\.99.*as credit/)).toBeVisible();
+  expect(
+    within(release).getByRole("link", { name: "Open originating receipt" }),
+  ).toHaveAttribute(
+    "href",
+    expect.stringContaining(
+      cashCorrectionPreview.cashReleases![0]!.settlementId,
+    ),
+  );
+  await user.click(
+    within(dialog).getByRole("button", { name: "Confirm Correction" }),
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  const history = await screen.findByRole("region", {
+    name: "Advance Correction history",
+  });
+  expect(
+    await within(history).findByText(/Released.*4\.99.*as credit/),
+  ).toBeVisible();
+});
 it("rejects a foreign-Ledger source before offering correction", async () => {
   server.use(
     http.get("*/api/finance/ledgers/:ledger/advances/:id", () =>

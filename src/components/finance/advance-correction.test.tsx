@@ -2,6 +2,8 @@ import { expect, it } from "vitest";
 import {
   correctionDraft,
   correctionPreview,
+  cashCorrectionDraft,
+  cashCorrectionPreview,
   ledger,
   before,
 } from "@/test/advance-correction-fixtures";
@@ -11,6 +13,20 @@ it("accepts retained zero attribution, original date restatement and exact owner
     parseCorrectionPreview(correctionPreview, ledger.id, correctionDraft).after
       .id,
   ).toBe(before.id);
+});
+it("accepts cash release linked to its receipt and rejects unreconciled credit", () => {
+  expect(
+    parseCorrectionPreview(
+      cashCorrectionPreview,
+      ledger.id,
+      cashCorrectionDraft,
+    ),
+  ).toEqual(cashCorrectionPreview);
+  const invalid = structuredClone(cashCorrectionPreview);
+  invalid.cashReleases![0]!.creditAfter.amount = "4.98";
+  expect(() =>
+    parseCorrectionPreview(invalid, ledger.id, cashCorrectionDraft),
+  ).toThrow();
 });
 it.each([
   "funding",

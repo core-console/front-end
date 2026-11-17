@@ -2314,6 +2314,52 @@ export const getPreviewFinanceAdvanceCorrectionResponseMock = (
       ).map(() => faker.string.uuid()),
     },
   ]),
+  cashReleases: faker.helpers.arrayElement([
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      cashAfter: { amount: "12.34", currency: "CNY" },
+      cashBefore: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      creditAccountId: faker.string.uuid(),
+      creditAfter: { amount: "12.34", currency: "CNY" },
+      creditBefore: { amount: "12.34", currency: "CNY" },
+      financialEffect: {
+        kind: faker.helpers.arrayElement([
+          "expense",
+          "internalTransfer",
+        ] as const),
+        movements: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          accountId: faker.string.uuid(),
+          amount: { amount: "12.34", currency: "CNY" },
+          role: faker.helpers.arrayElement([
+            "source",
+            "destination",
+            "primary",
+          ] as const),
+        })),
+        note: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        ownerExpense: { amount: "12.34", currency: "CNY" },
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionId: faker.string.uuid(),
+      },
+      obligationId: faker.string.uuid(),
+      position: faker.number.int(),
+      receiptAmount: { amount: "12.34", currency: "CNY" },
+      released: { amount: "12.34", currency: "CNY" },
+      settlementId: faker.string.uuid(),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+    })),
+    undefined,
+  ]),
   financialEffectsAfter: Array.from(
     { length: faker.number.int({ min: 1, max: 10 }) },
     (_, i) => i + 1,
@@ -2477,6 +2523,52 @@ export const getPreviewFinanceAdvanceCorrectionResponseMock200 = (
         (_, i) => i + 1,
       ).map(() => faker.string.uuid()),
     },
+  ]),
+  cashReleases: faker.helpers.arrayElement([
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      cashAfter: { amount: "12.34", currency: "CNY" },
+      cashBefore: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      creditAccountId: faker.string.uuid(),
+      creditAfter: { amount: "12.34", currency: "CNY" },
+      creditBefore: { amount: "12.34", currency: "CNY" },
+      financialEffect: {
+        kind: faker.helpers.arrayElement([
+          "expense",
+          "internalTransfer",
+        ] as const),
+        movements: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          accountId: faker.string.uuid(),
+          amount: { amount: "12.34", currency: "CNY" },
+          role: faker.helpers.arrayElement([
+            "source",
+            "destination",
+            "primary",
+          ] as const),
+        })),
+        note: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        ownerExpense: { amount: "12.34", currency: "CNY" },
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionId: faker.string.uuid(),
+      },
+      obligationId: faker.string.uuid(),
+      position: faker.number.int(),
+      receiptAmount: { amount: "12.34", currency: "CNY" },
+      released: { amount: "12.34", currency: "CNY" },
+      settlementId: faker.string.uuid(),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+    })),
+    undefined,
   ]),
   financialEffectsAfter: Array.from(
     { length: faker.number.int({ min: 1, max: 10 }) },
@@ -2769,6 +2861,52 @@ export const getGetFinanceAdvanceCorrectionResponseMock = (
       ).map(() => faker.string.uuid()),
     },
   ]),
+  cashReleases: faker.helpers.arrayElement([
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      cashAfter: { amount: "12.34", currency: "CNY" },
+      cashBefore: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      creditAccountId: faker.string.uuid(),
+      creditAfter: { amount: "12.34", currency: "CNY" },
+      creditBefore: { amount: "12.34", currency: "CNY" },
+      financialEffect: {
+        kind: faker.helpers.arrayElement([
+          "expense",
+          "internalTransfer",
+        ] as const),
+        movements: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          accountId: faker.string.uuid(),
+          amount: { amount: "12.34", currency: "CNY" },
+          role: faker.helpers.arrayElement([
+            "source",
+            "destination",
+            "primary",
+          ] as const),
+        })),
+        note: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        ownerExpense: { amount: "12.34", currency: "CNY" },
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionId: faker.string.uuid(),
+      },
+      obligationId: faker.string.uuid(),
+      position: faker.number.int(),
+      receiptAmount: { amount: "12.34", currency: "CNY" },
+      released: { amount: "12.34", currency: "CNY" },
+      settlementId: faker.string.uuid(),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+    })),
+    undefined,
+  ]),
   confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
   financialEffectsAfter: Array.from(
     { length: faker.number.int({ min: 1, max: 10 }) },
@@ -2937,6 +3075,52 @@ export const getGetFinanceAdvanceCorrectionResponseMock200 = (
         (_, i) => i + 1,
       ).map(() => faker.string.uuid()),
     },
+  ]),
+  cashReleases: faker.helpers.arrayElement([
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 10 }) },
+      (_, i) => i + 1,
+    ).map(() => ({
+      cashAfter: { amount: "12.34", currency: "CNY" },
+      cashBefore: { amount: "12.34", currency: "CNY" },
+      confirmationOrder: faker.number.int(),
+      confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+      creditAccountId: faker.string.uuid(),
+      creditAfter: { amount: "12.34", currency: "CNY" },
+      creditBefore: { amount: "12.34", currency: "CNY" },
+      financialEffect: {
+        kind: faker.helpers.arrayElement([
+          "expense",
+          "internalTransfer",
+        ] as const),
+        movements: Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          accountId: faker.string.uuid(),
+          amount: { amount: "12.34", currency: "CNY" },
+          role: faker.helpers.arrayElement([
+            "source",
+            "destination",
+            "primary",
+          ] as const),
+        })),
+        note: faker.helpers.arrayElement([
+          faker.string.alpha({ length: { min: 10, max: 20 } }),
+          null,
+        ]),
+        ownerExpense: { amount: "12.34", currency: "CNY" },
+        transactionDate: faker.date.past().toISOString().slice(0, 10),
+        transactionId: faker.string.uuid(),
+      },
+      obligationId: faker.string.uuid(),
+      position: faker.number.int(),
+      receiptAmount: { amount: "12.34", currency: "CNY" },
+      released: { amount: "12.34", currency: "CNY" },
+      settlementId: faker.string.uuid(),
+      transactionDate: faker.date.past().toISOString().slice(0, 10),
+    })),
+    undefined,
   ]),
   confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
   financialEffectsAfter: Array.from(
@@ -4118,6 +4302,52 @@ export const getListFinanceAdvanceCorrectionsResponseMock =
           ).map(() => faker.string.uuid()),
         },
       ]),
+      cashReleases: faker.helpers.arrayElement([
+        Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          cashAfter: { amount: "12.34", currency: "CNY" },
+          cashBefore: { amount: "12.34", currency: "CNY" },
+          confirmationOrder: faker.number.int(),
+          confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          creditAccountId: faker.string.uuid(),
+          creditAfter: { amount: "12.34", currency: "CNY" },
+          creditBefore: { amount: "12.34", currency: "CNY" },
+          financialEffect: {
+            kind: faker.helpers.arrayElement([
+              "expense",
+              "internalTransfer",
+            ] as const),
+            movements: Array.from(
+              { length: faker.number.int({ min: 1, max: 10 }) },
+              (_, i) => i + 1,
+            ).map(() => ({
+              accountId: faker.string.uuid(),
+              amount: { amount: "12.34", currency: "CNY" },
+              role: faker.helpers.arrayElement([
+                "source",
+                "destination",
+                "primary",
+              ] as const),
+            })),
+            note: faker.helpers.arrayElement([
+              faker.string.alpha({ length: { min: 10, max: 20 } }),
+              null,
+            ]),
+            ownerExpense: { amount: "12.34", currency: "CNY" },
+            transactionDate: faker.date.past().toISOString().slice(0, 10),
+            transactionId: faker.string.uuid(),
+          },
+          obligationId: faker.string.uuid(),
+          position: faker.number.int(),
+          receiptAmount: { amount: "12.34", currency: "CNY" },
+          released: { amount: "12.34", currency: "CNY" },
+          settlementId: faker.string.uuid(),
+          transactionDate: faker.date.past().toISOString().slice(0, 10),
+        })),
+        undefined,
+      ]),
       confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
       financialEffectsAfter: Array.from(
         { length: faker.number.int({ min: 1, max: 10 }) },
@@ -4294,6 +4524,52 @@ export const getListFinanceAdvanceCorrectionsResponseMock200 =
             (_, i) => i + 1,
           ).map(() => faker.string.uuid()),
         },
+      ]),
+      cashReleases: faker.helpers.arrayElement([
+        Array.from(
+          { length: faker.number.int({ min: 1, max: 10 }) },
+          (_, i) => i + 1,
+        ).map(() => ({
+          cashAfter: { amount: "12.34", currency: "CNY" },
+          cashBefore: { amount: "12.34", currency: "CNY" },
+          confirmationOrder: faker.number.int(),
+          confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
+          creditAccountId: faker.string.uuid(),
+          creditAfter: { amount: "12.34", currency: "CNY" },
+          creditBefore: { amount: "12.34", currency: "CNY" },
+          financialEffect: {
+            kind: faker.helpers.arrayElement([
+              "expense",
+              "internalTransfer",
+            ] as const),
+            movements: Array.from(
+              { length: faker.number.int({ min: 1, max: 10 }) },
+              (_, i) => i + 1,
+            ).map(() => ({
+              accountId: faker.string.uuid(),
+              amount: { amount: "12.34", currency: "CNY" },
+              role: faker.helpers.arrayElement([
+                "source",
+                "destination",
+                "primary",
+              ] as const),
+            })),
+            note: faker.helpers.arrayElement([
+              faker.string.alpha({ length: { min: 10, max: 20 } }),
+              null,
+            ]),
+            ownerExpense: { amount: "12.34", currency: "CNY" },
+            transactionDate: faker.date.past().toISOString().slice(0, 10),
+            transactionId: faker.string.uuid(),
+          },
+          obligationId: faker.string.uuid(),
+          position: faker.number.int(),
+          receiptAmount: { amount: "12.34", currency: "CNY" },
+          released: { amount: "12.34", currency: "CNY" },
+          settlementId: faker.string.uuid(),
+          transactionDate: faker.date.past().toISOString().slice(0, 10),
+        })),
+        undefined,
       ]),
       confirmedAt: faker.date.past().toISOString().slice(0, 19) + "Z",
       financialEffectsAfter: Array.from(
