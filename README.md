@@ -33,7 +33,8 @@ included in the browser build and must never contain secrets.
 
 ## Validation
 
-Run the complete pre-commit validation pipeline with:
+Run focused tests and relevant static checks during development and before
+publishing. GitHub CI runs the complete validation pipeline, also available locally:
 
 ```sh
 pnpm check
@@ -52,9 +53,12 @@ separately when a standalone type check is needed.
 
 The backend-owned OpenAPI document is checked in at `openapi/openapi.json` and
 drives the generated Fetch, TanStack Query, Zod, MSW, and Faker files under
-`src/api/generated/`. Commit and validate backend contract changes first, then
-run `pnpm api:update` to sync the authoritative sibling
+`src/api/generated/`. Generate the backend contract, then run `pnpm api:update`
+to sync the sibling
 `../back-end/openapi/openapi.json` snapshot, lint it, and regenerate the client.
+For local development, that source may be an explicitly identified uncommitted
+backend candidate. Verify the final backend and frontend contract pairing before
+publishing.
 Pass a different source when needed with
 `pnpm api:sync -- <path-to-openapi.json>`, then run `pnpm api:lint` and
 `pnpm api:generate`. `pnpm api:check` verifies the checked-in snapshot and
@@ -131,7 +135,7 @@ is not the production activation gate. See the
 [T09 integration note](docs/finance-adjustment-submission-t09.md)
 for cumulative contract, Money, lifecycle, and browser qualification facts.
 
-Synchronize future committed backend contract changes through the existing
+Synchronize future backend contract changes through the existing
 `pnpm api:update` workflow described above. Do not hand-edit the snapshot or
 generated files, or create a parallel handwritten Finance client or invented
 contract. Finance product routes and UI remain separate implementation work.

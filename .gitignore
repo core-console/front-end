@@ -19,6 +19,7 @@ dist-ssr
 !.env.*.example
 
 # Tool caches and temporary files
+.agent/
 coverage
 .vitest
 .cache

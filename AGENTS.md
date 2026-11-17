@@ -19,8 +19,10 @@ Dependency lifecycle scripts are denied by default. Approve only reviewed packag
 - `pnpm test` runs Vitest in watch mode; `pnpm test:run` runs once for CI.
 - `pnpm lint`, `pnpm typecheck`, and `pnpm format:check` run Oxlint, TypeScript, and Prettier checks independently.
 - `pnpm build` creates the Vite production bundle in `dist/`; it does not run TypeScript separately.
-- `pnpm check` runs API lint and drift checks, formatting, linting, type-checking, Vitest, and the production build; use it before submitting changes.
+- `pnpm check` runs API lint and drift checks, formatting, linting, type-checking, Vitest, and the production build; CI runs it for pull requests and main pushes.
 - `pnpm e2e:install` explicitly installs Chromium; `pnpm e2e` runs the Playwright smoke suite against a production build served by Vite preview.
+
+For ordinary changes, run focused tests and relevant static checks against the final source content before publishing. CI runs the complete checks; a commit alone does not require repeating local validation on unchanged content. For browser test infrastructure changes, also run the relevant cleanup and regression tests.
 
 ## Coding Style & Naming Conventions
 
@@ -65,7 +67,7 @@ Do not use temporary workarounds to cross these responsibility boundaries. New a
 
 ## Commit & Pull Request Guidelines
 
-Commit messages must follow the Conventional Commits rules defined by the user-level `AGENTS.md`; do not maintain a separate repository-specific message format here. Pull requests should explain the change and verification performed, link relevant issues, and include before/after screenshots for visible UI changes. Keep each PR focused and ensure `pnpm check` passes.
+Commit messages must follow the Conventional Commits rules defined by the user-level `AGENTS.md`; do not maintain a separate repository-specific message format here. Pull requests should explain the change and verification performed, link relevant issues, and include before/after screenshots for visible UI changes. Keep each PR focused and verify CI passes.
 
 ## Configuration & Security
 
@@ -74,7 +76,7 @@ Do not commit secrets. Environment files are ignored; document required variable
 ## Change approval boundary
 
 - Do not commit or push unless the user explicitly approves it in the current conversation.
-- Implementation tasks stop after validation and report `READY_FOR_REVIEW`.
+- Without authorization to commit, leave the changes uncommitted and report the checks performed.
 - Repository instructions take precedence over conflicting workflow defaults.
 - Do not expand the approved scope while addressing review findings.
 
