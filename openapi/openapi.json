@@ -4306,6 +4306,12 @@
             "title": "Confirmedat",
             "type": "string"
           },
+          "creditOrigin": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/CreditOriginResponse" },
+              { "type": "null" }
+            ]
+          },
           "id": { "format": "uuid", "title": "Id", "type": "string" },
           "incomeTransactionId": {
             "format": "uuid",
@@ -5425,6 +5431,12 @@
             "format": "date-time",
             "title": "Confirmedat",
             "type": "string"
+          },
+          "creditOrigin": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/CreditOriginResponse" },
+              { "type": "null" }
+            ]
           },
           "id": { "format": "uuid", "title": "Id", "type": "string" },
           "incomeTransactionId": {

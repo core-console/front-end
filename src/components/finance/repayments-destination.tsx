@@ -90,6 +90,9 @@ function SettlementDetail({
     (account) =>
       item && "payingAccountId" in item && account.id === item.payingAccountId,
   );
+  const creditOrigin =
+    item && "creditOrigin" in item ? item.creditOrigin : undefined;
+  const hasIncome = item && "acceptedSurplus" in item;
   return (
     <section
       aria-label="Confirmed Settlement"
@@ -225,19 +228,21 @@ function SettlementDetail({
                     ],
                   ]
                 : []),
-              ...("creditOrigin" in item
+              ...(creditOrigin
                 ? [
                     [
-                      "Retained credit Liability",
-                      formatFinanceMoney(item.creditOrigin.amount),
+                      hasIncome
+                        ? "Released Credit"
+                        : "Retained credit Liability",
+                      formatFinanceMoney(creditOrigin.amount),
                     ],
                     [
                       "Available from this receipt",
-                      formatFinanceMoney(item.creditOrigin.available),
+                      formatFinanceMoney(creditOrigin.available),
                     ],
                     [
                       "Credit Liability Account",
-                      item.creditOrigin.liabilityAccountId,
+                      creditOrigin.liabilityAccountId,
                     ],
                   ]
                 : []),
@@ -271,18 +276,13 @@ function SettlementDetail({
               </>
             )}
           </p>
-          {"creditOrigin" in item ? (
-            <p>
-              Retained credit is owed to the Participant. The full receipt is
-              preserved; no Income or Expense is created.
-            </p>
+          {creditOrigin ? (
+            <p>Credit from this receipt is owed to the Participant.</p>
           ) : null}
           {"acceptedSurplus" in item ? (
             <p>
-              Accepted surplus increases Income and creates no Participant
-              credit. Principal remains neutral to Income and Expense; the full
-              cash receipt is preserved. Open the Income Transaction for its
-              Category classification.
+              Accepted surplus increases Income. Open the Income Transaction for
+              its Category classification.
             </p>
           ) : null}
           {"selectedObligationIds" in item ? (
@@ -320,15 +320,17 @@ function SettlementDetail({
               {"incomeTransactionId" in item &&
               transactionId === item.incomeTransactionId
                 ? "View accepted Income Transaction"
-                : "kind" in item && item.kind === "creditReturn"
-                  ? "View linked credit return Internal Transfer"
-                  : "kind" in item && item.kind === "creditApplication"
-                    ? "View linked credit application Internal Transfer"
-                    : "kind" in item && item.kind === "combined"
-                      ? "View linked cash / Expense Transaction"
-                      : "kind" in item
-                        ? "View linked Expense Transaction"
-                        : "View linked Transaction"}{" "}
+                : hasIncome && transactionId === creditOrigin?.transactionId
+                  ? "View released Credit Internal Transfer"
+                  : "kind" in item && item.kind === "creditReturn"
+                    ? "View linked credit return Internal Transfer"
+                    : "kind" in item && item.kind === "creditApplication"
+                      ? "View linked credit application Internal Transfer"
+                      : "kind" in item && item.kind === "combined"
+                        ? "View linked cash / Expense Transaction"
+                        : "kind" in item
+                          ? "View linked Expense Transaction"
+                          : "View linked Transaction"}{" "}
               · {transactionId}
             </Link>
           ))}

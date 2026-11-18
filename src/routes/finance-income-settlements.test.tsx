@@ -482,6 +482,100 @@ it("accepts a whole unallocated receipt as uncategorized Income into a Liability
   await waitFor(() => expect(source).toHaveTextContent("50.00 CNY"));
 });
 
+it("shows the applied cash, accepted Income and released Credit on the same receipt", async () => {
+  const transferId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+  const allocation = incomeSettlement.allocations[0]!;
+  server.use(
+    http.get("*/api/finance/ledgers/:ledger/settlements/:id", () =>
+      HttpResponse.json({
+        ...incomeSettlement,
+        allocations: [{ ...allocation, cashPaid: money("70.00") }],
+        transactionIds: [
+          incomeSettlement.transactionIds[0]!,
+          incomeSettlement.incomeTransactionId,
+          transferId,
+        ],
+        creditOrigin: {
+          settlementId: incomeSettlement.id,
+          ledgerId: ledger.id,
+          participantId: person.id,
+          receivingAccountId: incomeSettlement.receivingAccountId,
+          liabilityAccountId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+          transactionId: transferId,
+          transactionDate: incomeSettlement.transactionDate,
+          confirmedAt: incomeSettlement.confirmedAt,
+          confirmationOrder: incomeSettlement.confirmationOrder,
+          amount: money("30.00"),
+          available: money("30.00"),
+        },
+      }),
+    ),
+  );
+  renderRoute(
+    `/finance/repayments?ledger=${ledger.id}&participant_id=${person.id}&settlement_id=${incomeSettlement.id}`,
+  );
+  const receipt = within(
+    await screen.findByRole("region", { name: "Confirmed Settlement" }),
+  );
+  expect(await receipt.findByText("102.00 CNY")).toBeVisible();
+  expect(receipt.getByRole("cell", { name: "70.00 CNY" })).toBeVisible();
+  expect(receipt.getByText("2.00 CNY")).toBeVisible();
+  expect(
+    receipt.getByText("Released Credit").nextElementSibling,
+  ).toHaveTextContent("30.00 CNY");
+  expect(
+    receipt.getByRole("link", {
+      name: /View released Credit Internal Transfer/,
+    }),
+  ).toHaveAttribute(
+    "href",
+    `/finance/transactions/${transferId}?ledger=${ledger.id}`,
+  );
+  expect(
+    receipt.getByRole("link", { name: /View accepted Income Transaction/ }),
+  ).toHaveAttribute(
+    "href",
+    `/finance/transactions/${incomeSettlement.incomeTransactionId}?ledger=${ledger.id}`,
+  );
+});
+
+it("shows accepted Income after retained Credit is superseded", async () => {
+  const restatementId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+  server.use(
+    http.get("*/api/finance/ledgers/:ledger/settlements/:id", () =>
+      HttpResponse.json({
+        ...incomeSettlement,
+        transactionIds: [...incomeSettlement.transactionIds, restatementId],
+      }),
+    ),
+  );
+  renderRoute(
+    `/finance/repayments?ledger=${ledger.id}&participant_id=${person.id}&settlement_id=${incomeSettlement.id}`,
+  );
+  const receipt = within(
+    await screen.findByRole("region", { name: "Confirmed Settlement" }),
+  );
+  expect(await receipt.findByText("102.00 CNY")).toBeVisible();
+  expect(
+    receipt.getByText("Accepted surplus Income").nextElementSibling,
+  ).toHaveTextContent("2.00 CNY");
+  expect(receipt.queryByText("Released Credit")).not.toBeInTheDocument();
+  expect(
+    receipt.queryByText("Available from this receipt"),
+  ).not.toBeInTheDocument();
+  expect(
+    receipt.queryByRole("link", { name: /View released Credit/ }),
+  ).not.toBeInTheDocument();
+  expect(
+    receipt.getByRole("link", {
+      name: `View linked Transaction · ${restatementId}`,
+    }),
+  ).toHaveAttribute(
+    "href",
+    `/finance/transactions/${restatementId}?ledger=${ledger.id}`,
+  );
+});
+
 it("rejects an Income source whose linked Income Transaction is outside its retained transaction list", async () => {
   server.use(
     http.get("*/api/finance/ledgers/:ledger/settlements/:id", () =>

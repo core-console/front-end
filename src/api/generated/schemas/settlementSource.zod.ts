@@ -296,6 +296,34 @@ export const SettlementSource = zod.union([
       .describe("Closed public projection of exact Finance Money."),
     confirmationOrder: zod.int(),
     confirmedAt: zod.iso.datetime({ offset: true }),
+    creditOrigin: zod
+      .union([
+        zod.strictObject({
+          amount: zod
+            .strictObject({
+              amount: zod.string(),
+              currency: zod.enum(["CNY", "JPY", "USD"]),
+            })
+            .describe("Closed public projection of exact Finance Money."),
+          available: zod
+            .strictObject({
+              amount: zod.string(),
+              currency: zod.enum(["CNY", "JPY", "USD"]),
+            })
+            .describe("Closed public projection of exact Finance Money."),
+          confirmationOrder: zod.int(),
+          confirmedAt: zod.iso.datetime({ offset: true }),
+          ledgerId: zod.uuid(),
+          liabilityAccountId: zod.uuid(),
+          participantId: zod.uuid(),
+          receivingAccountId: zod.uuid(),
+          settlementId: zod.uuid(),
+          transactionDate: zod.iso.date(),
+          transactionId: zod.uuid(),
+        }),
+        zod.null(),
+      ])
+      .optional(),
     id: zod.uuid(),
     incomeTransactionId: zod.uuid(),
     ledgerId: zod.uuid(),
@@ -440,6 +468,34 @@ export const SettlementSource = zod.union([
       .describe("Closed public projection of exact Finance Money."),
     confirmationOrder: zod.int(),
     confirmedAt: zod.iso.datetime({ offset: true }),
+    creditOrigin: zod
+      .union([
+        zod.strictObject({
+          amount: zod
+            .strictObject({
+              amount: zod.string(),
+              currency: zod.enum(["CNY", "JPY", "USD"]),
+            })
+            .describe("Closed public projection of exact Finance Money."),
+          available: zod
+            .strictObject({
+              amount: zod.string(),
+              currency: zod.enum(["CNY", "JPY", "USD"]),
+            })
+            .describe("Closed public projection of exact Finance Money."),
+          confirmationOrder: zod.int(),
+          confirmedAt: zod.iso.datetime({ offset: true }),
+          ledgerId: zod.uuid(),
+          liabilityAccountId: zod.uuid(),
+          participantId: zod.uuid(),
+          receivingAccountId: zod.uuid(),
+          settlementId: zod.uuid(),
+          transactionDate: zod.iso.date(),
+          transactionId: zod.uuid(),
+        }),
+        zod.null(),
+      ])
+      .optional(),
     id: zod.uuid(),
     incomeTransactionId: zod.uuid(),
     ledgerId: zod.uuid(),

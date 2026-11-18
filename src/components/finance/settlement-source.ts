@@ -73,7 +73,7 @@ export const settlementSourceSchema = z
   )
   .refine(
     (item) =>
-      !("creditOrigin" in item) ||
+      !("creditOrigin" in item && item.creditOrigin) ||
       (item.creditOrigin.ledgerId === item.ledgerId &&
         item.creditOrigin.participantId === item.participantId &&
         item.creditOrigin.settlementId === item.id &&

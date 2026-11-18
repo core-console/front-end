@@ -11,7 +11,7 @@ async function read(request: APIRequestContext, path: string) {
   return response.json();
 }
 
-test("real backend and browser retain a released receipt as credit", async ({
+test("real backend and browser show accepted Income and released Credit on one receipt", async ({
   page,
   context,
   request,
@@ -55,9 +55,9 @@ test("real backend and browser retain a released receipt as credit", async ({
     fundingAccountId: account,
     participantId: participant,
     transactionDate: "2026-10-20",
-    amount: money("200.00"),
+    amount: money("100.00"),
     ownerShare: money("0.00"),
-    participantShare: money("200.00"),
+    participantShare: money("100.00"),
     note: null,
   };
   const advancePlan = await preview(`${base}/advances/preview`, advanceDraft);
@@ -65,23 +65,21 @@ test("real backend and browser retain a released receipt as credit", async ({
     ...advanceDraft,
     previewToken: advancePlan.previewToken,
   });
-  const receipts = [];
-  for (const amount of ["50.00", "30.00"]) {
-    const draft = {
-      participantId: participant,
-      receivingAccountId: account,
-      transactionDate: "2026-10-22",
-      amount: money(amount),
-      note: null,
-    };
-    const plan = await preview(`${base}/settlements/preview`, draft);
-    receipts.push(
-      await create(`${base}/settlements`, {
-        ...draft,
-        previewToken: plan.previewToken,
-      }),
-    );
-  }
+  const draft = {
+    participantId: participant,
+    receivingAccountId: account,
+    transactionDate: "2026-10-22",
+    amount: money("102.00"),
+    note: null,
+    excessDisposition: "acceptIncome",
+    categoryAllocations: [{ amount: money("2.00") }],
+  };
+  const plan = await preview(`${base}/settlements/preview`, draft);
+  const receiptId = await create(
+    `${base}/settlements`,
+    { ...draft, previewToken: plan.previewToken },
+    "3",
+  );
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
@@ -99,27 +97,29 @@ test("real backend and browser retain a released receipt as credit", async ({
   await page.getByRole("button", { name: "Correct Advance" }).click();
   const dialog = page.getByRole("dialog", { name: "Correct Advance" });
   await dialog.getByLabel("Reason").fill("Correct original participant share");
-  await dialog.getByLabel("Owner share").fill("130.00");
+  await dialog.getByLabel("Owner share").fill("30.00");
   await dialog.getByLabel("Participant 1 share").fill("70.00");
   await dialog.getByRole("button", { name: "Preview Correction" }).click();
   const releases = dialog.getByRole("region", {
     name: "Released cash and credit origins",
   });
-  await expect(releases).toContainText("10.00");
+  await expect(releases).toContainText("30.00");
   await expect(
     releases.getByRole("link", { name: "Open originating receipt" }),
-  ).toHaveAttribute("href", new RegExp(receipts[1]!));
+  ).toHaveAttribute("href", new RegExp(receiptId));
   await dialog.getByRole("button", { name: "Confirm Correction" }).click();
   await expect(dialog).toBeHidden();
-  await expect(
-    page.getByRole("region", { name: "Advance Correction history" }),
-  ).toContainText("10.00");
+  const correctionHistory = page.getByRole("region", {
+    name: "Advance Correction history",
+  });
+  await expect(correctionHistory).toContainText("30.00");
   const history = await read(
     request,
     `${base}/advances/${advance}/corrections`,
   );
   expect(history).toHaveLength(1);
-  expect(history[0].cashReleases[0].settlementId).toBe(receipts[1]);
+  const release = history[0].cashReleases[0];
+  expect(release.settlementId).toBe(receiptId);
   expect(history[0].after.obligations[0].cashPaid).toEqual(money("70.00"));
   expect(history[0].after.obligations[0].remaining).toEqual(money("0.00"));
   const positions = await read(
@@ -127,13 +127,30 @@ test("real backend and browser retain a released receipt as credit", async ({
     `${base}/participants/${participant}/positions`,
   );
   expect(positions[0].outstandingReceivables).toEqual(money("0.00"));
-  expect(positions[0].availableCredits).toEqual(money("10.00"));
+  expect(positions[0].availableCredits).toEqual(money("30.00"));
   const accountRows = await read(request, `${base}/accounts`);
   expect(
     accountRows.find((a: { id: string }) => a.id === account).currentBalance,
-  ).toEqual(money("880.00"));
-  expect(
-    (await read(request, `${base}/settlements/${receipts[1]}`)).amount,
-  ).toEqual(money("30.00"));
+  ).toEqual(money("1002.00"));
+  await correctionHistory
+    .getByRole("link", { name: "Open originating receipt" })
+    .click();
+  const receipt = page.getByRole("region", { name: "Confirmed Settlement" });
+  await expect(receipt.getByText("102.00 CNY", { exact: true })).toBeVisible();
+  await expect(receipt.getByRole("cell", { name: "70.00 CNY" })).toBeVisible();
+  await expect(
+    receipt.getByRole("cell", { name: "0.00 CNY", exact: true }),
+  ).toBeVisible();
+  await expect(receipt.getByText("2.00 CNY", { exact: true })).toBeVisible();
+  await expect(
+    receipt.getByText("Released Credit", { exact: true }).locator(".."),
+  ).toContainText("30.00 CNY");
+  const creditTransfer = receipt.getByRole("link", {
+    name: /View released Credit Internal Transfer/,
+  });
+  await expect(creditTransfer).toHaveAttribute(
+    "href",
+    `/finance/transactions/${release.financialEffect.transactionId}?ledger=${ledger}`,
+  );
   expect(errors).toEqual([]);
 });
