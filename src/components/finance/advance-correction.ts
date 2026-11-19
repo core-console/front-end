@@ -47,10 +47,8 @@ const sum = (values: string[]) =>
 const zero = (value: string) => correctionEqual(value, "0");
 const signed = (value: string) => /^-?\d+(?:\.\d+)?$/.test(value);
 export function correctionEligible(source: AdvanceSource) {
-  return advanceObligations(source).every((o) =>
-    [o.forgiven, o.creditApplied].every(
-      (m) => signed(m.amount) && zero(m.amount),
-    ),
+  return advanceObligations(source).every(
+    (o) => signed(o.creditApplied.amount) && zero(o.creditApplied.amount),
   );
 }
 function validPlan(plan: AdvanceCorrectionPreview, ledgerId: string) {
@@ -285,6 +283,60 @@ function validPlan(plan: AdvanceCorrectionPreview, ledgerId: string) {
     })
   )
     return false;
+  const restatements = plan.forgivenessRestatements ?? [];
+  if (
+    !unique(
+      restatements.map((r) => JSON.stringify([r.settlementId, r.position])),
+    ) ||
+    !unique(restatements.map((r) => r.expenseTransactionId)) ||
+    !restatements.every(
+      (r) =>
+        identities.some(
+          (o) => o.id === r.obligationId && o.sourceDate <= r.transactionDate,
+        ) &&
+        r.position > 0 &&
+        r.confirmationOrder > 0 &&
+        [r.originalForgiven, r.forgivenBefore, r.forgivenAfter].every((m) =>
+          money(m, true),
+        ) &&
+        !subtractExactDecimals(
+          r.originalForgiven.amount,
+          r.forgivenBefore.amount,
+        ).startsWith("-") &&
+        subtractExactDecimals(
+          r.forgivenAfter.amount,
+          r.forgivenBefore.amount,
+        ).startsWith("-"),
+    ) ||
+    !plan.after.obligations.every((after) => {
+      const old = identities.find((o) => o.id === after.id);
+      const forgivenessReduction = subtractExactDecimals(
+        old?.forgiven.amount ?? "0",
+        after.forgiven.amount,
+      );
+      const cashReduced =
+        old && !correctionEqual(old.cashPaid.amount, after.cashPaid.amount);
+      return (
+        correctionEqual(
+          forgivenessReduction,
+          sum(
+            restatements
+              .filter((r) => r.obligationId === after.id)
+              .map((r) =>
+                subtractExactDecimals(
+                  r.forgivenBefore.amount,
+                  r.forgivenAfter.amount,
+                ),
+              ),
+          ),
+        ) &&
+        (!cashReduced || zero(after.forgiven.amount)) &&
+        ((zero(forgivenessReduction) && !cashReduced) ||
+          zero(after.remaining.amount))
+      );
+    })
+  )
+    return false;
   const delta = new Map<string, string>();
   for (const [sign, effects] of [
     [-1, plan.financialEffectsBefore],
@@ -298,6 +350,19 @@ function validPlan(plan: AdvanceCorrectionPreview, ledgerId: string) {
             : subtractExactDecimals("0", m.amount.amount);
         delta.set(m.accountId, sum([delta.get(m.accountId) ?? "0", v]));
       }
+  for (const restatement of restatements) {
+    const obligation = identities.find(
+      (o) => o.id === restatement.obligationId,
+    )!;
+    const reduction = subtractExactDecimals(
+      restatement.forgivenBefore.amount,
+      restatement.forgivenAfter.amount,
+    );
+    delta.set(
+      obligation.receivableAccountId,
+      sum([delta.get(obligation.receivableAccountId) ?? "0", reduction]),
+    );
+  }
   for (const release of releases)
     for (const movement of release.financialEffect.movements)
       delta.set(

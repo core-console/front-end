@@ -21,6 +21,17 @@ export const CombinedSettlementPreview = zod.strictObject({
             currency: zod.enum(["CNY", "JPY", "USD"]),
           })
           .describe("Closed public projection of exact Finance Money."),
+        effectiveCashPaid: zod
+          .union([
+            zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            zod.null(),
+          ])
+          .optional(),
         kind: zod
           .literal("cash")
           .default(combinedSettlementPreviewAllocationsItemOneKindDefault)
@@ -37,6 +48,17 @@ export const CombinedSettlementPreview = zod.strictObject({
       }),
       zod.strictObject({
         advanceId: zod.uuid(),
+        effectiveForgiven: zod
+          .union([
+            zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            zod.null(),
+          ])
+          .optional(),
         forgiven: zod
           .strictObject({
             amount: zod.string(),

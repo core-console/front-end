@@ -14,7 +14,20 @@ import {
 
 import { validCreditApplicationComposition } from "./credit-application";
 import { validCreditReturnComposition } from "./credit-return";
-import { validCombinedComposition } from "./combined-settlement";
+import { equalDecimal, validCombinedComposition } from "./combined-settlement";
+import { subtractExactDecimals } from "./finance-decimal";
+
+function validEffectiveAmount(
+  original: { amount: string; currency: string },
+  effective?: { amount: string; currency: string } | null,
+) {
+  return (
+    !effective ||
+    (effective.currency === original.currency &&
+      /^\d+(?:\.\d+)?$/.test(effective.amount) &&
+      !subtractExactDecimals(original.amount, effective.amount).startsWith("-"))
+  );
+}
 
 export const settlementSourceSchema = z
   .union([
@@ -40,6 +53,27 @@ export const settlementSourceSchema = z
           item,
           item.selectedObligationIds,
           item.transactionDate,
+        ) &&
+        item.allocations.every((row) =>
+          "forgiven" in row
+            ? validEffectiveAmount(row.forgiven, row.effectiveForgiven)
+            : validEffectiveAmount(row.cashPaid, row.effectiveCashPaid),
+        ) &&
+        equalDecimal(
+          item.allocations.reduce(
+            (released, row) =>
+              "effectiveCashPaid" in row && row.effectiveCashPaid
+                ? subtractExactDecimals(
+                    released,
+                    subtractExactDecimals(
+                      row.effectiveCashPaid.amount,
+                      row.cashPaid.amount,
+                    ),
+                  )
+                : released,
+            "0",
+          ),
+          item.creditOrigin?.amount.amount ?? "0",
         ),
       "Combined Allocations do not match retained cash, forgiveness or selected scope.",
     ),
@@ -53,6 +87,7 @@ export const settlementSourceSchema = z
             item.selectedObligationIds.includes(row.obligationId) &&
             row.sourceDate <= item.transactionDate &&
             row.forgiven.currency === item.amount.currency &&
+            validEffectiveAmount(row.forgiven, row.effectiveForgiven) &&
             row.remainingAfter.currency === item.amount.currency,
         ),
       "Forgiveness Allocations do not match the retained selected scope.",

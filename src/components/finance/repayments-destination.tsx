@@ -93,6 +93,11 @@ function SettlementDetail({
   const creditOrigin =
     item && "creditOrigin" in item ? item.creditOrigin : undefined;
   const hasIncome = item && "acceptedSurplus" in item;
+  // Combined Settlements append their Credit releases starting with the origin transfer.
+  const firstCombinedCreditTransfer =
+    item && "kind" in item && item.kind === "combined" && creditOrigin
+      ? item.transactionIds.indexOf(creditOrigin.transactionId)
+      : -1;
   return (
     <section
       aria-label="Confirmed Settlement"
@@ -204,7 +209,7 @@ function SettlementDetail({
               ],
               [
                 "kind" in item && item.kind === "forgiveness"
-                  ? "Forgiven principal / Expense"
+                  ? "Originally forgiven"
                   : "kind" in item && item.kind === "creditReturn"
                     ? "Credit returned / Account outflow"
                     : "kind" in item && item.kind === "creditApplication"
@@ -215,7 +220,7 @@ function SettlementDetail({
               ...("forgivenessAmount" in item
                 ? [
                     [
-                      "Forgiven principal / Expense",
+                      "Originally forgiven",
                       formatFinanceMoney(item.forgivenessAmount),
                     ],
                   ]
@@ -261,10 +266,8 @@ function SettlementDetail({
               "Actual paying Account outflow and matching credit Liability reduction. No Income, Expense or receivable change. Origin consumption retains its confirmed order and balances."
             ) : "kind" in item && item.kind === "creditApplication" ? (
               "Receivables and credit Liability decrease equally. No new cash, Income, Expense or forgiveness. Allocations and origin consumption retain their confirmed order and balances."
-            ) : "kind" in item && item.kind === "combined" ? (
-              "Cash and forgiveness are retained separately in confirmed order: cash first, then explicit forgiveness with matching Expense. Income and available credit are unchanged. Later Advances do not redistribute this Settlement."
             ) : "kind" in item ? (
-              "Retained forgiveness Allocations and remaining amounts at confirmation. No cash receipt or payment is recorded. Expense increases by the forgiven principal. Income and available credit remain unchanged."
+              "Allocations follow their original confirmation order. When an Advance Correction changes an Allocation, the table shows its effective and original amounts. Effective forgiveness equals the Forgiveness Expense."
             ) : (
               <>
                 Effective cash Allocations and retained remaining projections
@@ -311,7 +314,7 @@ function SettlementDetail({
               participantId={item.participantId}
             />
           ) : null}
-          {item.transactionIds.map((transactionId) => (
+          {item.transactionIds.map((transactionId, index) => (
             <Link
               key={transactionId}
               className="underline underline-offset-4"
@@ -320,7 +323,10 @@ function SettlementDetail({
               {"incomeTransactionId" in item &&
               transactionId === item.incomeTransactionId
                 ? "View accepted Income Transaction"
-                : hasIncome && transactionId === creditOrigin?.transactionId
+                : (hasIncome &&
+                      transactionId === creditOrigin?.transactionId) ||
+                    (firstCombinedCreditTransfer >= 0 &&
+                      index >= firstCombinedCreditTransfer)
                   ? "View released Credit Internal Transfer"
                   : "kind" in item && item.kind === "creditReturn"
                     ? "View linked credit return Internal Transfer"

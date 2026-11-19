@@ -89,12 +89,31 @@ export function SettlementAllocations({
             ) : null}
             {hasCash ? (
               <TableCell className="tabular-nums">
-                {"cashPaid" in item ? formatFinanceMoney(item.cashPaid) : "—"}
+                {"cashPaid" in item
+                  ? formatFinanceMoney(
+                      ("effectiveCashPaid" in item && item.effectiveCashPaid) ||
+                        item.cashPaid,
+                    )
+                  : "—"}
+                {"cashPaid" in item &&
+                "effectiveCashPaid" in item &&
+                item.effectiveCashPaid ? (
+                  <p className="text-xs text-muted-foreground">
+                    Originally {formatFinanceMoney(item.cashPaid)}
+                  </p>
+                ) : null}
               </TableCell>
             ) : null}
             {hasForgiveness ? (
               <TableCell className="tabular-nums">
-                {"forgiven" in item ? formatFinanceMoney(item.forgiven) : "—"}
+                {"forgiven" in item
+                  ? formatFinanceMoney(item.effectiveForgiven ?? item.forgiven)
+                  : "—"}
+                {"forgiven" in item && item.effectiveForgiven ? (
+                  <p className="text-xs text-muted-foreground">
+                    Originally {formatFinanceMoney(item.forgiven)}
+                  </p>
+                ) : null}
               </TableCell>
             ) : null}
             <TableCell className="tabular-nums">

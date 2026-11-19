@@ -110,6 +110,7 @@ export * from "./correctionAccountEffect.zod.ts";
 export * from "./correctionCashAllocation.zod.ts";
 export * from "./correctionCashRelease.zod.ts";
 export * from "./correctionFinancialEffect.zod.ts";
+export * from "./correctionForgivenessRestatement.zod.ts";
 export * from "./correctionMovement.zod.ts";
 export * from "./createBalanceAdjustmentBody.zod.ts";
 export * from "./createBalanceAdjustmentHeaders.zod.ts";

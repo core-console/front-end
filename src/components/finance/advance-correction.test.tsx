@@ -3,6 +3,7 @@ import {
   correctionDraft,
   correctionPreview,
   cashCorrectionDraft,
+  correctionMoney,
   cashCorrectionPreview,
   ledger,
   before,
@@ -55,5 +56,35 @@ it.each([
   if (kind === "identity") plan.after.obligations[0]!.id = crypto.randomUUID();
   expect(() =>
     parseCorrectionPreview(plan, ledger.id, correctionDraft),
+  ).toThrow();
+});
+
+it("requires a matching Expense restatement when reducing effective forgiveness", () => {
+  const plan = structuredClone(cashCorrectionPreview);
+  if (!("obligation" in plan.before))
+    throw new Error("Expected single Advance");
+  plan.before.obligation.forgiven = correctionMoney("5.01");
+  plan.before.obligation.remaining = correctionMoney("0.00");
+  plan.accountEffects[1]!.balanceBefore = correctionMoney("0.00");
+  plan.forgivenessRestatements = [
+    {
+      settlementId: "01234567-890a-4bcd-8def-0123456789ab",
+      confirmationOrder: 8,
+      position: 1,
+      obligationId: before.obligation.id,
+      transactionDate: "2027-01-03",
+      expenseTransactionId: "12345678-90ab-4cde-8f00-1234567890ab",
+      originalForgiven: correctionMoney("5.01"),
+      forgivenBefore: correctionMoney("5.01"),
+      forgivenAfter: correctionMoney("0.00"),
+    },
+  ];
+
+  expect(parseCorrectionPreview(plan, ledger.id, cashCorrectionDraft)).toEqual(
+    plan,
+  );
+  plan.forgivenessRestatements[0]!.forgivenAfter = correctionMoney("0.01");
+  expect(() =>
+    parseCorrectionPreview(plan, ledger.id, cashCorrectionDraft),
   ).toThrow();
 });

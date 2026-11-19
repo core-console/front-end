@@ -337,6 +337,36 @@ export const AdvanceCorrectionResponse = zod.strictObject({
       transactionId: zod.uuid(),
     }),
   ),
+  forgivenessRestatements: zod
+    .array(
+      zod.strictObject({
+        confirmationOrder: zod.int(),
+        expenseTransactionId: zod.uuid(),
+        forgivenAfter: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        forgivenBefore: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        obligationId: zod.uuid(),
+        originalForgiven: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        position: zod.int(),
+        settlementId: zod.uuid(),
+        transactionDate: zod.iso.date(),
+      }),
+    )
+    .optional(),
   fundingChanged: zod.boolean(),
   id: zod.uuid(),
   ledgerId: zod.uuid(),

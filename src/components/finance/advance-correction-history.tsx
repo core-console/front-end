@@ -1,39 +1,22 @@
-import { useListFinanceAdvanceCorrections } from "@/api/generated/core-console";
+import type { UseQueryResult } from "@tanstack/react-query";
 import type {
   AccountResponse,
+  AdvanceCorrectionResponse,
   ParticipantResponse,
 } from "@/api/generated/schemas";
-import { parseCorrection } from "./advance-correction";
 import { CorrectionConsequences } from "./correction-consequences";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 export function AdvanceCorrectionHistory({
-  ledgerId,
-  advanceId,
+  query,
   accounts,
   participants,
 }: {
-  ledgerId: string;
-  advanceId: string;
+  query: UseQueryResult<AdvanceCorrectionResponse[]>;
   accounts: AccountResponse[];
   participants: ParticipantResponse[];
 }) {
-  const query = useListFinanceAdvanceCorrections(ledgerId, advanceId, {
-    query: {
-      select: (response) => {
-        const rows = response.data.map((data) =>
-          parseCorrection(data, ledgerId, advanceId),
-        );
-        if (
-          new Set(rows.map((r) => r.id)).size !== rows.length ||
-          rows.some((r, i) => r.revision !== i + 1)
-        )
-          throw new Error("Correction history order is invalid.");
-        return rows;
-      },
-    },
-  });
   return (
     <section
       aria-label="Advance Correction history"

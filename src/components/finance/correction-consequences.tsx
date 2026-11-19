@@ -87,6 +87,36 @@ export function CorrectionConsequences({
           ))}
         </section>
       ))}
+      {(plan.forgivenessRestatements ?? []).length > 0 ? (
+        <section
+          aria-label="Forgiveness Expense restatements"
+          className="flex flex-col gap-2 rounded-md border p-3"
+        >
+          <h4 className="font-semibold">Forgiveness Expense restatements</h4>
+          {plan.forgivenessRestatements?.map((item) => (
+            <div
+              key={item.expenseTransactionId}
+              className="flex flex-col gap-1"
+            >
+              <p>
+                Forgiveness Expense on {item.transactionDate} ·{" "}
+                {money(item.forgivenBefore)} → {money(item.forgivenAfter)}
+              </p>
+              <p>
+                Originally forgiven {money(item.originalForgiven)} ·
+                Confirmation {item.confirmationOrder} · Allocation{" "}
+                {item.position}
+              </p>
+              <Link
+                className="underline underline-offset-4"
+                to={`/finance/repayments?ledger=${plan.after.ledgerId}&settlement_id=${item.settlementId}`}
+              >
+                Open originating Settlement
+              </Link>
+            </div>
+          ))}
+        </section>
+      ) : null}
       {(plan.cashReleases ?? []).length > 0 ? (
         <section
           aria-label="Released cash and credit origins"
@@ -139,12 +169,13 @@ export function CorrectionConsequences({
           </p>
         ))}
       </section>
-      <p>
-        Original financial facts are restated at the corrected date. Recorded
-        future-dated effects apply immediately. No cash repayment, forgiveness,
-        credit use, Income or Balance Adjustment is introduced. Released cash
-        remains available as credit from its original receipt.
-      </p>
+      {(plan.cashReleases ?? []).length > 0 ? (
+        <p>
+          Released cash remains available as credit from its original receipt.
+        </p>
+      ) : (
+        <p>No Credit released.</p>
+      )}
       <Link
         className="underline underline-offset-4"
         to={`/finance/advances?ledger=${plan.after.ledgerId}&advance_id=${plan.advanceId}`}

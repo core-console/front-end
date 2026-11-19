@@ -434,9 +434,7 @@ it("previews cash 40 + 50 before forgiveness 10 and confirms the whole v6 action
     await within(detail).findByText(combinedSettlement.reason),
   ).toBeVisible();
   expect(within(detail).getByText("Cash received")).toBeVisible();
-  expect(
-    within(detail).getByText("Forgiven principal / Expense"),
-  ).toBeVisible();
+  expect(within(detail).getByText("Originally forgiven")).toBeVisible();
   expect(
     within(detail).getAllByRole("link", {
       name: /View linked cash \/ Expense Transaction/,
@@ -449,6 +447,65 @@ it("previews cash 40 + 50 before forgiveness 10 and confirms the whole v6 action
       name: /Cash received 90.00 CNY · Forgiven 10.00 CNY/,
     }),
   ).toBeVisible();
+});
+
+it("labels each Credit transfer from a repeatedly corrected combined Settlement", async () => {
+  const creditTransfers = [
+    "d1111111-1111-4111-8111-111111111111",
+    "d2222222-2222-4222-8222-222222222222",
+  ];
+  const released = money("20.00");
+  server.use(
+    http.get("*/api/finance/ledgers/:ledger/settlements/:id", () =>
+      HttpResponse.json({
+        ...combinedSettlement,
+        allocations: combinedSettlement.allocations.map((row) =>
+          row.position === 2
+            ? { ...row, effectiveCashPaid: money("30.00") }
+            : row.position === 3
+              ? { ...row, effectiveForgiven: money("0.00") }
+              : row,
+        ),
+        transactionIds: [
+          ...combinedSettlement.transactionIds.slice(0, 2),
+          ...creditTransfers,
+        ],
+        creditOrigin: {
+          settlementId: combinedSettlement.id,
+          ledgerId: ledger.id,
+          participantId: person.id,
+          receivingAccountId: account.id,
+          liabilityAccountId: "d3333333-3333-4333-8333-333333333333",
+          transactionId: creditTransfers[0],
+          transactionDate: combinedSettlement.transactionDate,
+          confirmedAt: combinedSettlement.confirmedAt,
+          confirmationOrder: combinedSettlement.confirmationOrder,
+          amount: released,
+          available: released,
+        },
+      }),
+    ),
+  );
+  renderRoute(
+    `/finance/repayments?ledger=${ledger.id}&settlement_id=${combinedSettlement.id}`,
+  );
+  const detail = await screen.findByRole("region", {
+    name: "Confirmed Settlement",
+  });
+  for (const id of creditTransfers) {
+    const link = await within(detail).findByRole("link", {
+      name: "View released Credit Internal Transfer · " + id,
+    });
+    expect(link).toHaveAttribute(
+      "href",
+      `/finance/transactions/${id}?ledger=${ledger.id}`,
+    );
+  }
+  expect(
+    within(detail).getAllByRole("link", {
+      name: /View linked cash \/ Expense Transaction/,
+    }),
+  ).toHaveLength(2);
 });
 
 it.each([

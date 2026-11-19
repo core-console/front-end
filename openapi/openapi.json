@@ -1431,6 +1431,13 @@
             "title": "Financialeffectsbefore",
             "type": "array"
           },
+          "forgivenessRestatements": {
+            "items": {
+              "$ref": "#/components/schemas/CorrectionForgivenessRestatement"
+            },
+            "title": "Forgivenessrestatements",
+            "type": "array"
+          },
           "fundingChanged": { "title": "Fundingchanged", "type": "boolean" },
           "previewToken": { "title": "Previewtoken", "type": "string" },
           "reason": { "title": "Reason", "type": "string" }
@@ -1577,6 +1584,13 @@
               "$ref": "#/components/schemas/CorrectionFinancialEffect"
             },
             "title": "Financialeffectsbefore",
+            "type": "array"
+          },
+          "forgivenessRestatements": {
+            "items": {
+              "$ref": "#/components/schemas/CorrectionForgivenessRestatement"
+            },
+            "title": "Forgivenessrestatements",
             "type": "array"
           },
           "fundingChanged": { "title": "Fundingchanged", "type": "boolean" },
@@ -2971,6 +2985,12 @@
             "type": "string"
           },
           "cashPaid": { "$ref": "#/components/schemas/MoneyResponse" },
+          "effectiveCashPaid": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/MoneyResponse" },
+              { "type": "null" }
+            ]
+          },
           "kind": {
             "const": "cash",
             "default": "cash",
@@ -3071,6 +3091,12 @@
             "format": "date-time",
             "title": "Confirmedat",
             "type": "string"
+          },
+          "creditOrigin": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/CreditOriginResponse" },
+              { "type": "null" }
+            ]
           },
           "forgivenessAmount": { "$ref": "#/components/schemas/MoneyResponse" },
           "id": { "format": "uuid", "title": "Id", "type": "string" },
@@ -3292,6 +3318,52 @@
           "ownerExpense"
         ],
         "title": "CorrectionFinancialEffect",
+        "type": "object"
+      },
+      "CorrectionForgivenessRestatement": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmationOrder": {
+            "title": "Confirmationorder",
+            "type": "integer"
+          },
+          "expenseTransactionId": {
+            "format": "uuid",
+            "title": "Expensetransactionid",
+            "type": "string"
+          },
+          "forgivenAfter": { "$ref": "#/components/schemas/MoneyResponse" },
+          "forgivenBefore": { "$ref": "#/components/schemas/MoneyResponse" },
+          "obligationId": {
+            "format": "uuid",
+            "title": "Obligationid",
+            "type": "string"
+          },
+          "originalForgiven": { "$ref": "#/components/schemas/MoneyResponse" },
+          "position": { "title": "Position", "type": "integer" },
+          "settlementId": {
+            "format": "uuid",
+            "title": "Settlementid",
+            "type": "string"
+          },
+          "transactionDate": {
+            "format": "date",
+            "title": "Transactiondate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "settlementId",
+          "confirmationOrder",
+          "transactionDate",
+          "obligationId",
+          "position",
+          "expenseTransactionId",
+          "originalForgiven",
+          "forgivenBefore",
+          "forgivenAfter"
+        ],
+        "title": "CorrectionForgivenessRestatement",
         "type": "object"
       },
       "CorrectionMovement": {
@@ -4079,6 +4151,12 @@
             "format": "uuid",
             "title": "Advanceid",
             "type": "string"
+          },
+          "effectiveForgiven": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/MoneyResponse" },
+              { "type": "null" }
+            ]
           },
           "forgiven": { "$ref": "#/components/schemas/MoneyResponse" },
           "kind": {

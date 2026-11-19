@@ -25,6 +25,7 @@ import {
   cashCorrection,
   cashCorrectionDraft,
   cashCorrectionPreview,
+  correctionMoney,
 } from "@/test/advance-correction-fixtures";
 let creates = 0;
 beforeEach(() => {
@@ -135,36 +136,83 @@ it("blocks inexact shares without rounding or requesting preview", async () => {
   expect(creates).toBe(0);
 });
 
-it.each(["forgiven", "creditApplied"] as const)(
-  "blocks correction when %s downstream activity exists",
-  async (field) => {
-    const source = {
-      ...before,
+it("blocks correction when credit was applied", async () => {
+  const source = {
+    ...before,
+    obligation: {
+      ...before.obligation,
+      creditApplied: { amount: "1.00", currency: "CNY" },
+      remaining: { amount: "24.01", currency: "CNY" },
+    },
+  };
+  server.use(
+    http.get("*/api/finance/ledgers/:ledger/advances/:id", () =>
+      HttpResponse.json(source),
+    ),
+  );
+  renderRoute(`/finance/advances?ledger=${ledger.id}&advance_id=${before.id}`);
+  const button = await screen.findByRole(
+    "button",
+    { name: "Correct Advance" },
+    { timeout: 5000 },
+  );
+  expect(button).toBeDisabled();
+  expect(screen.getByText(/This Advance has applied credit/)).toBeVisible();
+  expect(creates).toBe(0);
+});
+it("keeps date and attribution locked after effective forgiveness reaches zero", async () => {
+  const forgiven = correctionMoney("5.01");
+  const zero = correctionMoney("0.00");
+  const past = {
+    ...cashCorrection,
+    before: {
+      ...cashBefore,
       obligation: {
-        ...before.obligation,
-        [field]: { amount: "1.00", currency: "CNY" },
+        ...cashBefore.obligation,
+        forgiven,
+        remaining: zero,
       },
-    };
-    server.use(
-      http.get("*/api/finance/ledgers/:ledger/advances/:id", () =>
-        HttpResponse.json(source),
-      ),
-    );
-    renderRoute(
-      `/finance/advances?ledger=${ledger.id}&advance_id=${before.id}`,
-    );
-    const button = await screen.findByRole(
-      "button",
-      { name: "Correct Advance" },
-      { timeout: 5000 },
-    );
-    expect(button).toBeDisabled();
+    },
+    accountEffects: cashCorrection.accountEffects.map((effect) =>
+      effect.accountId === cashBefore.obligation.receivableAccountId
+        ? { ...effect, balanceBefore: zero }
+        : effect,
+    ),
+    forgivenessRestatements: [
+      {
+        settlementId: "01234567-890a-4bcd-8def-0123456789ab",
+        confirmationOrder: 8,
+        position: 1,
+        obligationId: cashBefore.obligation.id,
+        transactionDate: cashBefore.transactionDate,
+        expenseTransactionId: "12345678-90ab-4cde-8f00-1234567890ab",
+        originalForgiven: forgiven,
+        forgivenBefore: forgiven,
+        forgivenAfter: zero,
+      },
+    ],
+  };
+  server.use(
+    http.get("*/api/finance/ledgers/:ledger/advances/:id", () =>
+      HttpResponse.json(past.after),
+    ),
+    http.get("*/api/finance/ledgers/:ledger/advances/:id/corrections", () =>
+      HttpResponse.json([past]),
+    ),
+  );
+  const { dialog } = await open();
+  await waitFor(() =>
     expect(
-      screen.getByText(/This Advance has forgiveness or applied credit/),
-    ).toBeVisible();
-    expect(creates).toBe(0);
-  },
-);
+      within(dialog).getByLabelText("Original financial date"),
+    ).toHaveAttribute("readonly"),
+  );
+  expect(
+    within(dialog).getByRole("button", { name: "Add Participant" }),
+  ).toBeDisabled();
+  expect(within(dialog).getByLabelText("Participant 1")).toBeDisabled();
+  expect(within(dialog).getByLabelText("Participant 1 share")).toBeEnabled();
+});
+
 it("previews and confirms a cash release with receipt-origin credit", async () => {
   server.use(
     http.get("*/api/finance/ledgers/:ledger/advances/:id", () =>

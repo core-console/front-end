@@ -2,10 +2,13 @@ import { useRef, useState } from "react";
 import { useIsMutating } from "@tanstack/react-query";
 import { AdvanceCorrectionFormDialog } from "./advance-correction-form-dialog";
 import { AdvanceCorrectionHistory } from "./advance-correction-history";
-import { correctionEligible } from "./advance-correction";
+import { correctionEligible, parseCorrection } from "./advance-correction";
 import { useFinanceSubmissions } from "./finance-submission-context";
 import { Link } from "react-router";
-import { useGetFinanceAdvance } from "@/api/generated/core-console";
+import {
+  useGetFinanceAdvance,
+  useListFinanceAdvanceCorrections,
+} from "@/api/generated/core-console";
 import {
   type AccountResponse,
   type ParticipantResponse,
@@ -48,6 +51,22 @@ export function AdvanceDetail({
     },
   });
   const item = query.data;
+  const history = useListFinanceAdvanceCorrections(ledgerId, advanceId, {
+    query: {
+      enabled: !!item,
+      select: (response) => {
+        const rows = response.data.map((data) =>
+          parseCorrection(data, ledgerId, advanceId),
+        );
+        if (
+          new Set(rows.map((r) => r.id)).size !== rows.length ||
+          rows.some((r, i) => r.revision !== i + 1)
+        )
+          throw new Error("Correction history order is invalid.");
+        return rows;
+      },
+    },
+  });
   const funding = accounts.find(
     (account) => account.id === item?.fundingAccountId,
   );
@@ -91,8 +110,8 @@ export function AdvanceDetail({
           </Button>
           {!correctionEligible(item) ? (
             <p role="status">
-              This Advance has forgiveness or applied credit. Those consequences
-              require a separate correction workflow.
+              This Advance has applied credit and requires a separate correction
+              workflow.
             </p>
           ) : null}
           {retained ? (
@@ -166,8 +185,7 @@ export function AdvanceDetail({
             );
           })}
           <AdvanceCorrectionHistory
-            ledgerId={ledgerId}
-            advanceId={advanceId}
+            query={history}
             accounts={accounts}
             participants={participants}
           />
@@ -175,6 +193,11 @@ export function AdvanceDetail({
             <AdvanceCorrectionFormDialog
               key={journal.partitionKey + "|" + ledgerId + "|" + advanceId}
               source={item}
+              hasRestatedForgiveness={
+                history.data?.some(
+                  (row) => row.forgivenessRestatements?.length,
+                ) ?? false
+              }
               accounts={accounts}
               participants={participants}
               onClose={() => setCorrecting(false)}

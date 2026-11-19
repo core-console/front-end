@@ -52,6 +52,7 @@ import {
 import { Alert, AlertTitle } from "@/components/ui/alert";
 export function AdvanceCorrectionFormDialog({
   source,
+  hasRestatedForgiveness,
   accounts,
   participants,
   onClose,
@@ -60,6 +61,7 @@ export function AdvanceCorrectionFormDialog({
   refreshDependencies,
 }: {
   source: AdvanceSource;
+  hasRestatedForgiveness: boolean;
   accounts: AccountResponse[];
   participants: ParticipantResponse[];
   onClose: () => void;
@@ -68,6 +70,11 @@ export function AdvanceCorrectionFormDialog({
   refreshDependencies: () => Promise<void>;
 }) {
   const ledgerId = source.ledgerId;
+  const hasForgiveness =
+    hasRestatedForgiveness ||
+    advanceObligations(source).some(
+      (o) => !correctionEqual(o.forgiven.amount, "0"),
+    );
   const [reason, setReason] = useState("");
   const [funding, setFunding] = useState(source.fundingAccountId);
   const [date, setDate] = useState(source.transactionDate);
@@ -215,7 +222,7 @@ export function AdvanceCorrectionFormDialog({
     } catch {
       if (active.current && journal.isCurrentNamespace())
         setError(
-          "Correction preview is unavailable or ineligible. Forgiveness, applied or returned credit, or changing dates or attribution after settlement may require a separate correction. Check the facts, refresh dependencies and request a complete preview. Your draft is preserved. Nothing was confirmed.",
+          "Correction preview is unavailable or ineligible. Applied or returned Credit, or changing dates or attribution after Settlement, may require a separate Correction. Check the facts, refresh dependencies and request a complete preview. Your draft is preserved. Nothing was confirmed.",
         );
     }
   }
@@ -269,6 +276,7 @@ export function AdvanceCorrectionFormDialog({
         <Input
           id="correction-date"
           type="date"
+          readOnly={hasForgiveness}
           value={date}
           onChange={(e) => {
             edit();
@@ -323,12 +331,9 @@ export function AdvanceCorrectionFormDialog({
         <DialogHeader>
           <DialogTitle>Correct Advance</DialogTitle>
           <DialogDescription>
-            Repair incorrect original facts, including after cash repayment.
-            Enter actual funding and every share explicitly. Truthful funding
-            remains funded; a smaller participant share requires an explicitly
-            increased owner or other share. Fully owner-funded purchases are
-            allowed. This does not record refunds, renegotiation or
-            cancellation.
+            Correct the original funding and shares after cash repayment or
+            forgiveness. If the funded amount stays the same, allocate the
+            difference to the owner share or another existing share.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -369,6 +374,7 @@ export function AdvanceCorrectionFormDialog({
                       <NativeSelect
                         id={`correction-participant-${i}`}
                         value={share.participantId}
+                        disabled={hasForgiveness}
                         aria-invalid={!!errors[`participant-${i}`]}
                         aria-describedby={
                           errors[`participant-${i}`]
@@ -452,6 +458,7 @@ export function AdvanceCorrectionFormDialog({
               <Button
                 type="button"
                 variant="outline"
+                disabled={hasForgiveness}
                 onClick={() => {
                   edit();
                   setShares((rows) => [

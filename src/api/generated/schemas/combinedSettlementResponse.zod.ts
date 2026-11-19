@@ -22,6 +22,17 @@ export const CombinedSettlementResponse = zod.strictObject({
             currency: zod.enum(["CNY", "JPY", "USD"]),
           })
           .describe("Closed public projection of exact Finance Money."),
+        effectiveCashPaid: zod
+          .union([
+            zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            zod.null(),
+          ])
+          .optional(),
         kind: zod
           .literal("cash")
           .default(combinedSettlementResponseAllocationsItemOneKindDefault)
@@ -38,6 +49,17 @@ export const CombinedSettlementResponse = zod.strictObject({
       }),
       zod.strictObject({
         advanceId: zod.uuid(),
+        effectiveForgiven: zod
+          .union([
+            zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            zod.null(),
+          ])
+          .optional(),
         forgiven: zod
           .strictObject({
             amount: zod.string(),
@@ -68,6 +90,34 @@ export const CombinedSettlementResponse = zod.strictObject({
     .describe("Closed public projection of exact Finance Money."),
   confirmationOrder: zod.int(),
   confirmedAt: zod.iso.datetime({ offset: true }),
+  creditOrigin: zod
+    .union([
+      zod.strictObject({
+        amount: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        available: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        confirmationOrder: zod.int(),
+        confirmedAt: zod.iso.datetime({ offset: true }),
+        ledgerId: zod.uuid(),
+        liabilityAccountId: zod.uuid(),
+        participantId: zod.uuid(),
+        receivingAccountId: zod.uuid(),
+        settlementId: zod.uuid(),
+        transactionDate: zod.iso.date(),
+        transactionId: zod.uuid(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
   forgivenessAmount: zod
     .strictObject({
       amount: zod.string(),
