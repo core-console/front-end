@@ -228,7 +228,9 @@ export function FinanceSubmissionRecovery({
                               Open{" "}
                               {record.operation ===
                               "createFinanceSettlementCorrection"
-                                ? "Cash repayment Correction history"
+                                ? record.commandVersion === "2"
+                                  ? "Settlement Correction history"
+                                  : "Cash repayment Correction history"
                                 : record.operation ===
                                     "createFinanceAdvanceCorrection"
                                   ? "Advance Correction history"

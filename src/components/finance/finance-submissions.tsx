@@ -490,7 +490,7 @@ export function FinanceSubmissionsProvider({ children }: PropsWithChildren) {
             queryClient.setQueryData(key, { ...response, data: correction });
             showMessage(
               record,
-              `${cash ? "Cash repayment" : "Advance"} Correction is confirmed. Its retained history is available; financial views refresh separately.`,
+              `${submissionLabel(record)} is confirmed. Its retained history is available; financial views refresh separately.`,
             );
             return {};
           }

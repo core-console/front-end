@@ -8,10 +8,15 @@ import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 export function SettlementCorrectionHistory({
   ledgerId,
   settlementId,
+  includesForgiveness = false,
 }: {
   ledgerId: string;
   settlementId: string;
+  includesForgiveness?: boolean;
 }) {
+  const historyName = includesForgiveness
+    ? "Settlement Correction history"
+    : "Cash repayment Correction history";
   const query = useListFinanceSettlementCorrections(ledgerId, settlementId, {
     query: {
       select: (response) => {
@@ -28,19 +33,16 @@ export function SettlementCorrectionHistory({
     },
   });
   return (
-    <section
-      aria-label="Cash repayment Correction history"
-      className="flex min-w-0 flex-col gap-3"
-    >
-      <h3 className="text-lg font-semibold">
-        Cash repayment Correction history
-      </h3>
+    <section aria-label={historyName} className="flex min-w-0 flex-col gap-3">
+      <h3 className="text-lg font-semibold">{historyName}</h3>
       <Button
         variant="outline"
         disabled={query.isFetching}
         onClick={() => void query.refetch()}
       >
-        Refresh cash Correction history
+        {includesForgiveness
+          ? "Refresh Settlement Correction history"
+          : "Refresh cash Correction history"}
       </Button>
       {query.isPending ? (
         <p role="status">Loading Correction history…</p>
@@ -56,14 +58,18 @@ export function SettlementCorrectionHistory({
       {query.data?.length === 0 ? (
         <Empty>
           <EmptyHeader>
-            <EmptyTitle>No cash repayment Corrections recorded.</EmptyTitle>
+            <EmptyTitle>
+              {includesForgiveness
+                ? "No Settlement Corrections recorded."
+                : "No cash repayment Corrections recorded."}
+            </EmptyTitle>
           </EmptyHeader>
         </Empty>
       ) : null}
       {query.data?.map((r) => (
         <section
           key={r.id}
-          aria-label={`Cash Correction revision ${r.revision}`}
+          aria-label={`${includesForgiveness ? "Settlement" : "Cash"} Correction revision ${r.revision}`}
           className="flex flex-col gap-3 rounded-lg border p-3"
         >
           <h4 className="font-semibold">

@@ -32,6 +32,20 @@ export const CombinedSettlementPreview = zod.strictObject({
             zod.null(),
           ])
           .optional(),
+        effectiveRemainingAfter: zod
+          .union([
+            zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            zod.null(),
+          ])
+          .optional()
+          .describe(
+            "Restated debt after this Allocation at the original Settlement boundary.",
+          ),
         kind: zod
           .literal("cash")
           .default(combinedSettlementPreviewAllocationsItemOneKindDefault)
@@ -59,6 +73,20 @@ export const CombinedSettlementPreview = zod.strictObject({
             zod.null(),
           ])
           .optional(),
+        effectiveRemainingAfter: zod
+          .union([
+            zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            zod.null(),
+          ])
+          .optional()
+          .describe(
+            "Restated debt after this Allocation at the original Settlement boundary.",
+          ),
         forgiven: zod
           .strictObject({
             amount: zod.string(),

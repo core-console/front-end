@@ -23,10 +23,14 @@ export const settlementCorrectionCommand =
 const sum = (values: string[]) =>
   values.reduce((a, b) => subtract(a, subtract("0", b)), "0");
 const unique = (ids: string[]) => new Set(ids).size === ids.length;
-export function cashCorrectionEligible(source: SettlementSource) {
-  return !("kind" in source);
+export function settlementCorrectionEligible(source: SettlementSource) {
+  return (
+    !("kind" in source) ||
+    source.kind === "combined" ||
+    source.kind === "forgiveness"
+  );
 }
-function validPlan(p: SettlementCorrectionPreview, ledgerId: string) {
+function validCashPlan(p: SettlementCorrectionPreview, ledgerId: string) {
   const currency = p.before.amount.currency;
   const money = (m: MoneyResponse, nonnegative = true) =>
     m.currency === currency &&
@@ -153,6 +157,23 @@ function validPlan(p: SettlementCorrectionPreview, ledgerId: string) {
     )
   );
 }
+function validPlan(p: SettlementCorrectionPreview, ledgerId: string) {
+  if (!p.before.forgivenessAmount) return validCashPlan(p, ledgerId);
+  const selected = new Set(p.selectedObligationIds);
+  return (
+    !!p.after.forgivenessAmount &&
+    selected.size > 0 &&
+    [...p.before.allocations, ...p.after.allocations].every((a) =>
+      selected.has(a.obligationId),
+    ) &&
+    [...p.obligationsBefore, ...p.obligationsAfter].every(
+      (o) =>
+        selected.has(o.id) &&
+        o.ledgerId === ledgerId &&
+        o.participantId === p.participantId,
+    )
+  );
+}
 export function parseSettlementCorrectionPreview(
   data: unknown,
   source: SettlementSource,
@@ -160,19 +181,27 @@ export function parseSettlementCorrectionPreview(
 ) {
   return SettlementCorrectionPreview.refine(
     (p) =>
-      cashCorrectionEligible(source) &&
-      "receivingAccountId" in source &&
+      settlementCorrectionEligible(source) &&
       validPlan(p, source.ledgerId) &&
       p.settlementId === source.id &&
       p.settlementId === draft.settlementId &&
       p.participantId === source.participantId &&
-      p.receivingAccountId === source.receivingAccountId &&
+      p.receivingAccountId ===
+        ("receivingAccountId" in source ? source.receivingAccountId : null) &&
       p.transactionDate === source.transactionDate &&
       p.originalConfirmedAt === source.confirmedAt &&
       p.confirmationOrder === source.confirmationOrder &&
       p.before.amount.currency === source.amount.currency &&
       p.after.amount.currency === draft.amount.currency &&
       equal(p.after.amount.amount, draft.amount.amount) &&
+      (draft.forgivenessAmount
+        ? p.after.forgivenessAmount?.currency ===
+            draft.forgivenessAmount.currency &&
+          equal(
+            p.after.forgivenessAmount.amount,
+            draft.forgivenessAmount.amount,
+          )
+        : !p.after.forgivenessAmount) &&
       p.reason === correctionText(draft.reason) &&
       p.excessDisposition === draft.excessDisposition &&
       p.after.categoryId === draft.categoryId &&

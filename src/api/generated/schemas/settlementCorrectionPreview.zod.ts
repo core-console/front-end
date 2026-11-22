@@ -41,6 +41,18 @@ export const SettlementCorrectionPreview = zod.strictObject({
             currency: zod.enum(["CNY", "JPY", "USD"]),
           })
           .describe("Closed public projection of exact Finance Money."),
+        expenseTransactionId: zod.union([zod.uuid(), zod.null()]).optional(),
+        forgiven: zod
+          .union([
+            zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            zod.null(),
+          ])
+          .optional(),
         obligationId: zod.uuid(),
         originalCashPaid: zod
           .strictObject({
@@ -48,6 +60,17 @@ export const SettlementCorrectionPreview = zod.strictObject({
             currency: zod.enum(["CNY", "JPY", "USD"]),
           })
           .describe("Closed public projection of exact Finance Money."),
+        originalForgiven: zod
+          .union([
+            zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            zod.null(),
+          ])
+          .optional(),
         position: zod.int(),
       }),
     ),
@@ -58,6 +81,17 @@ export const SettlementCorrectionPreview = zod.strictObject({
       })
       .describe("Closed public projection of exact Finance Money."),
     categoryId: zod.union([zod.uuid(), zod.null()]),
+    forgivenessAmount: zod
+      .union([
+        zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        zod.null(),
+      ])
+      .optional(),
     retainedCredit: zod
       .strictObject({
         amount: zod.string(),
@@ -80,6 +114,18 @@ export const SettlementCorrectionPreview = zod.strictObject({
             currency: zod.enum(["CNY", "JPY", "USD"]),
           })
           .describe("Closed public projection of exact Finance Money."),
+        expenseTransactionId: zod.union([zod.uuid(), zod.null()]).optional(),
+        forgiven: zod
+          .union([
+            zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            zod.null(),
+          ])
+          .optional(),
         obligationId: zod.uuid(),
         originalCashPaid: zod
           .strictObject({
@@ -87,6 +133,17 @@ export const SettlementCorrectionPreview = zod.strictObject({
             currency: zod.enum(["CNY", "JPY", "USD"]),
           })
           .describe("Closed public projection of exact Finance Money."),
+        originalForgiven: zod
+          .union([
+            zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            zod.null(),
+          ])
+          .optional(),
         position: zod.int(),
       }),
     ),
@@ -97,6 +154,17 @@ export const SettlementCorrectionPreview = zod.strictObject({
       })
       .describe("Closed public projection of exact Finance Money."),
     categoryId: zod.union([zod.uuid(), zod.null()]),
+    forgivenessAmount: zod
+      .union([
+        zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        zod.null(),
+      ])
+      .optional(),
     retainedCredit: zod
       .strictObject({
         amount: zod.string(),
@@ -109,13 +177,24 @@ export const SettlementCorrectionPreview = zod.strictObject({
   financialEffectsAfter: zod.array(
     zod.strictObject({
       categoryId: zod.union([zod.uuid(), zod.null()]),
+      expense: zod
+        .union([
+          zod
+            .strictObject({
+              amount: zod.string(),
+              currency: zod.enum(["CNY", "JPY", "USD"]),
+            })
+            .describe("Closed public projection of exact Finance Money."),
+          zod.null(),
+        ])
+        .optional(),
       income: zod
         .strictObject({
           amount: zod.string(),
           currency: zod.enum(["CNY", "JPY", "USD"]),
         })
         .describe("Closed public projection of exact Finance Money."),
-      kind: zod.enum(["internalTransfer", "income"]),
+      kind: zod.enum(["internalTransfer", "income", "expense"]),
       movements: zod.array(
         zod.strictObject({
           accountId: zod.uuid(),
@@ -136,13 +215,24 @@ export const SettlementCorrectionPreview = zod.strictObject({
   financialEffectsBefore: zod.array(
     zod.strictObject({
       categoryId: zod.union([zod.uuid(), zod.null()]),
+      expense: zod
+        .union([
+          zod
+            .strictObject({
+              amount: zod.string(),
+              currency: zod.enum(["CNY", "JPY", "USD"]),
+            })
+            .describe("Closed public projection of exact Finance Money."),
+          zod.null(),
+        ])
+        .optional(),
       income: zod
         .strictObject({
           amount: zod.string(),
           currency: zod.enum(["CNY", "JPY", "USD"]),
         })
         .describe("Closed public projection of exact Finance Money."),
-      kind: zod.enum(["internalTransfer", "income"]),
+      kind: zod.enum(["internalTransfer", "income", "expense"]),
       movements: zod.array(
         zod.strictObject({
           accountId: zod.uuid(),
@@ -244,7 +334,7 @@ export const SettlementCorrectionPreview = zod.strictObject({
   participantId: zod.uuid(),
   previewToken: zod.string(),
   reason: zod.string(),
-  receivingAccountId: zod.uuid(),
+  receivingAccountId: zod.union([zod.uuid(), zod.null()]),
   selectedObligationIds: zod.union([zod.array(zod.uuid()), zod.null()]),
   settlementId: zod.uuid(),
   transactionDate: zod.iso.date(),

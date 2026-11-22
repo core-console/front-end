@@ -14,6 +14,18 @@ export const CorrectionCashAllocation = zod.strictObject({
       currency: zod.enum(["CNY", "JPY", "USD"]),
     })
     .describe("Closed public projection of exact Finance Money."),
+  expenseTransactionId: zod.union([zod.uuid(), zod.null()]).optional(),
+  forgiven: zod
+    .union([
+      zod
+        .strictObject({
+          amount: zod.string(),
+          currency: zod.enum(["CNY", "JPY", "USD"]),
+        })
+        .describe("Closed public projection of exact Finance Money."),
+      zod.null(),
+    ])
+    .optional(),
   obligationId: zod.uuid(),
   originalCashPaid: zod
     .strictObject({
@@ -21,6 +33,17 @@ export const CorrectionCashAllocation = zod.strictObject({
       currency: zod.enum(["CNY", "JPY", "USD"]),
     })
     .describe("Closed public projection of exact Finance Money."),
+  originalForgiven: zod
+    .union([
+      zod
+        .strictObject({
+          amount: zod.string(),
+          currency: zod.enum(["CNY", "JPY", "USD"]),
+        })
+        .describe("Closed public projection of exact Finance Money."),
+      zod.null(),
+    ])
+    .optional(),
   position: zod.int(),
 });
 

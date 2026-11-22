@@ -25,6 +25,20 @@ export const ForgivenessResponse = zod.strictObject({
           zod.null(),
         ])
         .optional(),
+      effectiveRemainingAfter: zod
+        .union([
+          zod
+            .strictObject({
+              amount: zod.string(),
+              currency: zod.enum(["CNY", "JPY", "USD"]),
+            })
+            .describe("Closed public projection of exact Finance Money."),
+          zod.null(),
+        ])
+        .optional()
+        .describe(
+          "Restated debt after this Allocation at the original Settlement boundary.",
+        ),
       forgiven: zod
         .strictObject({
           amount: zod.string(),
@@ -54,6 +68,17 @@ export const ForgivenessResponse = zod.strictObject({
     .describe("Closed public projection of exact Finance Money."),
   confirmationOrder: zod.int(),
   confirmedAt: zod.iso.datetime({ offset: true }),
+  effectiveForgivenessAmount: zod
+    .union([
+      zod
+        .strictObject({
+          amount: zod.string(),
+          currency: zod.enum(["CNY", "JPY", "USD"]),
+        })
+        .describe("Closed public projection of exact Finance Money."),
+      zod.null(),
+    ])
+    .optional(),
   id: zod.uuid(),
   kind: zod
     .literal("forgiveness")

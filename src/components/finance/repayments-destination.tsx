@@ -16,7 +16,7 @@ import {
 } from "@/api/generated/schemas";
 import { SettlementCorrectionFormDialog } from "./settlement-correction-form-dialog";
 import { SettlementCorrectionHistory } from "./settlement-correction-history";
-import { cashCorrectionEligible } from "./settlement-correction";
+import { settlementCorrectionEligible } from "./settlement-correction";
 import { useFinanceSubmissions } from "./finance-submission-context";
 import { CreditApplicationFormDialog } from "./credit-application-form-dialog";
 import { CreditReturnFormDialog } from "./credit-return-form-dialog";
@@ -92,12 +92,13 @@ function SettlementDetail({
   );
   const creditOrigin =
     item && "creditOrigin" in item ? item.creditOrigin : undefined;
-  const hasIncome = item && "acceptedSurplus" in item;
-  // Combined Settlements append their Credit releases starting with the origin transfer.
-  const firstCombinedCreditTransfer =
-    item && "kind" in item && item.kind === "combined" && creditOrigin
-      ? item.transactionIds.indexOf(creditOrigin.transactionId)
-      : -1;
+  const surplus =
+    item && "acceptedSurplus" in item ? item.acceptedSurplus : null;
+  const hasIncome = !!surplus;
+  const includesForgiveness =
+    item &&
+    "kind" in item &&
+    (item.kind === "forgiveness" || item.kind === "combined");
   return (
     <section
       aria-label="Confirmed Settlement"
@@ -122,7 +123,7 @@ function SettlementDetail({
       ) : null}
       {item ? (
         <>
-          {cashCorrectionEligible(item) ? (
+          {settlementCorrectionEligible(item) ? (
             <>
               <Button
                 ref={correctionTrigger}
@@ -138,22 +139,29 @@ function SettlementDetail({
                   setCorrectionOpen(true);
                 }}
               >
-                Correct cash repayment
+                {includesForgiveness
+                  ? "kind" in item && item.kind === "forgiveness"
+                    ? "Correct forgiveness"
+                    : "Correct combined Settlement"
+                  : "Correct cash repayment"}
               </Button>
-              <p className="text-sm text-muted-foreground">
-                Correct only the entered cash amount. The server checks
-                eligibility; consumed or returned receipt credit requires a
-                later lifecycle workflow.
-              </p>
+              {!includesForgiveness && (
+                <p className="text-sm text-muted-foreground">
+                  Correct only the entered cash amount. The server checks
+                  eligibility; consumed or returned receipt credit requires a
+                  later lifecycle workflow.
+                </p>
+              )}
               {retainedCorrection ? (
                 <p role="status">
-                  Resolve the retained cash repayment Correction in Finance
-                  recovery before another Correction.
+                  Resolve the retained Correction in Finance recovery before
+                  another Correction.
                 </p>
               ) : null}
               <SettlementCorrectionHistory
                 ledgerId={ledgerId}
                 settlementId={item.id}
+                includesForgiveness={!!includesForgiveness}
               />
               {correctionOpen ? (
                 <SettlementCorrectionFormDialog
@@ -225,13 +233,25 @@ function SettlementDetail({
                     ],
                   ]
                 : []),
-              ...("acceptedSurplus" in item
+              ...("effectiveCashAmount" in item && item.effectiveCashAmount
                 ? [
                     [
-                      "Accepted surplus Income",
-                      formatFinanceMoney(item.acceptedSurplus),
+                      "Corrected cash receipt",
+                      formatFinanceMoney(item.effectiveCashAmount),
                     ],
                   ]
+                : []),
+              ...("effectiveForgivenessAmount" in item &&
+              item.effectiveForgivenessAmount
+                ? [
+                    [
+                      "Effective forgiveness",
+                      formatFinanceMoney(item.effectiveForgivenessAmount),
+                    ],
+                  ]
+                : []),
+              ...(surplus
+                ? [["Accepted surplus Income", formatFinanceMoney(surplus)]]
                 : []),
               ...(creditOrigin
                 ? [
@@ -267,7 +287,7 @@ function SettlementDetail({
             ) : "kind" in item && item.kind === "creditApplication" ? (
               "Receivables and credit Liability decrease equally. No new cash, Income, Expense or forgiveness. Allocations and origin consumption retain their confirmed order and balances."
             ) : "kind" in item ? (
-              "Allocations follow their original confirmation order. When an Advance Correction changes an Allocation, the table shows its effective and original amounts. Effective forgiveness equals the Forgiveness Expense."
+              "Allocations retain their confirmed positions. The table shows restated debt at the original Settlement boundary. Effective forgiveness equals the Forgiveness Expense."
             ) : (
               <>
                 Effective cash Allocations and retained remaining projections
@@ -282,7 +302,7 @@ function SettlementDetail({
           {creditOrigin ? (
             <p>Credit from this receipt is owed to the Participant.</p>
           ) : null}
-          {"acceptedSurplus" in item ? (
+          {hasIncome ? (
             <p>
               Accepted surplus increases Income. Open the Income Transaction for
               its Category classification.
@@ -314,7 +334,7 @@ function SettlementDetail({
               participantId={item.participantId}
             />
           ) : null}
-          {item.transactionIds.map((transactionId, index) => (
+          {item.transactionIds.map((transactionId) => (
             <Link
               key={transactionId}
               className="underline underline-offset-4"
@@ -323,17 +343,16 @@ function SettlementDetail({
               {"incomeTransactionId" in item &&
               transactionId === item.incomeTransactionId
                 ? "View accepted Income Transaction"
-                : (hasIncome &&
-                      transactionId === creditOrigin?.transactionId) ||
-                    (firstCombinedCreditTransfer >= 0 &&
-                      index >= firstCombinedCreditTransfer)
+                : hasIncome && transactionId === creditOrigin?.transactionId
                   ? "View released Credit Internal Transfer"
                   : "kind" in item && item.kind === "creditReturn"
                     ? "View linked credit return Internal Transfer"
                     : "kind" in item && item.kind === "creditApplication"
                       ? "View linked credit application Internal Transfer"
                       : "kind" in item && item.kind === "combined"
-                        ? "View linked cash / Expense Transaction"
+                        ? transactionId === creditOrigin?.transactionId
+                          ? "View linked Credit Internal Transfer"
+                          : "View linked Transaction"
                         : "kind" in item
                           ? "View linked Expense Transaction"
                           : "View linked Transaction"}{" "}
@@ -433,9 +452,15 @@ function RepaymentHistory({
                     : "kind" in item && item.kind === "creditApplication"
                       ? "Credit applied"
                       : "Cash received"}{" "}
-                {formatFinanceMoney(item.amount)}
+                {formatFinanceMoney(
+                  ("effectiveCashAmount" in item && item.effectiveCashAmount) ||
+                    ("effectiveForgivenessAmount" in item &&
+                      item.kind === "forgiveness" &&
+                      item.effectiveForgivenessAmount) ||
+                    item.amount,
+                )}
                 {"forgivenessAmount" in item
-                  ? ` · Forgiven ${formatFinanceMoney(item.forgivenessAmount)}`
+                  ? ` · Forgiven ${formatFinanceMoney(item.effectiveForgivenessAmount ?? item.forgivenessAmount)}`
                   : ""}{" "}
                 · Confirmation {item.confirmationOrder}
               </Link>

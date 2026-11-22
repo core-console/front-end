@@ -2991,6 +2991,13 @@
               { "type": "null" }
             ]
           },
+          "effectiveRemainingAfter": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/MoneyResponse" },
+              { "type": "null" }
+            ],
+            "description": "Restated debt after this Allocation at the original Settlement boundary."
+          },
           "kind": {
             "const": "cash",
             "default": "cash",
@@ -3070,6 +3077,12 @@
       "CombinedSettlementResponse": {
         "additionalProperties": false,
         "properties": {
+          "acceptedSurplus": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/MoneyResponse" },
+              { "type": "null" }
+            ]
+          },
           "allocations": {
             "items": {
               "anyOf": [
@@ -3098,8 +3111,27 @@
               { "type": "null" }
             ]
           },
+          "effectiveCashAmount": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/MoneyResponse" },
+              { "type": "null" }
+            ]
+          },
+          "effectiveForgivenessAmount": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/MoneyResponse" },
+              { "type": "null" }
+            ]
+          },
           "forgivenessAmount": { "$ref": "#/components/schemas/MoneyResponse" },
           "id": { "format": "uuid", "title": "Id", "type": "string" },
+          "incomeTransactionId": {
+            "anyOf": [
+              { "format": "uuid", "type": "string" },
+              { "type": "null" }
+            ],
+            "title": "Incometransactionid"
+          },
           "kind": {
             "const": "combined",
             "default": "combined",
@@ -3201,12 +3233,31 @@
         "additionalProperties": false,
         "properties": {
           "cashPaid": { "$ref": "#/components/schemas/MoneyResponse" },
+          "expenseTransactionId": {
+            "anyOf": [
+              { "format": "uuid", "type": "string" },
+              { "type": "null" }
+            ],
+            "title": "Expensetransactionid"
+          },
+          "forgiven": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/MoneyResponse" },
+              { "type": "null" }
+            ]
+          },
           "obligationId": {
             "format": "uuid",
             "title": "Obligationid",
             "type": "string"
           },
           "originalCashPaid": { "$ref": "#/components/schemas/MoneyResponse" },
+          "originalForgiven": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/MoneyResponse" },
+              { "type": "null" }
+            ]
+          },
           "position": { "title": "Position", "type": "integer" }
         },
         "required": [
@@ -4158,6 +4209,13 @@
               { "type": "null" }
             ]
           },
+          "effectiveRemainingAfter": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/MoneyResponse" },
+              { "type": "null" }
+            ],
+            "description": "Restated debt after this Allocation at the original Settlement boundary."
+          },
           "forgiven": { "$ref": "#/components/schemas/MoneyResponse" },
           "kind": {
             "const": "forgiveness",
@@ -4235,6 +4293,12 @@
             "format": "date-time",
             "title": "Confirmedat",
             "type": "string"
+          },
+          "effectiveForgivenessAmount": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/MoneyResponse" },
+              { "type": "null" }
+            ]
           },
           "id": { "format": "uuid", "title": "Id", "type": "string" },
           "kind": {
@@ -5182,6 +5246,12 @@
             ],
             "title": "Categoryid"
           },
+          "forgivenessAmount": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/MoneyResponse" },
+              { "type": "null" }
+            ]
+          },
           "retainedCredit": { "$ref": "#/components/schemas/MoneyResponse" }
         },
         "required": [
@@ -5204,9 +5274,15 @@
             ],
             "title": "Categoryid"
           },
+          "expense": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/MoneyResponse" },
+              { "type": "null" }
+            ]
+          },
           "income": { "$ref": "#/components/schemas/MoneyResponse" },
           "kind": {
-            "enum": ["internalTransfer", "income"],
+            "enum": ["internalTransfer", "income", "expense"],
             "title": "Kind",
             "type": "string"
           },
@@ -5731,7 +5807,7 @@
             "type": "object"
           },
           "commandVersion": {
-            "const": "1",
+            "enum": ["1", "2"],
             "title": "Commandversion",
             "type": "string"
           },
@@ -5814,7 +5890,7 @@
             "type": "string"
           },
           "commandVersion": {
-            "const": "1",
+            "enum": ["1", "2"],
             "title": "Commandversion",
             "type": "string"
           },
@@ -5970,9 +6046,11 @@
           "previewToken": { "title": "Previewtoken", "type": "string" },
           "reason": { "title": "Reason", "type": "string" },
           "receivingAccountId": {
-            "format": "uuid",
-            "title": "Receivingaccountid",
-            "type": "string"
+            "anyOf": [
+              { "format": "uuid", "type": "string" },
+              { "type": "null" }
+            ],
+            "title": "Receivingaccountid"
           },
           "selectedObligationIds": {
             "anyOf": [
@@ -6065,7 +6143,7 @@
             "type": "string"
           },
           "commandVersion": {
-            "const": "1",
+            "enum": ["1", "2"],
             "title": "Commandversion",
             "type": "string"
           },
@@ -6169,9 +6247,11 @@
           "previewToken": { "title": "Previewtoken", "type": "string" },
           "reason": { "title": "Reason", "type": "string" },
           "receivingAccountId": {
-            "format": "uuid",
-            "title": "Receivingaccountid",
-            "type": "string"
+            "anyOf": [
+              { "format": "uuid", "type": "string" },
+              { "type": "null" }
+            ],
+            "title": "Receivingaccountid"
           },
           "revision": { "title": "Revision", "type": "integer" },
           "selectedObligationIds": {
@@ -6231,7 +6311,7 @@
             "type": "string"
           },
           "commandVersion": {
-            "const": "1",
+            "enum": ["1", "2"],
             "title": "Commandversion",
             "type": "string"
           },
@@ -6295,7 +6375,7 @@
             "type": "string"
           },
           "commandVersion": {
-            "const": "1",
+            "enum": ["1", "2"],
             "title": "Commandversion",
             "type": "string"
           },
@@ -11662,6 +11742,24 @@
                     "title": "Excessdisposition",
                     "type": "string"
                   },
+                  "forgivenessAmount": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "amount": {
+                        "description": "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+                        "title": "Amount",
+                        "type": "string"
+                      },
+                      "currency": {
+                        "enum": ["CNY", "JPY", "USD"],
+                        "title": "Currency",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["amount", "currency"],
+                    "title": "OpeningBalanceV1",
+                    "type": "object"
+                  },
                   "previewToken": {
                     "pattern": "^[0-9a-f]{64}$",
                     "title": "Previewtoken",
@@ -11686,7 +11784,7 @@
                   "categoryId",
                   "previewToken"
                 ],
-                "title": "SettlementCorrectionCommandV1",
+                "title": "SettlementCorrectionCommandV2",
                 "type": "object"
               }
             }
@@ -11823,6 +11921,24 @@
                     "title": "Excessdisposition",
                     "type": "string"
                   },
+                  "forgivenessAmount": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "amount": {
+                        "description": "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+                        "title": "Amount",
+                        "type": "string"
+                      },
+                      "currency": {
+                        "enum": ["CNY", "JPY", "USD"],
+                        "title": "Currency",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["amount", "currency"],
+                    "title": "OpeningBalanceV1",
+                    "type": "object"
+                  },
                   "reason": {
                     "maxLength": 500,
                     "title": "Reason",
@@ -11841,7 +11957,7 @@
                   "excessDisposition",
                   "categoryId"
                 ],
-                "title": "SettlementCorrectionDraftV1",
+                "title": "SettlementCorrectionDraftV2",
                 "type": "object"
               }
             }

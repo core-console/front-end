@@ -9,20 +9,21 @@ export function SettlementCorrectionConsequences({
   plan: SettlementCorrectionPreview;
   ledgerId: string;
 }) {
+  const forgiveness = !!p.before.forgivenessAmount;
   return (
     <div className="flex min-w-0 flex-col gap-3 [overflow-wrap:anywhere]">
       <p>
-        Settlement {p.settlementId} · Participant {p.participantId} · Receiving
-        Account {p.receivingAccountId}
+        Settlement {p.settlementId} · Participant {p.participantId}
+        {p.receivingAccountId && ` · Receiving Account ${p.receivingAccountId}`}
       </p>
       <p>
-        Original receipt date {p.transactionDate} · Confirmed{" "}
-        {p.originalConfirmedAt} · Confirmation order {p.confirmationOrder}
+        {forgiveness ? "Original financial date" : "Original receipt date"}{" "}
+        {p.transactionDate} · Confirmed {p.originalConfirmedAt} · Confirmation
+        order {p.confirmationOrder}
       </p>
       <p>
         Confirmed selected scope:{" "}
         {p.selectedObligationIds?.join(", ") ?? "All originally eligible debt"}.
-        Only retained Allocation identities can change.
       </p>
       {(
         [
@@ -32,25 +33,39 @@ export function SettlementCorrectionConsequences({
       ).map(([label, facts, obligations, effects]) => (
         <section
           key={label}
-          aria-label={`${label} receipt facts`}
+          aria-label={`${label} ${forgiveness ? "Settlement" : "receipt"} facts`}
           className="flex flex-col gap-2 rounded-md border p-3"
         >
-          <h4 className="font-semibold">{label} receipt facts</h4>
-          <p>
-            Cash receipt {money(facts.amount)} · Retained credit{" "}
-            {money(facts.retainedCredit)} · Accepted Income{" "}
-            {money(facts.acceptedSurplus)} · Category{" "}
-            {facts.categoryId ?? "Uncategorized"}
-          </p>
-          <h5 className="font-semibold">
-            Allocations in original confirmed order
-          </h5>
+          <h4 className="font-semibold">
+            {label} {forgiveness ? "Settlement" : "receipt"} facts
+          </h4>
+          {p.receivingAccountId && (
+            <p>
+              Cash receipt {money(facts.amount)} · Retained credit{" "}
+              {money(facts.retainedCredit)} · Accepted Income{" "}
+              {money(facts.acceptedSurplus)} · Category{" "}
+              {facts.categoryId ?? "Uncategorized"}
+            </p>
+          )}
+          {facts.forgivenessAmount && (
+            <p>Forgiveness Expense {money(facts.forgivenessAmount)}</p>
+          )}
+          <h5 className="font-semibold">Allocations in confirmed order</h5>
           <ol className="flex flex-col gap-2">
             {facts.allocations.map((a) => (
               <li key={a.position}>
-                Position {a.position} · Obligation {a.obligationId} · Original
-                confirmed cash {money(a.originalCashPaid)} · Effective cash{" "}
-                {money(a.cashPaid)}
+                Position {a.position} · Obligation {a.obligationId} ·{" "}
+                {a.forgiven && a.originalForgiven ? (
+                  <>
+                    Originally forgiven {money(a.originalForgiven)} · Effective
+                    forgiveness {money(a.forgiven)}
+                  </>
+                ) : (
+                  <>
+                    Original confirmed cash {money(a.originalCashPaid)} ·
+                    Effective cash {money(a.cashPaid)}
+                  </>
+                )}
               </li>
             ))}
           </ol>
@@ -75,10 +90,19 @@ export function SettlementCorrectionConsequences({
           {effects.map((e) => (
             <div key={e.transactionId}>
               <p>
-                {e.kind === "income" ? "Income" : "Internal Transfer"} ·
-                Transaction {e.transactionId} · {e.transactionDate} · Income{" "}
-                {money(e.income)} · Category {e.categoryId ?? "Uncategorized"} ·
-                Note {e.note ?? "—"}
+                {e.kind === "expense"
+                  ? "Expense"
+                  : e.kind === "income"
+                    ? "Income"
+                    : "Internal Transfer"}{" "}
+                · Transaction {e.transactionId} · {e.transactionDate}{" "}
+                {e.expense
+                  ? `· Expense ${money(e.expense)} `
+                  : e.kind === "income"
+                    ? `· Income ${money(e.income)} `
+                    : ""}
+                · Category {e.categoryId ?? "Uncategorized"} · Note{" "}
+                {e.note ?? "—"}
               </p>
               {e.movements.map((m) => (
                 <p key={m.accountId}>
@@ -101,13 +125,7 @@ export function SettlementCorrectionConsequences({
           </p>
         ))}
       </section>
-      <p>
-        Excess disposition: {p.excessDisposition}. These effects restate the
-        original receipt at its original date, including future dates applied
-        immediately. They do not record a new cash payment or return,
-        forgiveness, credit consumption or Balance Adjustment. Unrelated
-        Settlements retain their confirmed scope.
-      </p>
+      {p.receivingAccountId && <p>Excess disposition {p.excessDisposition}</p>}
     </div>
   );
 }

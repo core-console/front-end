@@ -11,6 +11,7 @@ import {
 } from "@/api/generated/core-console";
 import {
   CategoryResponse,
+  ProblemDetails,
   type SettlementCorrectionPreview,
   type PreviewFinanceSettlementCorrectionBody,
 } from "@/api/generated/schemas";
@@ -22,6 +23,7 @@ import {
 import { correctionText } from "./advance-correction";
 import { SettlementCorrectionConsequences } from "./settlement-correction-consequences";
 import { useFinanceSubmissions } from "./finance-submission-context";
+import { errorBody } from "./submission-evidence";
 import { useFinanceCreate } from "./use-finance-create";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,8 +60,29 @@ export function SettlementCorrectionFormDialog({
   onConfirmed: () => void;
   finalFocus: ComponentProps<typeof DialogContent>["finalFocus"];
 }) {
+  const variant = "kind" in source ? source.kind : "cash";
+  const standalone = variant === "forgiveness";
+  const cashOnly = variant === "cash";
+  const title = cashOnly
+    ? "Correct cash repayment"
+    : standalone
+      ? "Correct forgiveness"
+      : "Correct combined Settlement";
   const [reason, setReason] = useState("");
-  const [amount, setAmount] = useState(source.amount.amount);
+  const [amount, setAmount] = useState(
+    standalone
+      ? "0"
+      : ("effectiveCashAmount" in source &&
+          source.effectiveCashAmount?.amount) ||
+          source.amount.amount,
+  );
+  const [forgiveness, setForgiveness] = useState(
+    ("effectiveForgivenessAmount" in source &&
+      source.effectiveForgivenessAmount?.amount) ||
+      ("forgivenessAmount" in source
+        ? source.forgivenessAmount.amount
+        : source.amount.amount),
+  );
   const [disposition, setDisposition] =
     useState<PreviewFinanceSettlementCorrectionBody["excessDisposition"]>(
       "none",
@@ -120,15 +143,19 @@ export function SettlementCorrectionFormDialog({
     const length = [...correctionText(reason)].length;
     if (!length || length > 500)
       invalid.reason = "Enter a reason of 1 to 500 characters.";
-    if (
-      !/^\d+(?:\.\d+)?$/.test(amount) ||
-      !/[1-9]/.test(amount) ||
-      (amount.split(".")[1]?.length ?? 0) >
-        (source.amount.currency === "JPY" ? 0 : 2) ||
-      amount.split(".")[0]!.replace(/^0+/, "").length > 131072
-    )
-      invalid.amount =
-        "Enter a positive exact amount in the original currency. Amounts are never rounded.";
+    const exact = (value: string, positive: boolean) =>
+      /^\d+(?:\.\d+)?$/.test(value) &&
+      (!positive || /[1-9]/.test(value)) &&
+      (value.split(".")[1]?.length ?? 0) <=
+        (source.amount.currency === "JPY" ? 0 : 2) &&
+      value.split(".")[0]!.replace(/^0+/, "").length <= 131072;
+    if (!standalone && !exact(amount, cashOnly))
+      invalid.amount = cashOnly
+        ? "Enter a positive exact amount in the original currency."
+        : "Enter an exact cash amount in the original currency.";
+    if (!cashOnly && !exact(forgiveness, standalone || !/[1-9]/.test(amount)))
+      invalid.forgiveness =
+        "Enter an exact forgiveness amount in the original currency.";
     if (
       disposition === "acceptIncome" &&
       (!categories.isSuccess ||
@@ -149,6 +176,12 @@ export function SettlementCorrectionFormDialog({
     const draft = settlementCorrectionDraft.parse({
       settlementId: source.id,
       amount: { amount, currency: source.amount.currency },
+      ...(!cashOnly && {
+        forgivenessAmount: {
+          amount: forgiveness,
+          currency: source.amount.currency,
+        },
+      }),
       reason,
       excessDisposition: disposition,
       categoryId: disposition === "acceptIncome" ? categoryId || null : null,
@@ -165,10 +198,12 @@ export function SettlementCorrectionFormDialog({
       );
       if (active.current && journal.isCurrentNamespace())
         setReview({ draft, plan });
-    } catch {
+    } catch (error) {
+      const problem = ProblemDetails.safeParse(errorBody(error));
       if (active.current && journal.isCurrentNamespace())
         setError(
-          "Correction preview is unavailable or ineligible. Request a fresh preview after checking the amount, explicit excess disposition and active Category. Forgiveness, credit application/return or consumed receipt credit requires a later workflow. Your draft is preserved; nothing was confirmed.",
+          problem.data?.detail ??
+            "Correction preview is unavailable or ineligible. Your draft is preserved.",
         );
     }
   }
@@ -185,11 +220,11 @@ export function SettlementCorrectionFormDialog({
         finalFocus={finalFocus}
       >
         <DialogHeader>
-          <DialogTitle>Correct cash repayment</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Restate an incorrectly entered receipt amount. Receiving Account,
-            Participant, currency, date and confirmed scope are retained. Review
-            all consequences before explicitly confirming.
+            {cashOnly
+              ? "Restate an incorrectly entered receipt amount. Review all consequences before confirming."
+              : "Restate the facts on the original date and within the confirmed selection. Record any later concession as a new forgiveness event."}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -220,57 +255,89 @@ export function SettlementCorrectionFormDialog({
                   </FieldError>
                 ) : null}
               </Field>
-              <Field data-disabled={busy} data-invalid={!!errors.amount}>
-                <FieldLabel htmlFor="cash-correction-amount">
-                  Corrected cash receipt
-                </FieldLabel>
-                <Input
-                  id="cash-correction-amount"
-                  inputMode="decimal"
-                  value={amount}
-                  aria-invalid={!!errors.amount}
-                  aria-describedby={
-                    errors.amount ? "cash-correction-amount-error" : undefined
-                  }
-                  onChange={(e) => {
-                    edit();
-                    setAmount(e.target.value);
-                  }}
-                />
-                {errors.amount ? (
-                  <FieldError id="cash-correction-amount-error">
-                    {errors.amount}
-                  </FieldError>
-                ) : null}
-              </Field>
+              {!standalone ? (
+                <Field data-disabled={busy} data-invalid={!!errors.amount}>
+                  <FieldLabel htmlFor="cash-correction-amount">
+                    Corrected cash receipt
+                  </FieldLabel>
+                  <Input
+                    id="cash-correction-amount"
+                    inputMode="decimal"
+                    value={amount}
+                    aria-invalid={!!errors.amount}
+                    aria-describedby={
+                      errors.amount ? "cash-correction-amount-error" : undefined
+                    }
+                    onChange={(e) => {
+                      edit();
+                      setAmount(e.target.value);
+                    }}
+                  />
+                  {errors.amount ? (
+                    <FieldError id="cash-correction-amount-error">
+                      {errors.amount}
+                    </FieldError>
+                  ) : null}
+                </Field>
+              ) : null}
+              {!cashOnly ? (
+                <Field data-disabled={busy} data-invalid={!!errors.forgiveness}>
+                  <FieldLabel htmlFor="cash-correction-forgiveness">
+                    Corrected forgiveness
+                  </FieldLabel>
+                  <Input
+                    id="cash-correction-forgiveness"
+                    inputMode="decimal"
+                    value={forgiveness}
+                    aria-invalid={!!errors.forgiveness}
+                    aria-describedby={
+                      errors.forgiveness
+                        ? "cash-correction-forgiveness-error"
+                        : undefined
+                    }
+                    onChange={(e) => {
+                      edit();
+                      setForgiveness(e.target.value);
+                    }}
+                  />
+                  {errors.forgiveness ? (
+                    <FieldError id="cash-correction-forgiveness-error">
+                      {errors.forgiveness}
+                    </FieldError>
+                  ) : null}
+                </Field>
+              ) : null}
               <p>
-                Currency: {source.amount.currency}. A decrease can reopen unpaid
-                debt without forgiveness. An increase stays within the original
-                Allocations. The server determines the complete plan.
+                Currency {source.amount.currency}
+                {variant === "combined"
+                  ? ". Cash is applied before forgiveness."
+                  : "."}
               </p>
-              <Field data-disabled={busy}>
-                <FieldLabel htmlFor="cash-correction-disposition">
-                  Excess disposition
-                </FieldLabel>
-                <NativeSelect
-                  id="cash-correction-disposition"
-                  value={disposition}
-                  onChange={(e) => {
-                    edit();
-                    setDisposition(e.target.value as typeof disposition);
-                  }}
-                >
-                  <NativeSelectOption value="none">
-                    None — all corrected cash resolves retained debt
-                  </NativeSelectOption>
-                  <NativeSelectOption value="retainCredit">
-                    Retain excess as Participant credit
-                  </NativeSelectOption>
-                  <NativeSelectOption value="acceptIncome">
-                    Explicitly accept excess as Income
-                  </NativeSelectOption>
-                </NativeSelect>
-              </Field>
+              {!standalone ? (
+                <Field data-disabled={busy}>
+                  <FieldLabel htmlFor="cash-correction-disposition">
+                    Excess disposition
+                  </FieldLabel>
+                  <NativeSelect
+                    id="cash-correction-disposition"
+                    value={disposition}
+                    onChange={(e) => {
+                      edit();
+                      setDisposition(e.target.value as typeof disposition);
+                    }}
+                  >
+                    <NativeSelectOption value="none">
+                      None — all corrected cash resolves retained debt
+                    </NativeSelectOption>
+                    <NativeSelectOption value="retainCredit">
+                      Retain excess as Participant credit
+                    </NativeSelectOption>
+                    <NativeSelectOption value="acceptIncome">
+                      Explicitly accept excess as Income
+                    </NativeSelectOption>
+                  </NativeSelect>
+                </Field>
+              ) : null}
               {disposition === "acceptIncome" ? (
                 <Field data-disabled={busy} data-invalid={!!errors.category}>
                   <FieldLabel htmlFor="cash-correction-category">
@@ -344,10 +411,18 @@ export function SettlementCorrectionFormDialog({
           ) : null}
           {shown ? (
             <section
-              aria-label="Cash Correction preview"
+              aria-label={
+                cashOnly
+                  ? "Cash Correction preview"
+                  : "Settlement Correction preview"
+              }
               className="flex flex-col gap-3"
             >
-              <h3 className="font-semibold">Cash Correction preview</h3>
+              <h3 className="font-semibold">
+                {cashOnly
+                  ? "Cash Correction preview"
+                  : "Settlement Correction preview"}
+              </h3>
               <p>Reason: {shown.plan.reason}</p>
               <SettlementCorrectionConsequences
                 plan={shown.plan}

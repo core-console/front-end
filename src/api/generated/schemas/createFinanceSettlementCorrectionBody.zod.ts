@@ -22,6 +22,16 @@ export const CreateFinanceSettlementCorrectionBody = zod.strictObject({
   }),
   categoryId: zod.union([zod.uuid(), zod.null()]),
   excessDisposition: zod.enum(["none", "retainCredit", "acceptIncome"]),
+  forgivenessAmount: zod
+    .strictObject({
+      amount: zod
+        .string()
+        .describe(
+          "Plain base-10 decimal string. A non-zero value may have at most 131,072 integer digits after insignificant leading zeros are removed. V1 precision is CNY/USD: 2 and JPY: 0; excess fractional digits are invalid, even zeros.",
+        ),
+      currency: zod.enum(["CNY", "JPY", "USD"]),
+    })
+    .optional(),
   previewToken: zod
     .string()
     .regex(createFinanceSettlementCorrectionBodyPreviewTokenRegExp),

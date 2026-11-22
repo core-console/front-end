@@ -26,7 +26,7 @@ export const SettlementCorrectionTerminalProblem = zod.strictObject({
   status: zod.union([zod.literal(404), zod.literal(409), zod.literal(422)]),
   submissionReceipt: zod.strictObject({
     admittedAt: zod.iso.datetime({ offset: true }),
-    commandVersion: zod.literal("1").meta({ title: "Commandversion" }),
+    commandVersion: zod.enum(["1", "2"]),
     operation: zod
       .literal("createFinanceSettlementCorrection")
       .meta({ title: "Operation" }),

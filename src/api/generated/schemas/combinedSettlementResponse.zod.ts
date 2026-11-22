@@ -12,6 +12,17 @@ export const combinedSettlementResponseAllocationsItemTwoKindDefault = `forgiven
 export const combinedSettlementResponseKindDefault = `combined`;
 
 export const CombinedSettlementResponse = zod.strictObject({
+  acceptedSurplus: zod
+    .union([
+      zod
+        .strictObject({
+          amount: zod.string(),
+          currency: zod.enum(["CNY", "JPY", "USD"]),
+        })
+        .describe("Closed public projection of exact Finance Money."),
+      zod.null(),
+    ])
+    .optional(),
   allocations: zod.array(
     zod.union([
       zod.strictObject({
@@ -33,6 +44,20 @@ export const CombinedSettlementResponse = zod.strictObject({
             zod.null(),
           ])
           .optional(),
+        effectiveRemainingAfter: zod
+          .union([
+            zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            zod.null(),
+          ])
+          .optional()
+          .describe(
+            "Restated debt after this Allocation at the original Settlement boundary.",
+          ),
         kind: zod
           .literal("cash")
           .default(combinedSettlementResponseAllocationsItemOneKindDefault)
@@ -60,6 +85,20 @@ export const CombinedSettlementResponse = zod.strictObject({
             zod.null(),
           ])
           .optional(),
+        effectiveRemainingAfter: zod
+          .union([
+            zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            zod.null(),
+          ])
+          .optional()
+          .describe(
+            "Restated debt after this Allocation at the original Settlement boundary.",
+          ),
         forgiven: zod
           .strictObject({
             amount: zod.string(),
@@ -118,6 +157,28 @@ export const CombinedSettlementResponse = zod.strictObject({
       zod.null(),
     ])
     .optional(),
+  effectiveCashAmount: zod
+    .union([
+      zod
+        .strictObject({
+          amount: zod.string(),
+          currency: zod.enum(["CNY", "JPY", "USD"]),
+        })
+        .describe("Closed public projection of exact Finance Money."),
+      zod.null(),
+    ])
+    .optional(),
+  effectiveForgivenessAmount: zod
+    .union([
+      zod
+        .strictObject({
+          amount: zod.string(),
+          currency: zod.enum(["CNY", "JPY", "USD"]),
+        })
+        .describe("Closed public projection of exact Finance Money."),
+      zod.null(),
+    ])
+    .optional(),
   forgivenessAmount: zod
     .strictObject({
       amount: zod.string(),
@@ -125,6 +186,7 @@ export const CombinedSettlementResponse = zod.strictObject({
     })
     .describe("Closed public projection of exact Finance Money."),
   id: zod.uuid(),
+  incomeTransactionId: zod.union([zod.uuid(), zod.null()]).optional(),
   kind: zod
     .literal("combined")
     .default(combinedSettlementResponseKindDefault)

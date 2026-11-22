@@ -437,7 +437,7 @@ it("previews cash 40 + 50 before forgiveness 10 and confirms the whole v6 action
   expect(within(detail).getByText("Originally forgiven")).toBeVisible();
   expect(
     within(detail).getAllByRole("link", {
-      name: /View linked cash \/ Expense Transaction/,
+      name: /View linked Transaction/,
     }),
   ).toHaveLength(3);
   expect(within(detail).getByText(/archived/)).toBeVisible();
@@ -449,11 +449,9 @@ it("previews cash 40 + 50 before forgiveness 10 and confirms the whole v6 action
   ).toBeVisible();
 });
 
-it("labels each Credit transfer from a repeatedly corrected combined Settlement", async () => {
-  const creditTransfers = [
-    "d1111111-1111-4111-8111-111111111111",
-    "d2222222-2222-4222-8222-222222222222",
-  ];
+it("shows restated debt and labels combined Transaction links by known relationships", async () => {
+  const creditOriginId = "d1111111-1111-4111-8111-111111111111";
+  const correctionTransferId = "d2222222-2222-4222-8222-222222222222";
   const released = money("20.00");
   server.use(
     http.get("*/api/finance/ledgers/:ledger/settlements/:id", () =>
@@ -461,14 +459,19 @@ it("labels each Credit transfer from a repeatedly corrected combined Settlement"
         ...combinedSettlement,
         allocations: combinedSettlement.allocations.map((row) =>
           row.position === 2
-            ? { ...row, effectiveCashPaid: money("30.00") }
+            ? {
+                ...row,
+                effectiveCashPaid: money("30.00"),
+                effectiveRemainingAfter: money("30.00"),
+              }
             : row.position === 3
               ? { ...row, effectiveForgiven: money("0.00") }
               : row,
         ),
         transactionIds: [
           ...combinedSettlement.transactionIds.slice(0, 2),
-          ...creditTransfers,
+          correctionTransferId,
+          creditOriginId,
         ],
         creditOrigin: {
           settlementId: combinedSettlement.id,
@@ -476,7 +479,7 @@ it("labels each Credit transfer from a repeatedly corrected combined Settlement"
           participantId: person.id,
           receivingAccountId: account.id,
           liabilityAccountId: "d3333333-3333-4333-8333-333333333333",
-          transactionId: creditTransfers[0],
+          transactionId: creditOriginId,
           transactionDate: combinedSettlement.transactionDate,
           confirmedAt: combinedSettlement.confirmedAt,
           confirmationOrder: combinedSettlement.confirmationOrder,
@@ -492,9 +495,12 @@ it("labels each Credit transfer from a repeatedly corrected combined Settlement"
   const detail = await screen.findByRole("region", {
     name: "Confirmed Settlement",
   });
-  for (const id of creditTransfers) {
+  for (const [id, label] of [
+    [creditOriginId, "View linked Credit Internal Transfer"],
+    [correctionTransferId, "View linked Transaction"],
+  ]) {
     const link = await within(detail).findByRole("link", {
-      name: "View released Credit Internal Transfer · " + id,
+      name: `${label} · ${id}`,
     });
     expect(link).toHaveAttribute(
       "href",
@@ -503,9 +509,17 @@ it("labels each Credit transfer from a repeatedly corrected combined Settlement"
   }
   expect(
     within(detail).getAllByRole("link", {
-      name: /View linked cash \/ Expense Transaction/,
+      name: /View linked Transaction/,
     }),
-  ).toHaveLength(2);
+  ).toHaveLength(3);
+  const table = within(detail).getByRole("table", {
+    name: "Confirmed Allocations",
+  });
+  const remaining = within(within(table).getAllByRole("row")[2]!)
+    .getAllByRole("cell")
+    .at(-1)!;
+  expect(remaining).toHaveTextContent("30.00 CNY");
+  expect(within(remaining).getByText("Originally 10.00 CNY")).toBeVisible();
 });
 
 it.each([

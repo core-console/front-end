@@ -20,12 +20,16 @@ import { subtractExactDecimals } from "./finance-decimal";
 function validEffectiveAmount(
   original: { amount: string; currency: string },
   effective?: { amount: string; currency: string } | null,
+  restated = false,
 ) {
   return (
     !effective ||
     (effective.currency === original.currency &&
       /^\d+(?:\.\d+)?$/.test(effective.amount) &&
-      !subtractExactDecimals(original.amount, effective.amount).startsWith("-"))
+      (restated ||
+        !subtractExactDecimals(original.amount, effective.amount).startsWith(
+          "-",
+        )))
   );
 }
 
@@ -50,30 +54,54 @@ export const settlementSourceSchema = z
     CombinedSettlementResponse.refine(
       (item) =>
         validCombinedComposition(
-          item,
+          {
+            ...item,
+            allocations: item.allocations.filter(
+              (a) =>
+                !equalDecimal(
+                  ("forgiven" in a ? a.forgiven : a.cashPaid).amount,
+                  "0",
+                ),
+            ),
+          },
           item.selectedObligationIds,
           item.transactionDate,
         ) &&
-        item.allocations.every((row) =>
-          "forgiven" in row
-            ? validEffectiveAmount(row.forgiven, row.effectiveForgiven)
-            : validEffectiveAmount(row.cashPaid, row.effectiveCashPaid),
+        item.allocations.every(
+          (row, index) =>
+            row.position === index + 1 &&
+            item.selectedObligationIds.includes(row.obligationId) &&
+            row.sourceDate <= item.transactionDate &&
+            ("forgiven" in row
+              ? validEffectiveAmount(
+                  row.forgiven,
+                  row.effectiveForgiven,
+                  !!item.effectiveForgivenessAmount,
+                )
+              : validEffectiveAmount(
+                  row.cashPaid,
+                  row.effectiveCashPaid,
+                  !!item.effectiveCashAmount,
+                )),
         ) &&
         equalDecimal(
           item.allocations.reduce(
-            (released, row) =>
-              "effectiveCashPaid" in row && row.effectiveCashPaid
+            (cash, row) =>
+              "cashPaid" in row
                 ? subtractExactDecimals(
-                    released,
-                    subtractExactDecimals(
-                      row.effectiveCashPaid.amount,
-                      row.cashPaid.amount,
-                    ),
+                    cash,
+                    `-${(row.effectiveCashPaid ?? row.cashPaid).amount}`,
                   )
-                : released,
+                : cash,
             "0",
           ),
-          item.creditOrigin?.amount.amount ?? "0",
+          subtractExactDecimals(
+            subtractExactDecimals(
+              (item.effectiveCashAmount ?? item.amount).amount,
+              item.creditOrigin?.amount.amount ?? "0",
+            ),
+            item.acceptedSurplus?.amount ?? "0",
+          ),
         ),
       "Combined Allocations do not match retained cash, forgiveness or selected scope.",
     ),
@@ -87,7 +115,11 @@ export const settlementSourceSchema = z
             item.selectedObligationIds.includes(row.obligationId) &&
             row.sourceDate <= item.transactionDate &&
             row.forgiven.currency === item.amount.currency &&
-            validEffectiveAmount(row.forgiven, row.effectiveForgiven) &&
+            validEffectiveAmount(
+              row.forgiven,
+              row.effectiveForgiven,
+              !!item.effectiveForgivenessAmount,
+            ) &&
             row.remainingAfter.currency === item.amount.currency,
         ),
       "Forgiveness Allocations do not match the retained selected scope.",
@@ -101,9 +133,9 @@ export const settlementSourceSchema = z
   ])
   .refine(
     (item) =>
-      !("incomeTransactionId" in item) ||
+      !("incomeTransactionId" in item && item.incomeTransactionId) ||
       (item.transactionIds.includes(item.incomeTransactionId) &&
-        item.acceptedSurplus.currency === item.amount.currency),
+        item.acceptedSurplus?.currency === item.amount.currency),
     "Income link does not match its Settlement source.",
   )
   .refine(

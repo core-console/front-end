@@ -9,13 +9,24 @@ import * as zod from "zod";
 
 export const ReceiptFinancialEffect = zod.strictObject({
   categoryId: zod.union([zod.uuid(), zod.null()]),
+  expense: zod
+    .union([
+      zod
+        .strictObject({
+          amount: zod.string(),
+          currency: zod.enum(["CNY", "JPY", "USD"]),
+        })
+        .describe("Closed public projection of exact Finance Money."),
+      zod.null(),
+    ])
+    .optional(),
   income: zod
     .strictObject({
       amount: zod.string(),
       currency: zod.enum(["CNY", "JPY", "USD"]),
     })
     .describe("Closed public projection of exact Finance Money."),
-  kind: zod.enum(["internalTransfer", "income"]),
+  kind: zod.enum(["internalTransfer", "income", "expense"]),
   movements: zod.array(
     zod.strictObject({
       accountId: zod.uuid(),

@@ -45,82 +45,108 @@ export function SettlementAllocations({
             ...(hasCredit ? ["Credit applied", "Credit origin"] : []),
             ...(hasCash ? ["Cash paid"] : []),
             ...(hasForgiveness ? ["Forgiven"] : []),
-            confirmed ? "Retained remaining projection" : "Remaining after",
+            confirmed && hasForgiveness
+              ? "Effective remaining after"
+              : confirmed
+                ? "Retained remaining projection"
+                : "Remaining after",
           ].map((label) => (
             <TableHead key={label}>{label}</TableHead>
           ))}
         </TableRow>
       </TableHeader>
       <TableBody>
-        {allocations.map((item) => (
-          <TableRow key={`${item.position}-${item.obligationId}`}>
-            <TableCell>{item.position}</TableCell>
-            <TableCell className="whitespace-normal">
-              <Link
-                className="underline underline-offset-4"
-                to={`/finance/advances?ledger=${ledgerId}&participant_id=${participantId}&advance_id=${item.advanceId}`}
-              >
-                {item.sourceDate}
-              </Link>
-              <p className="max-w-48 text-xs break-all text-muted-foreground">
-                Obligation {item.obligationId}
-              </p>
-            </TableCell>
-            {hasCredit ? (
-              <>
-                <TableCell>
-                  {"creditApplied" in item
-                    ? formatFinanceMoney(item.creditApplied)
+        {allocations.map((item) => {
+          const effectiveRemaining =
+            "effectiveRemainingAfter" in item
+              ? item.effectiveRemainingAfter
+              : null;
+          const originalAmount =
+            "forgiven" in item
+              ? item.forgiven
+              : "cashPaid" in item
+                ? item.cashPaid
+                : null;
+          return (
+            <TableRow key={`${item.position}-${item.obligationId}`}>
+              <TableCell>{item.position}</TableCell>
+              <TableCell className="whitespace-normal">
+                <Link
+                  className="underline underline-offset-4"
+                  to={`/finance/advances?ledger=${ledgerId}&participant_id=${participantId}&advance_id=${item.advanceId}`}
+                >
+                  {item.sourceDate}
+                </Link>
+                <p className="max-w-48 text-xs break-all text-muted-foreground">
+                  Obligation {item.obligationId}
+                </p>
+              </TableCell>
+              {hasCredit ? (
+                <>
+                  <TableCell>
+                    {"creditApplied" in item
+                      ? formatFinanceMoney(item.creditApplied)
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="break-all whitespace-normal">
+                    {"originSettlementId" in item ? (
+                      <Link
+                        className="underline underline-offset-4"
+                        to={`/finance/repayments?ledger=${ledgerId}&participant_id=${participantId}&settlement_id=${item.originSettlementId}`}
+                      >
+                        {item.originSettlementId}
+                      </Link>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
+                </>
+              ) : null}
+              {hasCash ? (
+                <TableCell className="tabular-nums">
+                  {"cashPaid" in item
+                    ? formatFinanceMoney(
+                        ("effectiveCashPaid" in item &&
+                          item.effectiveCashPaid) ||
+                          item.cashPaid,
+                      )
                     : "—"}
+                  {"cashPaid" in item &&
+                  "effectiveCashPaid" in item &&
+                  item.effectiveCashPaid ? (
+                    <p className="text-xs text-muted-foreground">
+                      Originally {formatFinanceMoney(item.cashPaid)}
+                    </p>
+                  ) : null}
                 </TableCell>
-                <TableCell className="break-all whitespace-normal">
-                  {"originSettlementId" in item ? (
-                    <Link
-                      className="underline underline-offset-4"
-                      to={`/finance/repayments?ledger=${ledgerId}&participant_id=${participantId}&settlement_id=${item.originSettlementId}`}
-                    >
-                      {item.originSettlementId}
-                    </Link>
-                  ) : (
-                    "—"
-                  )}
+              ) : null}
+              {hasForgiveness ? (
+                <TableCell className="tabular-nums">
+                  {"forgiven" in item
+                    ? formatFinanceMoney(
+                        item.effectiveForgiven ?? item.forgiven,
+                      )
+                    : "—"}
+                  {"forgiven" in item && item.effectiveForgiven ? (
+                    <p className="text-xs text-muted-foreground">
+                      Originally {formatFinanceMoney(item.forgiven)}
+                    </p>
+                  ) : null}
                 </TableCell>
-              </>
-            ) : null}
-            {hasCash ? (
+              ) : null}
               <TableCell className="tabular-nums">
-                {"cashPaid" in item
-                  ? formatFinanceMoney(
-                      ("effectiveCashPaid" in item && item.effectiveCashPaid) ||
-                        item.cashPaid,
-                    )
-                  : "—"}
-                {"cashPaid" in item &&
-                "effectiveCashPaid" in item &&
-                item.effectiveCashPaid ? (
+                {formatFinanceMoney(effectiveRemaining ?? item.remainingAfter)}
+                {effectiveRemaining &&
+                originalAmount &&
+                /[1-9]/.test(originalAmount.amount) ? (
                   <p className="text-xs text-muted-foreground">
-                    Originally {formatFinanceMoney(item.cashPaid)}
+                    Originally {formatFinanceMoney(item.remainingAfter)}
                   </p>
                 ) : null}
               </TableCell>
-            ) : null}
-            {hasForgiveness ? (
-              <TableCell className="tabular-nums">
-                {"forgiven" in item
-                  ? formatFinanceMoney(item.effectiveForgiven ?? item.forgiven)
-                  : "—"}
-                {"forgiven" in item && item.effectiveForgiven ? (
-                  <p className="text-xs text-muted-foreground">
-                    Originally {formatFinanceMoney(item.forgiven)}
-                  </p>
-                ) : null}
-              </TableCell>
-            ) : null}
-            <TableCell className="tabular-nums">
-              {formatFinanceMoney(item.remainingAfter)}
-            </TableCell>
-          </TableRow>
-        ))}
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
   );

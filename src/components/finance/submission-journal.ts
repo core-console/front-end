@@ -154,7 +154,7 @@ function recordsFor<T extends z.ZodRawShape, V extends z.ZodType>(
 }
 const recordSchema = z
   .discriminatedUnion("operation", [
-    recordsFor(receiptCorrectionCommand.shape, z.literal("1")),
+    recordsFor(receiptCorrectionCommand.shape, z.enum(["1", "2"])),
     recordsFor(correctionCommand.shape, z.literal("1")),
     recordsFor(ledgerCommand.shape, z.literal("1")),
     recordsFor(accountCommand.shape, z.literal("1")),
@@ -167,6 +167,12 @@ const recordSchema = z
       z.enum(["1", "2", "3", "4", "5", "6", "7", "8"]),
     ),
   ])
+  .refine(
+    (record) =>
+      record.operation !== "createFinanceSettlementCorrection" ||
+      (record.commandVersion === "2") === !!record.body.forgivenessAmount,
+    "Settlement Correction grammar does not match its command version.",
+  )
   .refine(
     (record) =>
       record.operation !== "createFinanceAdvance" ||
@@ -210,10 +216,16 @@ function settlementCommandVersion(
   return body.excessDisposition === "acceptIncome" ? "3" : "2";
 }
 
-export function submissionLabel(record: Pick<FinanceSubmission, "operation">) {
+export function submissionLabel(
+  record: Pick<FinanceSubmission, "operation"> & {
+    commandVersion?: FinanceSubmission["commandVersion"];
+  },
+) {
   switch (record.operation) {
     case "createFinanceSettlementCorrection":
-      return "Cash repayment Correction";
+      return record.commandVersion === "2"
+        ? "Settlement Correction"
+        : "Cash repayment Correction";
     case "createFinanceAdvanceCorrection":
       return "Advance Correction";
     case "createFinanceLedger":
@@ -243,7 +255,7 @@ export function isQuickEntrySubmission(command: CreateSubmissionCommand) {
 
 export function rejectionMessage(record: FinanceSubmission) {
   if (record.operation === "createFinanceSettlementCorrection")
-    return "The cash repayment Correction was rejected without financial effects. Its preview may be stale or the receipt ineligible. Preserve the draft, request a fresh complete preview and explicitly confirm again with a new identity.";
+    return `The ${submissionLabel(record)} was rejected without financial effects. Preserve the draft, request a fresh complete preview and confirm again.`;
   if (record.operation === "createFinanceAdvanceCorrection")
     return "The Advance Correction was rejected without financial effects. Preserve the corrected facts, refresh dependencies and the complete preview, then explicitly confirm again. Some linked settlement consequences require a separate correction.";
   if (
@@ -300,7 +312,7 @@ function endpointFor(command: CreateSubmissionCommand) {
 
 export function submissionDescription(record: FinanceSubmission) {
   if (record.operation === "createFinanceSettlementCorrection")
-    return `Cash repayment Correction · ${record.body.settlementId} · ${record.body.amount.amount} ${record.body.amount.currency} · Reason ${record.body.reason} · Excess ${record.body.excessDisposition} · Category ${record.body.categoryId ?? "Uncategorized"}`;
+    return `${submissionLabel(record)} · ${record.body.settlementId} · Cash ${record.body.amount.amount} ${record.body.amount.currency}${record.body.forgivenessAmount ? ` · Forgiven ${record.body.forgivenessAmount.amount} ${record.body.forgivenessAmount.currency}` : ""} · Reason ${record.body.reason} · Excess ${record.body.excessDisposition} · Category ${record.body.categoryId ?? "Uncategorized"}`;
   if (record.operation === "createFinanceAdvanceCorrection")
     return [
       "Advance Correction",
@@ -513,8 +525,10 @@ export async function prepareSubmission(
     commandVersion:
       command.operation === "createFinanceSettlement"
         ? settlementCommandVersion(command.body)
-        : command.operation === "createFinanceAdvance" &&
-            "participantShares" in command.body
+        : (command.operation === "createFinanceAdvance" &&
+              "participantShares" in command.body) ||
+            (command.operation === "createFinanceSettlementCorrection" &&
+              command.body.forgivenessAmount)
           ? "2"
           : "1",
     ...structuredClone(command),
