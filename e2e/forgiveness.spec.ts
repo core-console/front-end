@@ -77,6 +77,11 @@ async function api(
       body = confirmed ? [forgiveness] : [];
     else if (path.endsWith(`/settlements/${forgiveness.id}`))
       body = sourceFails ? {} : forgiveness;
+    else if (
+      request.method() === "GET" &&
+      path.endsWith(`/settlements/${forgiveness.id}/corrections`)
+    )
+      body = [];
     else if (path.includes("/submissions/")) {
       const key = path.split("/").at(-1)!;
       body = terminalLookup

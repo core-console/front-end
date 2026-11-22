@@ -77,6 +77,11 @@ async function api(
       body = confirmed ? [combinedSettlement] : [];
     else if (path.endsWith(`/settlements/${combinedSettlement.id}`))
       body = sourceFails ? {} : combinedSettlement;
+    else if (
+      request.method() === "GET" &&
+      path.endsWith(`/settlements/${combinedSettlement.id}/corrections`)
+    )
+      body = [];
     else if (path.includes("/submissions/")) {
       const key = path.split("/").at(-1)!;
       body = terminalLookup
@@ -307,9 +312,10 @@ test("explicit keyboard selection, preview, pending protection and cash and forg
     detail.getByText("Cash received", { exact: true }),
   ).toBeVisible();
   await expect(
-    detail
-      .getByRole("link", { name: /linked cash \/ Expense Transaction/ })
-      .first(),
+    detail.getByRole("link", {
+      name: `View linked Transaction · ${combinedSettlement.transactionIds[0]}`,
+      exact: true,
+    }),
   ).toBeVisible();
   const rows = page
     .getByRole("table", { name: "Participant receivable composition" })
