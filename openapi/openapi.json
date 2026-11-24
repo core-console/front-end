@@ -1417,6 +1417,13 @@
             "title": "Cashreleases",
             "type": "array"
           },
+          "creditApplications": {
+            "items": {
+              "$ref": "#/components/schemas/CorrectionCreditApplication"
+            },
+            "title": "Creditapplications",
+            "type": "array"
+          },
           "financialEffectsAfter": {
             "items": {
               "$ref": "#/components/schemas/CorrectionFinancialEffect"
@@ -1439,6 +1446,13 @@
             "type": "array"
           },
           "fundingChanged": { "title": "Fundingchanged", "type": "boolean" },
+          "participantPositions": {
+            "items": {
+              "$ref": "#/components/schemas/CorrectionParticipantPosition"
+            },
+            "title": "Participantpositions",
+            "type": "array"
+          },
           "previewToken": { "title": "Previewtoken", "type": "string" },
           "reason": { "title": "Reason", "type": "string" }
         },
@@ -1572,6 +1586,13 @@
             "title": "Confirmedat",
             "type": "string"
           },
+          "creditApplications": {
+            "items": {
+              "$ref": "#/components/schemas/CorrectionCreditApplication"
+            },
+            "title": "Creditapplications",
+            "type": "array"
+          },
           "financialEffectsAfter": {
             "items": {
               "$ref": "#/components/schemas/CorrectionFinancialEffect"
@@ -1599,6 +1620,13 @@
             "format": "uuid",
             "title": "Ledgerid",
             "type": "string"
+          },
+          "participantPositions": {
+            "items": {
+              "$ref": "#/components/schemas/CorrectionParticipantPosition"
+            },
+            "title": "Participantpositions",
+            "type": "array"
           },
           "previewToken": { "title": "Previewtoken", "type": "string" },
           "reason": { "title": "Reason", "type": "string" },
@@ -3331,6 +3359,63 @@
         "title": "CorrectionCashRelease",
         "type": "object"
       },
+      "CorrectionCreditApplication": {
+        "additionalProperties": false,
+        "properties": {
+          "applicationTransactionId": {
+            "format": "uuid",
+            "title": "Applicationtransactionid",
+            "type": "string"
+          },
+          "appliedAfter": { "$ref": "#/components/schemas/MoneyResponse" },
+          "appliedBefore": { "$ref": "#/components/schemas/MoneyResponse" },
+          "confirmationOrder": {
+            "title": "Confirmationorder",
+            "type": "integer"
+          },
+          "financialEffect": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/CorrectionFinancialEffect" },
+              { "type": "null" }
+            ]
+          },
+          "obligationId": {
+            "format": "uuid",
+            "title": "Obligationid",
+            "type": "string"
+          },
+          "origin": { "$ref": "#/components/schemas/CreditOriginResponse" },
+          "originalApplied": { "$ref": "#/components/schemas/MoneyResponse" },
+          "position": { "title": "Position", "type": "integer" },
+          "restored": { "$ref": "#/components/schemas/MoneyResponse" },
+          "settlementId": {
+            "format": "uuid",
+            "title": "Settlementid",
+            "type": "string"
+          },
+          "transactionDate": {
+            "format": "date",
+            "title": "Transactiondate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "settlementId",
+          "confirmationOrder",
+          "transactionDate",
+          "obligationId",
+          "position",
+          "applicationTransactionId",
+          "origin",
+          "originalApplied",
+          "appliedBefore",
+          "appliedAfter",
+          "restored",
+          "financialEffect"
+        ],
+        "title": "CorrectionCreditApplication",
+        "type": "object"
+      },
       "CorrectionFinancialEffect": {
         "additionalProperties": false,
         "properties": {
@@ -3436,6 +3521,37 @@
         "title": "CorrectionMovement",
         "type": "object"
       },
+      "CorrectionParticipantPosition": {
+        "additionalProperties": false,
+        "properties": {
+          "availableCreditAfter": {
+            "$ref": "#/components/schemas/MoneyResponse"
+          },
+          "availableCreditBefore": {
+            "$ref": "#/components/schemas/MoneyResponse"
+          },
+          "outstandingReceivablesAfter": {
+            "$ref": "#/components/schemas/MoneyResponse"
+          },
+          "outstandingReceivablesBefore": {
+            "$ref": "#/components/schemas/MoneyResponse"
+          },
+          "participantId": {
+            "format": "uuid",
+            "title": "Participantid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "participantId",
+          "outstandingReceivablesBefore",
+          "outstandingReceivablesAfter",
+          "availableCreditBefore",
+          "availableCreditAfter"
+        ],
+        "title": "CorrectionParticipantPosition",
+        "type": "object"
+      },
       "CreateUserRequest": {
         "additionalProperties": false,
         "description": "Administrator-supplied profile and immutable external identity.",
@@ -3474,6 +3590,12 @@
             "type": "string"
           },
           "creditApplied": { "$ref": "#/components/schemas/MoneyResponse" },
+          "effectiveCreditApplied": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/MoneyResponse" },
+              { "type": "null" }
+            ]
+          },
           "kind": {
             "const": "creditApplication",
             "default": "creditApplication",

@@ -136,7 +136,7 @@ it("blocks inexact shares without rounding or requesting preview", async () => {
   expect(creates).toBe(0);
 });
 
-it("blocks correction when credit was applied", async () => {
+it("opens correction for an Advance with applied Credit and locks its date and attribution", async () => {
   const source = {
     ...before,
     obligation: {
@@ -156,8 +156,15 @@ it("blocks correction when credit was applied", async () => {
     { name: "Correct Advance" },
     { timeout: 5000 },
   );
-  expect(button).toBeDisabled();
-  expect(screen.getByText(/This Advance has applied credit/)).toBeVisible();
+  await waitFor(() => expect(button).toBeEnabled());
+  await userEvent.setup().click(button);
+  const dialog = await screen.findByRole("dialog", { name: "Correct Advance" });
+  expect(
+    within(dialog).getByLabelText("Original financial date"),
+  ).toHaveAttribute("readonly");
+  expect(
+    within(dialog).getByLabelText("Participant 1", { exact: true }),
+  ).toBeDisabled();
   expect(creates).toBe(0);
 });
 it("keeps date and attribution locked after effective forgiveness reaches zero", async () => {

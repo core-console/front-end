@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useIsMutating } from "@tanstack/react-query";
 import { AdvanceCorrectionFormDialog } from "./advance-correction-form-dialog";
 import { AdvanceCorrectionHistory } from "./advance-correction-history";
-import { correctionEligible, parseCorrection } from "./advance-correction";
+import { parseCorrection } from "./advance-correction";
 import { useFinanceSubmissions } from "./finance-submission-context";
 import { Link } from "react-router";
 import {
@@ -101,19 +101,12 @@ export function AdvanceDetail({
               !journal.ready ||
               !journal.recoveryLoaded ||
               pending ||
-              retained ||
-              !correctionEligible(item)
+              retained
             }
             onClick={() => setCorrecting(true)}
           >
             Correct Advance
           </Button>
-          {!correctionEligible(item) ? (
-            <p role="status">
-              This Advance has applied credit and requires a separate correction
-              workflow.
-            </p>
-          ) : null}
           {retained ? (
             <p role="status">
               Resolve the retained Advance Correction in Finance recovery before
@@ -193,9 +186,12 @@ export function AdvanceDetail({
             <AdvanceCorrectionFormDialog
               key={journal.partitionKey + "|" + ledgerId + "|" + advanceId}
               source={item}
-              hasRestatedForgiveness={
+              hasCorrectedAllocations={
                 history.data?.some(
-                  (row) => row.forgivenessRestatements?.length,
+                  (row) =>
+                    row.forgivenessRestatements?.length ||
+                    row.creditApplications?.length ||
+                    row.cashReleases?.length,
                 ) ?? false
               }
               accounts={accounts}

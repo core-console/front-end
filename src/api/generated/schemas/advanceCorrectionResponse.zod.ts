@@ -285,6 +285,92 @@ export const AdvanceCorrectionResponse = zod.strictObject({
     )
     .optional(),
   confirmedAt: zod.iso.datetime({ offset: true }),
+  creditApplications: zod
+    .array(
+      zod.strictObject({
+        applicationTransactionId: zod.uuid(),
+        appliedAfter: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        appliedBefore: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        confirmationOrder: zod.int(),
+        financialEffect: zod.union([
+          zod.strictObject({
+            kind: zod.enum(["expense", "internalTransfer"]),
+            movements: zod.array(
+              zod.strictObject({
+                accountId: zod.uuid(),
+                amount: zod
+                  .strictObject({
+                    amount: zod.string(),
+                    currency: zod.enum(["CNY", "JPY", "USD"]),
+                  })
+                  .describe("Closed public projection of exact Finance Money."),
+                role: zod.enum(["source", "destination", "primary"]),
+              }),
+            ),
+            note: zod.union([zod.string(), zod.null()]),
+            ownerExpense: zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            transactionDate: zod.iso.date(),
+            transactionId: zod.uuid(),
+          }),
+          zod.null(),
+        ]),
+        obligationId: zod.uuid(),
+        origin: zod.strictObject({
+          amount: zod
+            .strictObject({
+              amount: zod.string(),
+              currency: zod.enum(["CNY", "JPY", "USD"]),
+            })
+            .describe("Closed public projection of exact Finance Money."),
+          available: zod
+            .strictObject({
+              amount: zod.string(),
+              currency: zod.enum(["CNY", "JPY", "USD"]),
+            })
+            .describe("Closed public projection of exact Finance Money."),
+          confirmationOrder: zod.int(),
+          confirmedAt: zod.iso.datetime({ offset: true }),
+          ledgerId: zod.uuid(),
+          liabilityAccountId: zod.uuid(),
+          participantId: zod.uuid(),
+          receivingAccountId: zod.uuid(),
+          settlementId: zod.uuid(),
+          transactionDate: zod.iso.date(),
+          transactionId: zod.uuid(),
+        }),
+        originalApplied: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        position: zod.int(),
+        restored: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        settlementId: zod.uuid(),
+        transactionDate: zod.iso.date(),
+      }),
+    )
+    .optional(),
   financialEffectsAfter: zod.array(
     zod.strictObject({
       kind: zod.enum(["expense", "internalTransfer"]),
@@ -370,6 +456,37 @@ export const AdvanceCorrectionResponse = zod.strictObject({
   fundingChanged: zod.boolean(),
   id: zod.uuid(),
   ledgerId: zod.uuid(),
+  participantPositions: zod
+    .array(
+      zod.strictObject({
+        availableCreditAfter: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        availableCreditBefore: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        outstandingReceivablesAfter: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        outstandingReceivablesBefore: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        participantId: zod.uuid(),
+      }),
+    )
+    .optional(),
   previewToken: zod.string(),
   reason: zod.string(),
   revision: zod.int(),

@@ -84,9 +84,20 @@ export function SettlementAllocations({
               {hasCredit ? (
                 <>
                   <TableCell>
-                    {"creditApplied" in item
-                      ? formatFinanceMoney(item.creditApplied)
-                      : "—"}
+                    {"creditApplied" in item ? (
+                      <>
+                        {formatFinanceMoney(
+                          item.effectiveCreditApplied ?? item.creditApplied,
+                        )}
+                        {item.effectiveCreditApplied ? (
+                          <p className="text-xs text-muted-foreground">
+                            Originally {formatFinanceMoney(item.creditApplied)}
+                          </p>
+                        ) : null}
+                      </>
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                   <TableCell className="break-all whitespace-normal">
                     {"originSettlementId" in item ? (

@@ -157,6 +157,77 @@ export function CorrectionConsequences({
           ))}
         </section>
       ) : null}
+      {plan.creditApplications?.length ? (
+        <section
+          aria-label="Applied Credit and original receipts"
+          className="flex flex-col gap-3 rounded-md border p-3"
+        >
+          <h4 className="font-semibold">
+            Applied Credit and original receipts
+          </h4>
+          {plan.creditApplications.map((item) => (
+            <div
+              key={`${item.settlementId}:${item.position}`}
+              className="flex flex-col gap-1"
+            >
+              <p>
+                Originally applied {money(item.originalApplied)} · Effective{" "}
+                {money(item.appliedBefore)} → {money(item.appliedAfter)} ·
+                Restored {money(item.restored)}
+              </p>
+              <p>
+                Credit application on {item.transactionDate} · Confirmation{" "}
+                {item.confirmationOrder} · Allocation {item.position}
+              </p>
+              <p>
+                Original receipt on {item.origin.transactionDate} · Confirmation{" "}
+                {item.origin.confirmationOrder} · Available before{" "}
+                {money(item.origin.available)}
+              </p>
+              {item.financialEffect ? (
+                <p>
+                  Internal Transfer on {item.financialEffect.transactionDate} ·{" "}
+                  {item.financialEffect.transactionId}
+                </p>
+              ) : null}
+              <Link
+                className="underline underline-offset-4"
+                to={`/finance/repayments?ledger=${plan.after.ledgerId}&participant_id=${item.origin.participantId}&settlement_id=${item.settlementId}`}
+              >
+                Open Credit application
+              </Link>
+              <Link
+                className="underline underline-offset-4"
+                to={`/finance/repayments?ledger=${plan.after.ledgerId}&participant_id=${item.origin.participantId}&settlement_id=${item.origin.settlementId}`}
+              >
+                Open original Credit receipt
+              </Link>
+            </div>
+          ))}
+        </section>
+      ) : null}
+      {plan.participantPositions?.length ? (
+        <section
+          aria-label="Gross Participant positions"
+          className="flex flex-col gap-2 rounded-md border p-3"
+        >
+          <h4 className="font-semibold">Gross Participant positions</h4>
+          {plan.participantPositions.map((position) => (
+            <div key={position.participantId}>
+              <p>{person(position.participantId)}</p>
+              <p>
+                Outstanding receivables{" "}
+                {money(position.outstandingReceivablesBefore)} →{" "}
+                {money(position.outstandingReceivablesAfter)}
+              </p>
+              <p>
+                Available Credit {money(position.availableCreditBefore)} →{" "}
+                {money(position.availableCreditAfter)}
+              </p>
+            </div>
+          ))}
+        </section>
+      ) : null}
       <section
         aria-label="Affected Account balances"
         className="flex flex-col gap-2"
@@ -173,9 +244,9 @@ export function CorrectionConsequences({
         <p>
           Released cash remains available as credit from its original receipt.
         </p>
-      ) : (
+      ) : !plan.creditApplications?.length ? (
         <p>No Credit released.</p>
-      )}
+      ) : null}
       <Link
         className="underline underline-offset-4"
         to={`/finance/advances?ledger=${plan.after.ledgerId}&advance_id=${plan.advanceId}`}

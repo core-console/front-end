@@ -88,3 +88,72 @@ it("requires a matching Expense restatement when reducing effective forgiveness"
     parseCorrectionPreview(plan, ledger.id, cashCorrectionDraft),
   ).toThrow();
 });
+
+it("requires the original receipt, restored Amount and gross Credit in a complete plan", () => {
+  const plan = structuredClone(cashCorrectionPreview);
+  if (!("obligation" in plan.before))
+    throw new Error("Expected single Advance");
+  const [release] = plan.cashReleases!;
+  plan.before.obligation.cashPaid = correctionMoney("0.00");
+  plan.before.obligation.creditApplied = correctionMoney("20.00");
+  plan.after.obligations[0]!.cashPaid = correctionMoney("0.00");
+  plan.after.obligations[0]!.creditApplied = correctionMoney("15.01");
+  plan.cashReleases = [];
+  plan.creditApplications = [
+    {
+      settlementId: crypto.randomUUID(),
+      confirmationOrder: 8,
+      transactionDate: "2027-01-03",
+      applicationTransactionId: crypto.randomUUID(),
+      obligationId: before.obligation.id,
+      position: 1,
+      origin: {
+        settlementId: release!.settlementId,
+        ledgerId: ledger.id,
+        participantId: before.obligation.participantId,
+        receivingAccountId: before.fundingAccountId,
+        liabilityAccountId: release!.creditAccountId,
+        transactionId: crypto.randomUUID(),
+        transactionDate: release!.transactionDate,
+        confirmedAt: release!.confirmedAt,
+        confirmationOrder: 7,
+        amount: correctionMoney("20.00"),
+        available: correctionMoney("0.00"),
+      },
+      originalApplied: correctionMoney("20.00"),
+      appliedBefore: correctionMoney("20.00"),
+      appliedAfter: correctionMoney("15.01"),
+      restored: correctionMoney("4.99"),
+      financialEffect: {
+        ...release!.financialEffect,
+        transactionDate: "2027-01-03",
+      },
+    },
+  ];
+  plan.participantPositions = [
+    {
+      participantId: before.obligation.participantId,
+      outstandingReceivablesBefore: correctionMoney("5.01"),
+      outstandingReceivablesAfter: correctionMoney("0.00"),
+      availableCreditBefore: correctionMoney("0.00"),
+      availableCreditAfter: correctionMoney("4.99"),
+    },
+  ];
+  expect(parseCorrectionPreview(plan, ledger.id, cashCorrectionDraft)).toEqual(
+    plan,
+  );
+  for (const incomplete of [
+    { ...plan, creditApplications: [] },
+    { ...plan, participantPositions: [] },
+    {
+      ...plan,
+      creditApplications: [
+        { ...plan.creditApplications[0]!, financialEffect: null },
+      ],
+    },
+  ]) {
+    expect(() =>
+      parseCorrectionPreview(incomplete, ledger.id, cashCorrectionDraft),
+    ).toThrow();
+  }
+});

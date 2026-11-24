@@ -75,6 +75,17 @@ export const SettlementSource = zod.union([
             currency: zod.enum(["CNY", "JPY", "USD"]),
           })
           .describe("Closed public projection of exact Finance Money."),
+        effectiveCreditApplied: zod
+          .union([
+            zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            zod.null(),
+          ])
+          .optional(),
         kind: zod
           .literal("creditApplication")
           .default(settlementSourceTwoAllocationsItemKindDefault)

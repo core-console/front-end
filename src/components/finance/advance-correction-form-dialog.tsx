@@ -52,7 +52,7 @@ import {
 import { Alert, AlertTitle } from "@/components/ui/alert";
 export function AdvanceCorrectionFormDialog({
   source,
-  hasRestatedForgiveness,
+  hasCorrectedAllocations,
   accounts,
   participants,
   onClose,
@@ -61,7 +61,7 @@ export function AdvanceCorrectionFormDialog({
   refreshDependencies,
 }: {
   source: AdvanceSource;
-  hasRestatedForgiveness: boolean;
+  hasCorrectedAllocations: boolean;
   accounts: AccountResponse[];
   participants: ParticipantResponse[];
   onClose: () => void;
@@ -70,10 +70,13 @@ export function AdvanceCorrectionFormDialog({
   refreshDependencies: () => Promise<void>;
 }) {
   const ledgerId = source.ledgerId;
-  const hasForgiveness =
-    hasRestatedForgiveness ||
+  const hasAllocations =
+    hasCorrectedAllocations ||
     advanceObligations(source).some(
-      (o) => !correctionEqual(o.forgiven.amount, "0"),
+      (o) =>
+        !correctionEqual(o.cashPaid.amount, "0") ||
+        !correctionEqual(o.forgiven.amount, "0") ||
+        !correctionEqual(o.creditApplied.amount, "0"),
     );
   const [reason, setReason] = useState("");
   const [funding, setFunding] = useState(source.fundingAccountId);
@@ -276,7 +279,7 @@ export function AdvanceCorrectionFormDialog({
         <Input
           id="correction-date"
           type="date"
-          readOnly={hasForgiveness}
+          readOnly={hasAllocations}
           value={date}
           onChange={(e) => {
             edit();
@@ -374,7 +377,7 @@ export function AdvanceCorrectionFormDialog({
                       <NativeSelect
                         id={`correction-participant-${i}`}
                         value={share.participantId}
-                        disabled={hasForgiveness}
+                        disabled={hasAllocations}
                         aria-invalid={!!errors[`participant-${i}`]}
                         aria-describedby={
                           errors[`participant-${i}`]
@@ -458,7 +461,7 @@ export function AdvanceCorrectionFormDialog({
               <Button
                 type="button"
                 variant="outline"
-                disabled={hasForgiveness}
+                disabled={hasAllocations}
                 onClick={() => {
                   edit();
                   setShares((rows) => [
