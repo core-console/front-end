@@ -175,6 +175,107 @@ export const SettlementCorrectionResponse = zod.strictObject({
   }),
   confirmationOrder: zod.int(),
   confirmedAt: zod.iso.datetime({ offset: true }),
+  creditCorrection: zod
+    .union([
+      zod.strictObject({
+        applications: zod.array(
+          zod.strictObject({
+            applicationTransactionId: zod.uuid(),
+            appliedAfter: zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            appliedBefore: zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            confirmationOrder: zod.int(),
+            obligationId: zod.uuid(),
+            originalApplied: zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            position: zod.int(),
+            released: zod
+              .strictObject({
+                amount: zod.string(),
+                currency: zod.enum(["CNY", "JPY", "USD"]),
+              })
+              .describe("Closed public projection of exact Finance Money."),
+            restatementTransactionId: zod.union([zod.uuid(), zod.null()]),
+            settlementId: zod.uuid(),
+            transactionDate: zod.iso.date(),
+          }),
+        ),
+        availableAfter: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        origin: zod.strictObject({
+          amount: zod
+            .strictObject({
+              amount: zod.string(),
+              currency: zod.enum(["CNY", "JPY", "USD"]),
+            })
+            .describe("Closed public projection of exact Finance Money."),
+          available: zod
+            .strictObject({
+              amount: zod.string(),
+              currency: zod.enum(["CNY", "JPY", "USD"]),
+            })
+            .describe("Closed public projection of exact Finance Money."),
+          confirmationOrder: zod.int(),
+          confirmedAt: zod.iso.datetime({ offset: true }),
+          hasReturnedCredit: zod
+            .union([zod.literal(true), zod.null()])
+            .optional(),
+          ledgerId: zod.uuid(),
+          liabilityAccountId: zod.uuid(),
+          participantId: zod.uuid(),
+          receivingAccountId: zod.uuid(),
+          settlementId: zod.uuid(),
+          transactionDate: zod.iso.date(),
+          transactionId: zod.uuid(),
+        }),
+        participantPosition: zod.strictObject({
+          availableCreditAfter: zod
+            .strictObject({
+              amount: zod.string(),
+              currency: zod.enum(["CNY", "JPY", "USD"]),
+            })
+            .describe("Closed public projection of exact Finance Money."),
+          availableCreditBefore: zod
+            .strictObject({
+              amount: zod.string(),
+              currency: zod.enum(["CNY", "JPY", "USD"]),
+            })
+            .describe("Closed public projection of exact Finance Money."),
+          outstandingReceivablesAfter: zod
+            .strictObject({
+              amount: zod.string(),
+              currency: zod.enum(["CNY", "JPY", "USD"]),
+            })
+            .describe("Closed public projection of exact Finance Money."),
+          outstandingReceivablesBefore: zod
+            .strictObject({
+              amount: zod.string(),
+              currency: zod.enum(["CNY", "JPY", "USD"]),
+            })
+            .describe("Closed public projection of exact Finance Money."),
+          participantId: zod.uuid(),
+        }),
+      }),
+      zod.null(),
+    ])
+    .optional(),
   excessDisposition: zod.enum(["none", "retainCredit", "acceptIncome"]),
   financialEffectsAfter: zod.array(
     zod.strictObject({

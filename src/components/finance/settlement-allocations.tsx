@@ -47,9 +47,11 @@ export function SettlementAllocations({
             ...(hasForgiveness ? ["Forgiven"] : []),
             confirmed && hasForgiveness
               ? "Effective remaining after"
-              : confirmed
-                ? "Retained remaining projection"
-                : "Remaining after",
+              : confirmed && hasCredit
+                ? "Remaining when confirmed"
+                : confirmed
+                  ? "Retained remaining projection"
+                  : "Remaining after",
           ].map((label) => (
             <TableHead key={label}>{label}</TableHead>
           ))}

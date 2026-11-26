@@ -29,8 +29,10 @@ import { SettlementAllocations } from "./settlement-allocations";
 import {
   parseSettlementSource,
   settlementSourceSchema,
+  type SettlementSource,
 } from "./settlement-source";
 import { formatFinanceMoney } from "./finance-money";
+import { subtractExactDecimals } from "./finance-decimal";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
   NativeSelect,
@@ -44,6 +46,27 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from "@/components/ui/empty";
+
+function restatedCreditApplied(item: SettlementSource) {
+  if (
+    !("kind" in item) ||
+    item.kind !== "creditApplication" ||
+    !item.allocations.some((allocation) => allocation.effectiveCreditApplied)
+  )
+    return null;
+
+  return {
+    currency: item.amount.currency,
+    amount: item.allocations.reduce(
+      (total, allocation) =>
+        subtractExactDecimals(
+          total,
+          `-${(allocation.effectiveCreditApplied ?? allocation.creditApplied).amount}`,
+        ),
+      "0",
+    ),
+  };
+}
 
 function SettlementDetail({
   ledgerId,
@@ -92,6 +115,7 @@ function SettlementDetail({
   );
   const creditOrigin =
     item && "creditOrigin" in item ? item.creditOrigin : undefined;
+  const correctedApplication = item && restatedCreditApplied(item);
   const surplus =
     item && "acceptedSurplus" in item ? item.acceptedSurplus : null;
   const hasIncome = !!surplus;
@@ -125,32 +149,32 @@ function SettlementDetail({
         <>
           {settlementCorrectionEligible(item) ? (
             <>
-              <Button
-                ref={correctionTrigger}
-                variant="outline"
-                disabled={
-                  !journal.ready ||
-                  !journal.recoveryLoaded ||
-                  pendingCorrection ||
-                  retainedCorrection
-                }
-                onClick={() => {
-                  correctionConfirmed.current = false;
-                  setCorrectionOpen(true);
-                }}
-              >
-                {includesForgiveness
-                  ? "kind" in item && item.kind === "forgiveness"
-                    ? "Correct forgiveness"
-                    : "Correct combined Settlement"
-                  : "Correct cash repayment"}
-              </Button>
-              {!includesForgiveness && (
+              {creditOrigin?.hasReturnedCredit ? (
                 <p className="text-sm text-muted-foreground">
-                  Correct only the entered cash amount. The server checks
-                  eligibility; consumed or returned receipt credit requires a
-                  later lifecycle workflow.
+                  Credit from this receipt has been returned. Corrections of
+                  returned credit are unavailable.
                 </p>
+              ) : (
+                <Button
+                  ref={correctionTrigger}
+                  variant="outline"
+                  disabled={
+                    !journal.ready ||
+                    !journal.recoveryLoaded ||
+                    pendingCorrection ||
+                    retainedCorrection
+                  }
+                  onClick={() => {
+                    correctionConfirmed.current = false;
+                    setCorrectionOpen(true);
+                  }}
+                >
+                  {includesForgiveness
+                    ? "kind" in item && item.kind === "forgiveness"
+                      ? "Correct forgiveness"
+                      : "Correct combined Settlement"
+                    : "Correct cash repayment"}
+                </Button>
               )}
               {retainedCorrection ? (
                 <p role="status">
@@ -173,7 +197,8 @@ function SettlementDetail({
                   }}
                   finalFocus={() =>
                     correctionConfirmed.current ||
-                    correctionTrigger.current?.disabled
+                    !correctionTrigger.current ||
+                    correctionTrigger.current.disabled
                       ? document.getElementById("finance-title")
                       : correctionTrigger.current
                   }
@@ -221,10 +246,20 @@ function SettlementDetail({
                   : "kind" in item && item.kind === "creditReturn"
                     ? "Credit returned / Account outflow"
                     : "kind" in item && item.kind === "creditApplication"
-                      ? "Credit applied"
+                      ? correctedApplication
+                        ? "Originally applied credit"
+                        : "Credit applied"
                       : "Cash received",
                 formatFinanceMoney(item.amount),
               ],
+              ...(correctedApplication
+                ? [
+                    [
+                      "Effective credit applied",
+                      formatFinanceMoney(correctedApplication),
+                    ],
+                  ]
+                : []),
               ...("forgivenessAmount" in item
                 ? [
                     [
@@ -438,34 +473,43 @@ function RepaymentHistory({
       ) : null}
       {query.data?.length ? (
         <ol className="flex flex-col gap-2">
-          {query.data.map((item) => (
-            <li key={item.id}>
-              <Link
-                className="underline underline-offset-4"
-                to={`/finance/repayments?ledger=${ledgerId}&participant_id=${participantId}&settlement_id=${item.id}`}
-              >
-                {item.transactionDate} ·{" "}
-                {"kind" in item && item.kind === "forgiveness"
-                  ? "Forgiven"
-                  : "kind" in item && item.kind === "creditReturn"
-                    ? "Credit returned"
-                    : "kind" in item && item.kind === "creditApplication"
-                      ? "Credit applied"
-                      : "Cash received"}{" "}
-                {formatFinanceMoney(
-                  ("effectiveCashAmount" in item && item.effectiveCashAmount) ||
-                    ("effectiveForgivenessAmount" in item &&
-                      item.kind === "forgiveness" &&
-                      item.effectiveForgivenessAmount) ||
-                    item.amount,
-                )}
-                {"forgivenessAmount" in item
-                  ? ` · Forgiven ${formatFinanceMoney(item.effectiveForgivenessAmount ?? item.forgivenessAmount)}`
-                  : ""}{" "}
-                · Confirmation {item.confirmationOrder}
-              </Link>
-            </li>
-          ))}
+          {query.data.map((item) => {
+            const correctedApplication = restatedCreditApplied(item);
+            return (
+              <li key={item.id}>
+                <Link
+                  className="underline underline-offset-4"
+                  to={`/finance/repayments?ledger=${ledgerId}&participant_id=${participantId}&settlement_id=${item.id}`}
+                >
+                  {item.transactionDate} ·{" "}
+                  {"kind" in item && item.kind === "forgiveness"
+                    ? "Forgiven"
+                    : "kind" in item && item.kind === "creditReturn"
+                      ? "Credit returned"
+                      : "kind" in item && item.kind === "creditApplication"
+                        ? correctedApplication
+                          ? "Effective credit applied"
+                          : "Credit applied"
+                        : "Cash received"}{" "}
+                  {formatFinanceMoney(
+                    correctedApplication ||
+                      ("effectiveCashAmount" in item &&
+                        item.effectiveCashAmount) ||
+                      ("effectiveForgivenessAmount" in item &&
+                        item.kind === "forgiveness" &&
+                        item.effectiveForgivenessAmount) ||
+                      item.amount,
+                  )}
+                  {correctedApplication &&
+                    ` · Originally applied ${formatFinanceMoney(item.amount)}`}
+                  {"forgivenessAmount" in item
+                    ? ` · Forgiven ${formatFinanceMoney(item.effectiveForgivenessAmount ?? item.forgivenessAmount)}`
+                    : ""}{" "}
+                  · Confirmation {item.confirmationOrder}
+                </Link>
+              </li>
+            );
+          })}
         </ol>
       ) : null}
     </section>

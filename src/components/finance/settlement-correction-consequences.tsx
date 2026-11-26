@@ -10,6 +10,7 @@ export function SettlementCorrectionConsequences({
   ledgerId: string;
 }) {
   const forgiveness = !!p.before.forgivenessAmount;
+  const credit = p.creditCorrection;
   return (
     <div className="flex min-w-0 flex-col gap-3 [overflow-wrap:anywhere]">
       <p>
@@ -25,6 +26,56 @@ export function SettlementCorrectionConsequences({
         Confirmed selected scope:{" "}
         {p.selectedObligationIds?.join(", ") ?? "All originally eligible debt"}.
       </p>
+      {credit && (
+        <section
+          aria-label="Applied credit consequences"
+          className="flex flex-col gap-3 rounded-md border p-3"
+        >
+          <h4 className="font-semibold">Applied credit consequences</h4>
+          <p>
+            Credit origin {credit.origin.settlementId} · Confirmation order{" "}
+            {credit.origin.confirmationOrder}
+          </p>
+          <p>
+            Retained from receipt {money(credit.origin.amount)} →{" "}
+            {money(p.after.retainedCredit)} · Available from receipt{" "}
+            {money(credit.origin.available)} → {money(credit.availableAfter)}
+          </p>
+          <p>
+            Participant outstanding receivables{" "}
+            {money(credit.participantPosition.outstandingReceivablesBefore)} →{" "}
+            {money(credit.participantPosition.outstandingReceivablesAfter)}
+          </p>
+          <p>
+            Participant available credit{" "}
+            {money(credit.participantPosition.availableCreditBefore)} →{" "}
+            {money(credit.participantPosition.availableCreditAfter)}
+          </p>
+          <h5 className="font-semibold">Applications from this receipt</h5>
+          <ol className="flex flex-col gap-2">
+            {credit.applications.map((a) => (
+              <li key={a.applicationTransactionId}>
+                <Link
+                  className="underline underline-offset-4"
+                  to={`/finance/repayments?ledger=${ledgerId}&participant_id=${p.participantId}&settlement_id=${a.settlementId}`}
+                >
+                  Credit application {a.settlementId}
+                </Link>{" "}
+                · Confirmation order {a.confirmationOrder} · Allocation{" "}
+                {a.position}
+                <p>
+                  Obligation {a.obligationId} · Originally applied{" "}
+                  {money(a.originalApplied)} · Applied {money(a.appliedBefore)}{" "}
+                  → {money(a.appliedAfter)} ·{" "}
+                  {a.restatementTransactionId
+                    ? `Released ${money(a.released)} to reopen debt`
+                    : "Application preserved"}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
       {(
         [
           ["Before", p.before, p.obligationsBefore, p.financialEffectsBefore],

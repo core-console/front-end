@@ -30,6 +30,111 @@ export function settlementCorrectionEligible(source: SettlementSource) {
     source.kind === "forgiveness"
   );
 }
+
+function validCreditCorrection(
+  p: SettlementCorrectionPreview,
+  ledgerId: string,
+) {
+  const credit = p.creditCorrection;
+  if (!credit) return true;
+  const { origin, applications, participantPosition } = credit;
+  if (
+    origin.ledgerId !== ledgerId ||
+    origin.settlementId !== p.settlementId ||
+    origin.participantId !== p.participantId ||
+    origin.receivingAccountId !== p.receivingAccountId ||
+    origin.confirmationOrder !== p.confirmationOrder ||
+    origin.transactionDate !== p.transactionDate ||
+    origin.confirmedAt !== p.originalConfirmedAt ||
+    origin.hasReturnedCredit ||
+    participantPosition.participantId !== p.participantId ||
+    applications.length === 0
+  )
+    return false;
+  const monies = [
+    origin.amount,
+    origin.available,
+    credit.availableAfter,
+    participantPosition.outstandingReceivablesBefore,
+    participantPosition.outstandingReceivablesAfter,
+    participantPosition.availableCreditBefore,
+    participantPosition.availableCreditAfter,
+    ...applications.flatMap((a) => [
+      a.originalApplied,
+      a.appliedBefore,
+      a.appliedAfter,
+      a.released,
+    ]),
+  ];
+  if (
+    !monies.every(
+      (m) =>
+        m.currency === p.before.amount.currency &&
+        /^\d+(?:\.\d+)?$/.test(m.amount),
+    )
+  )
+    return false;
+  const before = new Map(p.obligationsBefore.map((o) => [o.id, o]));
+  const after = new Map(p.obligationsAfter.map((o) => [o.id, o]));
+  const releases = new Map<string, string>();
+  const effects = new Map(
+    p.financialEffectsAfter.map((e) => [e.transactionId, e]),
+  );
+  for (const a of applications) {
+    if (
+      !before.has(a.obligationId) ||
+      !after.has(a.obligationId) ||
+      !equal(
+        subtract(a.appliedBefore.amount, a.appliedAfter.amount),
+        a.released.amount,
+      )
+    )
+      return false;
+    if (equal(a.released.amount, "0")) {
+      if (a.restatementTransactionId) return false;
+    } else {
+      const effect =
+        a.restatementTransactionId && effects.get(a.restatementTransactionId);
+      if (
+        !effect ||
+        effect.kind !== "internalTransfer" ||
+        effect.transactionDate !== a.transactionDate
+      )
+        return false;
+    }
+    releases.set(
+      a.obligationId,
+      sum([releases.get(a.obligationId) ?? "0", a.released.amount]),
+    );
+  }
+  return (
+    equal(origin.amount.amount, p.before.retainedCredit.amount) &&
+    equal(
+      origin.available.amount,
+      subtract(
+        origin.amount.amount,
+        sum(applications.map((a) => a.appliedBefore.amount)),
+      ),
+    ) &&
+    equal(
+      credit.availableAfter.amount,
+      subtract(
+        p.after.retainedCredit.amount,
+        sum(applications.map((a) => a.appliedAfter.amount)),
+      ),
+    ) &&
+    [...releases].every(([id, released]) =>
+      equal(
+        subtract(
+          before.get(id)!.creditApplied.amount,
+          after.get(id)!.creditApplied.amount,
+        ),
+        released,
+      ),
+    )
+  );
+}
+
 function validCashPlan(p: SettlementCorrectionPreview, ledgerId: string) {
   const currency = p.before.amount.currency;
   const money = (m: MoneyResponse, nonnegative = true) =>
@@ -38,11 +143,15 @@ function validCashPlan(p: SettlementCorrectionPreview, ledgerId: string) {
     (!nonnegative || !m.amount.startsWith("-"));
   if (!/^[0-9a-f]{64}$/.test(p.previewToken) || p.confirmationOrder < 1)
     return false;
+  const affectedIds = new Set([
+    ...p.before.allocations.map((a) => a.obligationId),
+    ...(p.creditCorrection?.applications.map((a) => a.obligationId) ?? []),
+  ]);
   if (
     !unique(p.before.allocations.map((a) => a.obligationId)) ||
     p.after.allocations.length !== p.before.allocations.length ||
-    p.obligationsBefore.length !== p.before.allocations.length ||
-    p.obligationsAfter.length !== p.before.allocations.length ||
+    p.obligationsBefore.length !== affectedIds.size ||
+    p.obligationsAfter.length !== affectedIds.size ||
     !unique(p.accountEffects.map((a) => a.accountId))
   )
     return false;
@@ -66,7 +175,6 @@ function validCashPlan(p: SettlementCorrectionPreview, ledgerId: string) {
       return false;
     for (const [i, a] of facts.allocations.entries()) {
       const original = p.before.allocations[i]!;
-      const o = obligations[i]!;
       if (
         a.obligationId !== original.obligationId ||
         a.position !== original.position ||
@@ -74,7 +182,14 @@ function validCashPlan(p: SettlementCorrectionPreview, ledgerId: string) {
         !money(a.cashPaid) ||
         !money(a.originalCashPaid) ||
         !equal(a.originalCashPaid.amount, original.originalCashPaid.amount) ||
-        o.id !== a.obligationId ||
+        obligations[i]?.id !== a.obligationId
+      )
+        return false;
+    }
+    if (!unique(obligations.map((o) => o.id))) return false;
+    for (const o of obligations) {
+      if (
+        !affectedIds.has(o.id) ||
         o.ledgerId !== ledgerId ||
         o.participantId !== p.participantId ||
         ![
@@ -101,17 +216,19 @@ function validCashPlan(p: SettlementCorrectionPreview, ledgerId: string) {
     !p.obligationsAfter.every((o, i) => {
       const b = p.obligationsBefore[i]!;
       return (
+        o.id === b.id &&
         o.advanceId === b.advanceId &&
         o.receivableAccountId === b.receivableAccountId &&
         o.sourceDate === b.sourceDate &&
         equal(o.principal.amount, b.principal.amount) &&
         equal(o.forgiven.amount, b.forgiven.amount) &&
-        equal(o.creditApplied.amount, b.creditApplied.amount) &&
+        (p.creditCorrection ||
+          equal(o.creditApplied.amount, b.creditApplied.amount)) &&
         equal(
           subtract(o.cashPaid.amount, b.cashPaid.amount),
           subtract(
-            p.after.allocations[i]!.cashPaid.amount,
-            p.before.allocations[i]!.cashPaid.amount,
+            p.after.allocations[i]?.cashPaid.amount ?? "0",
+            p.before.allocations[i]?.cashPaid.amount ?? "0",
           ),
         )
       );
@@ -126,7 +243,9 @@ function validCashPlan(p: SettlementCorrectionPreview, ledgerId: string) {
     if (!unique(effects.map((e) => e.transactionId))) return false;
     for (const e of effects) {
       if (
-        e.transactionDate !== p.transactionDate ||
+        (e.transactionDate !== p.transactionDate &&
+          (e.kind !== "internalTransfer" ||
+            e.movements.some((m) => m.accountId === p.receivingAccountId))) ||
         !money(e.income) ||
         !unique(e.movements.map((m) => m.accountId)) ||
         !e.movements.every((m) => money(m.amount, false))
@@ -158,8 +277,12 @@ function validCashPlan(p: SettlementCorrectionPreview, ledgerId: string) {
   );
 }
 function validPlan(p: SettlementCorrectionPreview, ledgerId: string) {
+  if (!validCreditCorrection(p, ledgerId)) return false;
   if (!p.before.forgivenessAmount) return validCashPlan(p, ledgerId);
   const selected = new Set(p.selectedObligationIds);
+  const downstream = new Set(
+    p.creditCorrection?.applications.map((a) => a.obligationId),
+  );
   return (
     !!p.after.forgivenessAmount &&
     selected.size > 0 &&
@@ -168,7 +291,7 @@ function validPlan(p: SettlementCorrectionPreview, ledgerId: string) {
     ) &&
     [...p.obligationsBefore, ...p.obligationsAfter].every(
       (o) =>
-        selected.has(o.id) &&
+        (selected.has(o.id) || downstream.has(o.id)) &&
         o.ledgerId === ledgerId &&
         o.participantId === p.participantId,
     )

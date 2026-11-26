@@ -200,6 +200,8 @@ export * from "./previewFinanceSettlementBody.zod.ts";
 export * from "./previewFinanceSettlementCorrectionBody.zod.ts";
 export * from "./problemDetails.zod.ts";
 export * from "./receiptCorrectionFacts.zod.ts";
+export * from "./receiptCreditApplication.zod.ts";
+export * from "./receiptCreditCorrection.zod.ts";
 export * from "./receiptFinancialEffect.zod.ts";
 export * from "./renameFinanceParticipantBody.zod.ts";
 export * from "./replaceBalanceAdjustmentBody.zod.ts";

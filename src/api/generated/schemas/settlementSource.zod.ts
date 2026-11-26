@@ -284,6 +284,9 @@ export const SettlementSource = zod.union([
             .describe("Closed public projection of exact Finance Money."),
           confirmationOrder: zod.int(),
           confirmedAt: zod.iso.datetime({ offset: true }),
+          hasReturnedCredit: zod
+            .union([zod.literal(true), zod.null()])
+            .optional(),
           ledgerId: zod.uuid(),
           liabilityAccountId: zod.uuid(),
           participantId: zod.uuid(),
@@ -472,6 +475,9 @@ export const SettlementSource = zod.union([
             .describe("Closed public projection of exact Finance Money."),
           confirmationOrder: zod.int(),
           confirmedAt: zod.iso.datetime({ offset: true }),
+          hasReturnedCredit: zod
+            .union([zod.literal(true), zod.null()])
+            .optional(),
           ledgerId: zod.uuid(),
           liabilityAccountId: zod.uuid(),
           participantId: zod.uuid(),
@@ -537,6 +543,7 @@ export const SettlementSource = zod.union([
         .describe("Closed public projection of exact Finance Money."),
       confirmationOrder: zod.int(),
       confirmedAt: zod.iso.datetime({ offset: true }),
+      hasReturnedCredit: zod.union([zod.literal(true), zod.null()]).optional(),
       ledgerId: zod.uuid(),
       liabilityAccountId: zod.uuid(),
       participantId: zod.uuid(),
@@ -644,6 +651,9 @@ export const SettlementSource = zod.union([
             .describe("Closed public projection of exact Finance Money."),
           confirmationOrder: zod.int(),
           confirmedAt: zod.iso.datetime({ offset: true }),
+          hasReturnedCredit: zod
+            .union([zod.literal(true), zod.null()])
+            .optional(),
           ledgerId: zod.uuid(),
           liabilityAccountId: zod.uuid(),
           participantId: zod.uuid(),
@@ -708,6 +718,7 @@ export const SettlementSource = zod.union([
         .describe("Closed public projection of exact Finance Money."),
       confirmationOrder: zod.int(),
       confirmedAt: zod.iso.datetime({ offset: true }),
+      hasReturnedCredit: zod.union([zod.literal(true), zod.null()]).optional(),
       ledgerId: zod.uuid(),
       liabilityAccountId: zod.uuid(),
       participantId: zod.uuid(),
