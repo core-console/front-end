@@ -149,33 +149,26 @@ function SettlementDetail({
         <>
           {settlementCorrectionEligible(item) ? (
             <>
-              {creditOrigin?.hasReturnedCredit ? (
-                <p className="text-sm text-muted-foreground">
-                  Credit from this receipt has been returned. Corrections of
-                  returned credit are unavailable.
-                </p>
-              ) : (
-                <Button
-                  ref={correctionTrigger}
-                  variant="outline"
-                  disabled={
-                    !journal.ready ||
-                    !journal.recoveryLoaded ||
-                    pendingCorrection ||
-                    retainedCorrection
-                  }
-                  onClick={() => {
-                    correctionConfirmed.current = false;
-                    setCorrectionOpen(true);
-                  }}
-                >
-                  {includesForgiveness
-                    ? "kind" in item && item.kind === "forgiveness"
-                      ? "Correct forgiveness"
-                      : "Correct combined Settlement"
-                    : "Correct cash repayment"}
-                </Button>
-              )}
+              <Button
+                ref={correctionTrigger}
+                variant="outline"
+                disabled={
+                  !journal.ready ||
+                  !journal.recoveryLoaded ||
+                  pendingCorrection ||
+                  retainedCorrection
+                }
+                onClick={() => {
+                  correctionConfirmed.current = false;
+                  setCorrectionOpen(true);
+                }}
+              >
+                {includesForgiveness
+                  ? "kind" in item && item.kind === "forgiveness"
+                    ? "Correct forgiveness"
+                    : "Correct combined Settlement"
+                  : "Correct cash repayment"}
+              </Button>
               {retainedCorrection ? (
                 <p role="status">
                   Resolve the retained Correction in Finance recovery before

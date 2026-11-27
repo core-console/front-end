@@ -18,7 +18,11 @@ async function read(request: APIRequestContext, path: string) {
   return response.json();
 }
 
-async function seedAdvance(request: APIRequestContext, label: string) {
+async function seedAdvance(
+  request: APIRequestContext,
+  label: string,
+  principal = "100.00",
+) {
   const owner = (await read(request, "/api/me")).id as string;
   async function create(path: string, data: object, version = "1") {
     const response = await request.post(`${backend}${path}`, {
@@ -58,9 +62,9 @@ async function seedAdvance(request: APIRequestContext, label: string) {
     fundingAccountId: account,
     participantId: participant,
     transactionDate: "2026-10-20",
-    amount: money("100.00"),
+    amount: money(principal),
     ownerShare: money("0.00"),
-    participantShare: money("100.00"),
+    participantShare: money(principal),
     note: null,
   };
   const advancePlan = await preview(`${base}/advances/preview`, advanceDraft);
@@ -97,6 +101,308 @@ async function proxyBackend(page: Page, context: BrowserContext) {
   });
   return errors;
 }
+
+for (const kind of ["Advance", "receipt"] as const) {
+  test(`corrects a returned Credit origin through the ${kind} workflow`, async ({
+    page,
+    context,
+    request,
+  }) => {
+    const { ledger, base, account, participant, advance, create, preview } =
+      await seedAdvance(request, "Returned Credit");
+    const settle = async (data: object, version = "1") =>
+      create(
+        `${base}/settlements`,
+        {
+          ...data,
+          previewToken: (await preview(`${base}/settlements/preview`, data))
+            .previewToken,
+        },
+        version,
+      );
+    const cash = {
+      participantId: participant,
+      receivingAccountId: account,
+      transactionDate: "2026-10-22",
+    };
+    await settle({ ...cash, amount: money("20.00") });
+    const origin = await settle(
+      { ...cash, amount: money("100.00"), excessDisposition: "retainCredit" },
+      "2",
+    );
+    const returnCredit = (amount: string) =>
+      settle(
+        {
+          kind: "creditReturn",
+          participantId: participant,
+          payingAccountId: account,
+          transactionDate: "2026-10-29",
+          amount: money(amount),
+        },
+        "8",
+      );
+    const returnId = await returnCredit("15.00");
+    const path = `${base}/settlements/${returnId}`;
+    const returnBefore = await read(request, path);
+    const advanceCorrection = kind === "Advance";
+    const target = advanceCorrection
+      ? `${base}/advances/${advance}/corrections`
+      : `${base}/settlements/${origin}/corrections`;
+    const correctionEndpoint = advanceCorrection
+      ? "/advance-corrections"
+      : "/settlement-corrections";
+    const errors: string[] = [];
+    const submissions: string[] = [];
+    let stale = false;
+    let committed = false;
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("console", (message) => {
+      if (
+        message.type() === "error" &&
+        !(
+          stale &&
+          message.location().url.endsWith(correctionEndpoint) &&
+          message.text() ===
+            "Failed to load resource: the server responded with a status of 409 (Conflict)"
+        )
+      )
+        errors.push(message.text());
+    });
+    await context.route("**/api/**", async (route) => {
+      const url = new URL(route.request().url());
+      const response = await route.fetch({
+        url: `${backend}${url.pathname}${url.search}`,
+      });
+      if (
+        route.request().method() === "POST" &&
+        url.pathname.endsWith(correctionEndpoint)
+      ) {
+        submissions.push(route.request().headers()["idempotency-key"]!);
+        if (response.status() === 409) stale = true;
+        if (response.status() === 201) {
+          expect(await read(request, target)).toHaveLength(1);
+          await route.fulfill({ status: 201, json: {} });
+          committed = true;
+          return;
+        }
+      }
+      await route.fulfill({ response });
+    });
+
+    await page.goto(
+      advanceCorrection
+        ? `/finance/advances?ledger=${ledger}&advance_id=${advance}`
+        : `/finance/repayments?ledger=${ledger}&participant_id=${participant}&settlement_id=${origin}`,
+    );
+    const title = advanceCorrection
+      ? "Correct Advance"
+      : "Correct cash repayment";
+    const trigger = page.getByRole("button", { name: title, exact: true });
+    await expect(trigger).toBeEnabled();
+    await trigger.press("Enter");
+    const dialog = page.getByRole("dialog", { name: title });
+    const reason = dialog.getByLabel("Reason", { exact: true });
+    await expect(reason).toBeFocused();
+    await reason.fill("Correct the recorded original amount");
+    if (advanceCorrection) {
+      await dialog.getByLabel("Owner share").fill("10.00");
+      await dialog.getByLabel("Participant 1 share").fill("90.00");
+    } else {
+      await dialog.getByLabel("Corrected cash receipt").fill("90.00");
+      await dialog
+        .getByLabel("Excess disposition")
+        .selectOption("retainCredit");
+    }
+    const previewButton = dialog.getByRole("button", {
+      name: "Preview Correction",
+    });
+    const confirmButton = dialog.getByRole("button", {
+      name: "Confirm Correction",
+    });
+    await previewButton.click();
+    await expect(confirmButton).toBeFocused();
+    await expect(
+      dialog.getByRole("link", { name: /Return of 15.00 CNY/ }),
+    ).toBeVisible();
+    const secondReturn = await returnCredit("5.00");
+    const secondPath = `${base}/settlements/${secondReturn}`;
+    const secondBefore = await read(request, secondPath);
+    await confirmButton.press("Enter");
+    await expect(
+      dialog.getByText(/The original Correction was rejected/),
+    ).toBeVisible();
+    await expect(confirmButton).toHaveCount(0);
+    expect(await read(request, target)).toEqual([]);
+
+    await previewButton.click();
+    await expect(confirmButton).toBeFocused();
+    await expect(
+      dialog.getByRole("link", { name: /Return of 5.00 CNY/ }),
+    ).toBeVisible();
+    if (advanceCorrection) {
+      await expect(
+        dialog.getByRole("region", {
+          name: "Credit origin with actual returns",
+        }),
+      ).toContainText("Available Credit 0.00 CNY → 10.00 CNY");
+    } else {
+      await expect(
+        dialog.getByRole("region", {
+          name: "Credit applications and actual returns",
+        }),
+      ).toContainText(
+        "Reduce direct cash Allocations by 10.00 CNY to preserve the actual returns",
+      );
+    }
+    expect(
+      (
+        await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+          .analyze()
+      ).violations,
+    ).toEqual([]);
+
+    await confirmButton.press("Enter");
+    await expect(
+      dialog.getByText(/The original command is retained/),
+    ).toBeVisible();
+    await expect.poll(() => committed).toBe(true);
+    await page.reload();
+    const history = page.getByRole("region", {
+      name: advanceCorrection
+        ? "Advance Correction history"
+        : "Cash repayment Correction history",
+    });
+    await expect(
+      history.getByRole("link", { name: /Return of 5.00 CNY/ }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "Finance submission recovery" }),
+    ).toContainText(/Correction (is confirmed|created)/);
+    expect(new Set(submissions).size).toBe(2);
+    expect(await read(request, target)).toHaveLength(1);
+    expect(await read(request, path)).toEqual(returnBefore);
+    expect(await read(request, secondPath)).toEqual(secondBefore);
+    const [position] = await read(
+      request,
+      `${base}/participants/${participant}/positions`,
+    );
+    expect(position.outstandingReceivables).toEqual(
+      money(advanceCorrection ? "0.00" : "10.00"),
+    );
+    expect(position.availableCredits).toEqual(
+      money(advanceCorrection ? "10.00" : "0.00"),
+    );
+    expect(errors).toEqual([]);
+  });
+}
+
+test("shows direct cash released and zero remaining debt when forgiveness is corrected", async ({
+  page,
+  context,
+  request,
+}) => {
+  const { ledger, base, account, participant, obligation, create, preview } =
+    await seedAdvance(request, "Returned Credit with forgiveness", "40.00");
+  const confirm = async (resource: string, data: object, version: string) => {
+    const path = `${base}/${resource}`;
+    const plan = await preview(`${path}/preview`, data);
+    return create(path, { ...data, previewToken: plan.previewToken }, version);
+  };
+  const origin = await confirm(
+    "settlements",
+    {
+      kind: "combined",
+      participantId: participant,
+      receivingAccountId: account,
+      transactionDate: "2026-10-22",
+      amount: money("30.00"),
+      forgivenessAmount: money("5.00"),
+      selectedObligationIds: [obligation],
+      reason: "Recorded original forgiveness",
+    },
+    "6",
+  );
+  await confirm(
+    "settlement-corrections",
+    {
+      settlementId: origin,
+      amount: money("60.00"),
+      forgivenessAmount: money("0.00"),
+      excessDisposition: "retainCredit",
+      categoryId: null,
+      reason: "Restate original receipt with retained Credit",
+    },
+    "2",
+  );
+  const returned = await confirm(
+    "settlements",
+    {
+      kind: "creditReturn",
+      participantId: participant,
+      payingAccountId: account,
+      transactionDate: "2026-10-29",
+      amount: money("20.00"),
+    },
+    "8",
+  );
+  const returnPath = `${base}/settlements/${returned}`;
+  const actualReturn = await read(request, returnPath);
+  const errors = await proxyBackend(page, context);
+  await page.goto(
+    `/finance/repayments?ledger=${ledger}&participant_id=${participant}&settlement_id=${origin}`,
+  );
+  await page
+    .getByRole("button", { name: "Correct combined Settlement" })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Correct combined Settlement",
+  });
+  await dialog
+    .getByLabel("Reason", { exact: true })
+    .fill("Correct cash and forgiveness");
+  await dialog.getByLabel("Corrected cash receipt").fill("50.00");
+  await dialog.getByLabel("Corrected forgiveness").fill("10.00");
+  const disposition = dialog.getByLabel("Excess disposition");
+  await disposition.selectOption("none");
+  await dialog.getByRole("button", { name: "Preview Correction" }).click();
+
+  async function expectConsequences(container: ReturnType<Page["getByRole"]>) {
+    const lifecycle = container.getByRole("region", {
+      name: "Credit applications and actual returns",
+    });
+    await expect(
+      lifecycle.getByText(
+        "Reduce direct cash Allocations by 10.00 CNY to preserve the actual returns.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(
+      lifecycle.getByRole("link", { name: /Return of 20.00 CNY/ }),
+    ).toBeVisible();
+    const after = container.getByRole("region", {
+      name: "After Settlement facts",
+    });
+    await expect(after.getByText(/Principal 40.00 CNY/)).toContainText(
+      "Cash paid 30.00 CNY · Forgiven 10.00 CNY · Credit applied 0.00 CNY · Remaining 0.00 CNY",
+    );
+    await expect(
+      container.getByText("Excess disposition No uncommitted excess"),
+    ).toBeVisible();
+  }
+
+  await expectConsequences(dialog);
+  await expect(
+    disposition.getByRole("option", { name: "No uncommitted excess" }),
+  ).toBeAttached();
+  await dialog.getByRole("button", { name: "Confirm Correction" }).click();
+  await expect(dialog).toBeHidden();
+  await expectConsequences(
+    page.getByRole("region", { name: "Settlement Correction revision 2" }),
+  );
+  expect(await read(request, returnPath)).toEqual(actualReturn);
+  expect(errors).toEqual([]);
+});
 
 test("real backend and browser show accepted Income and released Credit on one receipt", async ({
   page,

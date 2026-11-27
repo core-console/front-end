@@ -95,6 +95,9 @@ async function openCorrection() {
 }
 it("reviews authoritative reverse-order release without forgiveness and confirms retained history", async () => {
   const { user, dialog } = await openCorrection();
+  expect(
+    within(dialog).getByRole("option", { name: "No uncommitted excess" }),
+  ).toHaveProperty("selected", true);
   await user.click(
     within(dialog).getByRole("button", { name: "Preview Correction" }),
   );

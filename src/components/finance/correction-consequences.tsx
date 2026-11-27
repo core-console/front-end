@@ -5,6 +5,7 @@ import type {
   AdvanceCorrectionPreview,
 } from "@/api/generated/schemas";
 import { advanceObligations } from "./advance-source";
+import { CorrectionCreditReturns } from "./correction-credit-returns";
 import { formatFinanceMoney as money } from "./finance-money";
 export function CorrectionConsequences({
   plan,
@@ -23,6 +24,13 @@ export function CorrectionConsequences({
     const p = participants.find((p) => p.id === id);
     return p ? `${p.name} (${p.status}) · ${id}` : id;
   };
+  const returnedOrigins = plan.returnedCreditOrigins ?? [];
+  const returnedIds = new Set(
+    returnedOrigins.map((item) => item.origin.settlementId),
+  );
+  const otherApplications = plan.creditApplications?.filter(
+    (item) => !returnedIds.has(item.origin.settlementId),
+  );
   return (
     <div className="flex min-w-0 flex-col gap-3 [overflow-wrap:anywhere]">
       <p>
@@ -157,7 +165,69 @@ export function CorrectionConsequences({
           ))}
         </section>
       ) : null}
-      {plan.creditApplications?.length ? (
+      {returnedOrigins.map((item) => (
+        <section
+          key={item.origin.settlementId}
+          aria-label="Credit origin with actual returns"
+          className="flex flex-col gap-3 rounded-md border p-3"
+        >
+          <h4 className="font-semibold">Credit origin with actual returns</h4>
+          <p>
+            <Link
+              className="underline underline-offset-4"
+              to={`/finance/repayments?ledger=${plan.after.ledgerId}&participant_id=${item.origin.participantId}&settlement_id=${item.origin.settlementId}`}
+            >
+              Receipt of {money(item.receiptAmount)} on{" "}
+              {item.origin.transactionDate}
+            </Link>{" "}
+            · Confirmation order {item.origin.confirmationOrder} · Receiving
+            Account {account(item.origin.receivingAccountId)}
+          </p>
+          <p>
+            Retained Credit {money(item.origin.amount)} →{" "}
+            {money(item.retainedAfter)} · Available Credit{" "}
+            {money(item.origin.available)} → {money(item.availableAfter)}
+          </p>
+          <CorrectionCreditReturns
+            returns={item.returns}
+            ledgerId={plan.after.ledgerId}
+            participantId={item.origin.participantId}
+            accountLabel={account}
+          />
+          {item.applications.length > 0 && (
+            <div>
+              <h5 className="font-semibold">Applications from this receipt</h5>
+              <ol className="flex flex-col gap-2">
+                {item.applications.map((application) => (
+                  <li key={application.applicationTransactionId}>
+                    <Link
+                      className="underline underline-offset-4"
+                      to={`/finance/repayments?ledger=${plan.after.ledgerId}&participant_id=${item.origin.participantId}&settlement_id=${application.settlementId}`}
+                    >
+                      Credit application on {application.transactionDate}
+                    </Link>{" "}
+                    · Confirmation order {application.confirmationOrder} ·
+                    Allocation {application.position} · Obligation{" "}
+                    {application.obligationId}
+                    <p>
+                      Originally applied {money(application.originalApplied)} ·
+                      Effective {money(application.appliedBefore)} →{" "}
+                      {money(application.appliedAfter)} · Restored{" "}
+                      {money(application.released)}
+                    </p>
+                    {application.restatementTransactionId && (
+                      <p>
+                        Internal Transfer {application.restatementTransactionId}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+        </section>
+      ))}
+      {otherApplications?.length ? (
         <section
           aria-label="Applied Credit and original receipts"
           className="flex flex-col gap-3 rounded-md border p-3"
@@ -165,7 +235,7 @@ export function CorrectionConsequences({
           <h4 className="font-semibold">
             Applied Credit and original receipts
           </h4>
-          {plan.creditApplications.map((item) => (
+          {otherApplications.map((item) => (
             <div
               key={`${item.settlementId}:${item.position}`}
               className="flex flex-col gap-1"

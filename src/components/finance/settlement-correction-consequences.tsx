@@ -1,6 +1,7 @@
 import type { SettlementCorrectionPreview } from "@/api/generated/schemas";
 import { formatFinanceMoney as money } from "./finance-money";
 import { Link } from "react-router";
+import { CorrectionCreditReturns } from "./correction-credit-returns";
 
 export function SettlementCorrectionConsequences({
   plan: p,
@@ -11,6 +12,10 @@ export function SettlementCorrectionConsequences({
 }) {
   const forgiveness = !!p.before.forgivenessAmount;
   const credit = p.creditCorrection;
+  const returns = credit?.returns ?? [];
+  const creditHeading = returns.length
+    ? "Credit applications and actual returns"
+    : "Applied credit consequences";
   return (
     <div className="flex min-w-0 flex-col gap-3 [overflow-wrap:anywhere]">
       <p>
@@ -28,10 +33,10 @@ export function SettlementCorrectionConsequences({
       </p>
       {credit && (
         <section
-          aria-label="Applied credit consequences"
+          aria-label={creditHeading}
           className="flex flex-col gap-3 rounded-md border p-3"
         >
-          <h4 className="font-semibold">Applied credit consequences</h4>
+          <h4 className="font-semibold">{creditHeading}</h4>
           <p>
             Credit origin {credit.origin.settlementId} · Confirmation order{" "}
             {credit.origin.confirmationOrder}
@@ -51,7 +56,24 @@ export function SettlementCorrectionConsequences({
             {money(credit.participantPosition.availableCreditBefore)} →{" "}
             {money(credit.participantPosition.availableCreditAfter)}
           </p>
-          <h5 className="font-semibold">Applications from this receipt</h5>
+          {returns.length > 0 && (
+            <CorrectionCreditReturns
+              returns={returns}
+              ledgerId={ledgerId}
+              participantId={p.participantId}
+            />
+          )}
+          {credit.directCashReleasedForReturns &&
+            /[1-9]/.test(credit.directCashReleasedForReturns.amount) && (
+              <p>
+                Reduce direct cash Allocations by{" "}
+                {money(credit.directCashReleasedForReturns)} to preserve the
+                actual returns.
+              </p>
+            )}
+          {credit.applications.length > 0 && (
+            <h5 className="font-semibold">Applications from this receipt</h5>
+          )}
           <ol className="flex flex-col gap-2">
             {credit.applications.map((a) => (
               <li key={a.applicationTransactionId}>
@@ -176,7 +198,14 @@ export function SettlementCorrectionConsequences({
           </p>
         ))}
       </section>
-      {p.receivingAccountId && <p>Excess disposition {p.excessDisposition}</p>}
+      {p.receivingAccountId && (
+        <p>
+          Excess disposition{" "}
+          {p.excessDisposition === "none"
+            ? "No uncommitted excess"
+            : p.excessDisposition}
+        </p>
+      )}
     </div>
   );
 }

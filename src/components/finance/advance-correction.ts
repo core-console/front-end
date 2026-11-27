@@ -32,6 +32,7 @@ import {
   type MoneyResponse,
 } from "@/api/generated/schemas";
 import { advanceObligations } from "./advance-source";
+import { validCorrectionReturns } from "./correction-return-facts";
 import { subtractExactDecimals } from "./finance-decimal";
 export const correctionEqual = (a: string, b: string) =>
   /^0(?:\.0+)?$/.test(subtractExactDecimals(a, b));
@@ -408,9 +409,12 @@ function validPlan(plan: AdvanceCorrectionPreview, ledgerId: string) {
   )
     return false;
   const positions = plan.participantPositions ?? [];
+  const returnedOrigins = plan.returnedCreditOrigins ?? [];
   if (
     positions.length !==
-      (applications.length ? plan.after.obligations.length : 0) ||
+      (applications.length || returnedOrigins.length
+        ? plan.after.obligations.length
+        : 0) ||
     !unique(positions.map((p) => p.participantId)) ||
     !positions.every((p) => {
       const after = plan.after.obligations.find(
@@ -451,6 +455,61 @@ function validPlan(plan: AdvanceCorrectionPreview, ledgerId: string) {
         )
       );
     })
+  )
+    return false;
+  if (
+    !unique(returnedOrigins.map(({ origin }) => origin.settlementId)) ||
+    !returnedOrigins.every(
+      ({
+        origin,
+        receiptAmount,
+        retainedAfter,
+        availableAfter,
+        returns,
+        applications,
+      }) => {
+        if (
+          !origin.hasReturnedCredit ||
+          origin.ledgerId !== ledgerId ||
+          !identities.some((o) => o.participantId === origin.participantId) ||
+          !returns.length ||
+          !validCorrectionReturns(returns, origin, unit) ||
+          ![
+            receiptAmount,
+            retainedAfter,
+            availableAfter,
+            origin.amount,
+            origin.available,
+            ...applications.flatMap((a) => [
+              a.originalApplied,
+              a.appliedBefore,
+              a.appliedAfter,
+              a.released,
+            ]),
+          ].every((m) => money(m, true))
+        )
+          return false;
+        const returned = returns.map((item) => item.originAmount.amount);
+        return (
+          correctionEqual(
+            origin.amount.amount,
+            sum([
+              origin.available.amount,
+              ...returned,
+              ...applications.map((a) => a.appliedBefore.amount),
+            ]),
+          ) &&
+          correctionEqual(
+            retainedAfter.amount,
+            sum([
+              availableAfter.amount,
+              ...returned,
+              ...applications.map((a) => a.appliedAfter.amount),
+            ]),
+          )
+        );
+      },
+    )
   )
     return false;
   const delta = new Map<string, string>();

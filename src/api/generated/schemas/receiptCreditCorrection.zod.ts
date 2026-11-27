@@ -49,6 +49,17 @@ export const ReceiptCreditCorrection = zod.strictObject({
       currency: zod.enum(["CNY", "JPY", "USD"]),
     })
     .describe("Closed public projection of exact Finance Money."),
+  directCashReleasedForReturns: zod
+    .union([
+      zod
+        .strictObject({
+          amount: zod.string(),
+          currency: zod.enum(["CNY", "JPY", "USD"]),
+        })
+        .describe("Closed public projection of exact Finance Money."),
+      zod.null(),
+    ])
+    .optional(),
   origin: zod.strictObject({
     amount: zod
       .strictObject({
@@ -100,6 +111,30 @@ export const ReceiptCreditCorrection = zod.strictObject({
       .describe("Closed public projection of exact Finance Money."),
     participantId: zod.uuid(),
   }),
+  returns: zod
+    .array(
+      zod.strictObject({
+        confirmationOrder: zod.int(),
+        originAmount: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        payingAccountId: zod.uuid(),
+        position: zod.int(),
+        returnAmount: zod
+          .strictObject({
+            amount: zod.string(),
+            currency: zod.enum(["CNY", "JPY", "USD"]),
+          })
+          .describe("Closed public projection of exact Finance Money."),
+        settlementId: zod.uuid(),
+        transactionDate: zod.iso.date(),
+        transactionId: zod.uuid(),
+      }),
+    )
+    .optional(),
 });
 
 export type ReceiptCreditCorrection = zod.input<typeof ReceiptCreditCorrection>;

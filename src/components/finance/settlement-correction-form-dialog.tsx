@@ -327,7 +327,7 @@ export function SettlementCorrectionFormDialog({
                     }}
                   >
                     <NativeSelectOption value="none">
-                      None — all corrected cash resolves retained debt
+                      No uncommitted excess
                     </NativeSelectOption>
                     <NativeSelectOption value="retainCredit">
                       Retain excess as Participant credit

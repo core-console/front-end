@@ -9,6 +9,7 @@ import {
 import { usePreviewFinanceAdvanceCorrection } from "@/api/generated/core-console";
 import {
   FinanceRequestDate,
+  ProblemDetails,
   type AccountResponse,
   type ParticipantResponse,
   type AdvanceCorrectionPreview,
@@ -25,6 +26,7 @@ import { subtractExactDecimals } from "./finance-decimal";
 import { CorrectionConsequences } from "./correction-consequences";
 import { useFinanceSubmissions } from "./finance-submission-context";
 import { useFinanceCreate } from "./use-finance-create";
+import { errorBody } from "./submission-evidence";
 import { buildAccountWorkflowLabels } from "./account-identity";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -222,10 +224,11 @@ export function AdvanceCorrectionFormDialog({
       const plan = parseCorrectionPreview(response.data, ledgerId, draft);
       if (active.current && journal.isCurrentNamespace())
         setReview({ draft, plan });
-    } catch {
+    } catch (error) {
       if (active.current && journal.isCurrentNamespace())
         setError(
-          "Correction preview is unavailable or ineligible. Applied or returned Credit, or changing dates or attribution after Settlement, may require a separate Correction. Check the facts, refresh dependencies and request a complete preview. Your draft is preserved. Nothing was confirmed.",
+          ProblemDetails.safeParse(errorBody(error)).data?.detail ??
+            "Correction preview is unavailable. Check the facts, refresh dependencies and request a complete preview. Your draft is preserved.",
         );
     }
   }

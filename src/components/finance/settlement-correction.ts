@@ -7,6 +7,7 @@ import {
   type MoneyResponse,
 } from "@/api/generated/schemas";
 import { correctionEqual as equal, correctionText } from "./advance-correction";
+import { validCorrectionReturns } from "./correction-return-facts";
 import { subtractExactDecimals as subtract } from "./finance-decimal";
 import type { SettlementSource } from "./settlement-source";
 
@@ -38,6 +39,8 @@ function validCreditCorrection(
   const credit = p.creditCorrection;
   if (!credit) return true;
   const { origin, applications, participantPosition } = credit;
+  const returns = credit.returns ?? [];
+  const directCash = credit.directCashReleasedForReturns;
   if (
     origin.ledgerId !== ledgerId ||
     origin.settlementId !== p.settlementId ||
@@ -46,9 +49,11 @@ function validCreditCorrection(
     origin.confirmationOrder !== p.confirmationOrder ||
     origin.transactionDate !== p.transactionDate ||
     origin.confirmedAt !== p.originalConfirmedAt ||
-    origin.hasReturnedCredit ||
+    Boolean(origin.hasReturnedCredit) !== returns.length > 0 ||
+    returns.length > 0 !== Boolean(directCash) ||
     participantPosition.participantId !== p.participantId ||
-    applications.length === 0
+    (applications.length === 0 && returns.length === 0) ||
+    !validCorrectionReturns(returns, origin, p.before.amount.currency)
   )
     return false;
   const monies = [
@@ -59,6 +64,7 @@ function validCreditCorrection(
     participantPosition.outstandingReceivablesAfter,
     participantPosition.availableCreditBefore,
     participantPosition.availableCreditAfter,
+    ...(directCash ? [directCash] : []),
     ...applications.flatMap((a) => [
       a.originalApplied,
       a.appliedBefore,
@@ -107,20 +113,21 @@ function validCreditCorrection(
       sum([releases.get(a.obligationId) ?? "0", a.released.amount]),
     );
   }
+  const returned = returns.map((r) => r.originAmount.amount);
   return (
     equal(origin.amount.amount, p.before.retainedCredit.amount) &&
     equal(
       origin.available.amount,
       subtract(
         origin.amount.amount,
-        sum(applications.map((a) => a.appliedBefore.amount)),
+        sum([...returned, ...applications.map((a) => a.appliedBefore.amount)]),
       ),
     ) &&
     equal(
       credit.availableAfter.amount,
       subtract(
         p.after.retainedCredit.amount,
-        sum(applications.map((a) => a.appliedAfter.amount)),
+        sum([...returned, ...applications.map((a) => a.appliedAfter.amount)]),
       ),
     ) &&
     [...releases].every(([id, released]) =>
